@@ -2,10 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .btn { @apply rounded border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm hover:bg-slate-700 disabled:opacity-50; }
-  .btn-primary { @apply rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50; }
-  .btn-danger { @apply rounded bg-red-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-red-500; }
-  .input { @apply rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm; }
-  .card { @apply rounded-lg border border-slate-800 bg-slate-900 p-4; }
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; }
+  body { overflow-x: hidden; }
 }
+
+@layer components {
+  /* >=44px tap targets and 16px inputs on phones (16px stops iOS zooming into fields) */
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded border border-slate-600 bg-slate-800 px-4 py-2 text-sm transition active:scale-95 hover:bg-slate-700 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5; }
+  .btn-primary { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition active:scale-95 hover:bg-emerald-500 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5; }
+  .btn-danger { @apply inline-flex min-h-[40px] items-center justify-center rounded bg-red-600 px-3 py-1.5 text-sm font-bold text-white transition active:scale-95 hover:bg-red-500 disabled:opacity-60; }
+  .input { @apply min-h-[44px] max-w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-base sm:min-h-0 sm:px-2 sm:py-1.5 sm:text-sm; }
+  .card { @apply rounded-lg border border-slate-800 bg-slate-900 p-3 sm:p-4; }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.toast-in { animation: toast-in 0.18s ease-out; }
+.spinner { width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

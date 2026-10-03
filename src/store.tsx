@@ -44,7 +44,16 @@ interface Store {
   emailSignal: (s: Signal) => Promise<void>;
   copySignal: (s: Signal) => Promise<void>;
   dismissSignal: (s: Signal) => void;
+  sending: string[];
+  toasts: Toast[];
+  dismissToast: (id: string) => void;
   reviewSignal: (s: Signal) => Promise<Review | null>;
+}
+
+export interface Toast {
+  id: string;
+  kind: 'success' | 'error' | 'warn' | 'info';
+  msg: string;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -69,6 +78,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState(false);
   const [lastPoll, setLastPoll] = useState('');
   const [polling, setPolling] = useState(false);
+  const [sending, setSending] = useState<string[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const [modal, setModal] = useState<{ reason: string; resolve: (ok: boolean) => void } | null>(null);
 
   const ref = useRef({ settings, watchlist, signals, unlocked, headlines });
@@ -88,6 +99,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const log = useCallback((level: LogEntry['level'], msg: string) => {
     setLogs((l) => [{ id: uid(), ts: nowIso(), level, msg }, ...l].slice(0, 300));
   }, []);
+
+  const dismissToast = useCallback((id: string) => setToasts((t) => t.filter((x) => x.id !== id)), []);
+  const toast = useCallback((kind: Toast['kind'], msg: string) => {
+    const id = uid();
+    setToasts((t) => [...t.slice(-3), { id, kind, msg }]);
+    setTimeout(() => dismissToast(id), kind === 'error' ? 8000 : 4000);
+  }, [dismissToast]);
 
   const update = useCallback((patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch })), []);
   const setWatchlist = useCallback((w: string[]) => setWatchlistState(w), []);
@@ -225,19 +243,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const emailSignal = useCallback(async (sig: Signal, auto = false) => {
     const { settings: s } = ref.current;
-    if (s.stopped) return log('warn', 'Panic Stop is engaged; email not sent.');
+    // Manual clicks always get on-screen feedback; automatic sends only write to the log.
+    const say = (level: LogEntry['level'], msg: string) => {
+      log(level, msg);
+      if (!auto) toast(level === 'error' ? 'error' : 'warn', msg);
+    };
+    if (s.stopped) return say('warn', 'Panic Stop is on. Email not sent.');
     // Re-read the latest copy: the review may have completed after this object was captured.
     const current = ref.current.signals.find((x) => x.id === sig.id) ?? sig;
     if (s.useAiReview) {
-      if (current.review?.verdict === 'REJECT') return log('error', `Email blocked: AI review REJECTED ${sig.side} ${sig.symbol}.`);
+      if (current.review?.verdict === 'REJECT') return say('error', `Email blocked: the AI said do not ${sig.side} ${sig.symbol}.`);
       if (auto && current.review?.verdict !== 'APPROVE') return log('warn', `Auto-email for ${sig.symbol} skipped: needs AI verdict APPROVE (got ${current.review?.verdict ?? 'none'}).`);
-      if (!auto && current.reviewStatus === 'pending') return log('warn', 'AI review still running; try again in a moment.');
+      if (!auto && current.reviewStatus === 'pending') return say('warn', 'AI review is still running. Try again in a moment.');
       if (!auto && current.review?.verdict !== 'APPROVE') log('warn', `Emailing ${sig.symbol} without AI approval (${current.review?.verdict ?? 'no review'}).`);
     }
     if (!ref.current.unlocked) {
       if (auto) return log('warn', `Auto-email for ${sig.symbol} skipped: session is locked (passphrase required).`);
-      if (!hasPass()) return log('error', 'Set a passphrase in Settings before sending emails.');
-      if (!(await requestUnlock(`Confirm emailing ${sig.side} ${sig.symbol}.`))) return;
+      if (!hasPass()) return say('error', 'Set a passphrase in Settings before sending emails.');
+      if (!(await requestUnlock(`Confirm emailing ${sig.side} ${sig.symbol}.`))) return toast('info', 'Cancelled. No email sent.');
     }
     if (auto) {
       const cutoff = Date.now() - 3600_000;
@@ -246,20 +269,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       autoSent.current.push(Date.now());
     }
     const plan = planOrder(s.limits[sig.symbol]);
-    if (s.mockMode) {
-      log('info', `[MOCK] Email would be sent to ${s.toEmail || '(no recipient)'}:\n${formatInstruction(current, plan)}`);
-      addHistory(sig, 'email-simulated', 'pending', 'Simulated in mock mode');
-      return setSignalStatus(sig.id, 'emailed');
-    }
+    const label = `${sig.side} ${current.qty} ${sig.symbol}`;
+    setSending((l) => [...l, sig.id]);
     try {
+      if (s.mockMode) {
+        await new Promise((r) => setTimeout(r, 600)); // let the "Sending…" state be visible in demo mode
+        log('info', `[MOCK] Email would be sent to ${s.toEmail || '(no recipient)'}:\n${formatInstruction(current, plan)}`);
+        addHistory(sig, 'email-simulated', 'pending', 'Simulated in mock mode');
+        setSignalStatus(sig.id, 'emailed');
+        if (!auto) toast('success', `Demo: email simulated for ${label}`);
+        return;
+      }
       await sendTradeEmail(current, plan, s.toEmail);
-      log('info', `Email sent: ${sig.side} ${sig.qty} ${sig.symbol}`);
+      log('info', `Email sent: ${label}`);
       addHistory(sig, 'email', 'pending');
       setSignalStatus(sig.id, 'emailed');
+      toast('success', `Email sent: ${label}`);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : JSON.stringify(e);
-      log('error', `Email failed for ${sig.symbol}: ${msg}`);
-      addHistory(sig, 'email', 'failed', msg);
+      const raw = e instanceof Error ? e.message : (e as { text?: string })?.text ?? JSON.stringify(e);
+      log('error', `Email failed for ${sig.symbol}: ${raw}`);
+      addHistory(sig, 'email', 'failed', raw);
+      toast('error', `Email FAILED for ${label}: ${raw}`);
+    } finally {
+      setSending((l) => l.filter((x) => x !== sig.id));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [log, requestUnlock]);
@@ -269,8 +301,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       await navigator.clipboard.writeText(text);
       log('info', `Instruction copied for ${sig.symbol}`);
+      toast('success', `Copied ${sig.side} ${sig.symbol} instructions`);
     } catch {
       log('warn', 'Clipboard unavailable; instruction shown in Logs.\n' + text);
+      toast('warn', 'Could not copy. The text is in the Logs tab.');
     }
     addHistory(sig, 'copy', 'pending', 'Manual execution in Fidelity');
     setSignalStatus(sig.id, 'copied');
@@ -362,7 +396,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     settings, update, watchlist, setWatchlist, signals, history, setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, goLive, goMock, setAutoEmail, setUseMcp, panic, resume,
-    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, reviewSignal: (s) => reviewSignal(s),
+    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s),
   };
   return (
     <Ctx.Provider value={value}>

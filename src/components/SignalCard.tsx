@@ -6,7 +6,8 @@ const VERDICT_TEXT = { APPROVE: 'AI agrees', CAUTION: 'AI unsure', REJECT: 'AI s
 const VERDICT = { APPROVE: 'bg-emerald-800 text-emerald-100', CAUTION: 'bg-amber-700 text-amber-100', REJECT: 'bg-red-800 text-red-100' } as const;
 
 export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolean }) {
-  const { emailSignal, copySignal, dismissSignal, reviewSignal, settings } = useStore();
+  const { emailSignal, copySignal, dismissSignal, reviewSignal, settings, sending } = useStore();
+  const isSending = sending.includes(s.id);
   const buy = s.side === 'BUY';
   const done = s.status === 'dismissed';
   const rejected = settings.useAiReview && s.review?.verdict === 'REJECT';
@@ -51,9 +52,16 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
       )}
       {s.reviewStatus === 'error' && <p className="mt-2 text-xs text-red-400">AI review failed: {s.reviewError}. Auto-email is blocked until a review succeeds.</p>}
       {!compact && !done && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button className="btn" disabled={rejected || s.reviewStatus === 'pending'} title={rejected ? 'Blocked: AI review REJECTED this trade' : ''} onClick={() => void emailSignal(s)}>Email</button>
-          <button className="btn" onClick={() => void copySignal(s)}>Copy</button>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <button
+            className={s.status === 'emailed' && !isSending ? 'btn border-emerald-600 text-emerald-300' : 'btn-primary'}
+            disabled={rejected || isSending || s.reviewStatus === 'pending'}
+            title={rejected ? 'Blocked: the AI said do not trade this' : ''}
+            onClick={() => void emailSignal(s)}
+          >
+            {isSending ? <><span className="spinner" /> Sending…</> : s.status === 'emailed' ? '✓ Emailed · again' : 'Email'}
+          </button>
+          <button className="btn" onClick={() => void copySignal(s)}>{s.status === 'copied' ? '✓ Copied' : 'Copy'}</button>
           {settings.useAiReview && <button className="btn" disabled={s.reviewStatus === 'pending'} onClick={() => void reviewSignal(s)}>{s.review ? 'Re-review' : 'AI review'}</button>}
           <button className="btn" onClick={() => dismissSignal(s)}>Dismiss</button>
         </div>

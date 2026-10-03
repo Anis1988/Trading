@@ -1,38 +1,60 @@
 import { useState } from 'react';
 import { useStore } from './store';
 import { Disclaimer } from './components/Disclaimer';
+import { Toasts } from './components/Toasts';
 import { Dashboard } from './pages/Dashboard';
 import { SignalCenter } from './pages/SignalCenter';
 import { Settings } from './pages/Settings';
 import { History } from './pages/History';
 import { Logs } from './pages/Logs';
 
-const TABS = ['Dashboard', 'Signals', 'History', 'Logs', 'Settings'] as const;
-type Tab = (typeof TABS)[number];
+const TABS = [
+  ['Dashboard', '🏠'],
+  ['Signals', '📈'],
+  ['History', '🧾'],
+  ['Logs', '📋'],
+  ['Settings', '⚙️'],
+] as const;
+type Tab = (typeof TABS)[number][0];
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('Dashboard');
-  const { panic, settings } = useStore();
+  const { panic, settings, signals } = useStore();
+  const newCount = signals.filter((s) => s.status === 'new').length;
   return (
     <div className="min-h-screen">
+      <Toasts />
       <Disclaimer />
-      <header className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-4 py-2">
-        <h1 className="mr-2 font-bold">Trading Assistant</h1>
-        <nav className="flex flex-wrap gap-1">
-          {TABS.map((t) => (
+      <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 sm:px-4">
+        <h1 className="mr-1 text-sm font-bold sm:text-base">Trading Assistant</h1>
+        {/* Desktop/tablet tabs; phones use the bottom bar */}
+        <nav className="hidden flex-wrap gap-1 sm:flex">
+          {TABS.map(([t]) => (
             <button key={t} onClick={() => setTab(t)} className={`rounded px-3 py-1 text-sm ${tab === t ? 'bg-slate-700' : 'hover:bg-slate-800'}`}>{t}</button>
           ))}
         </nav>
         <span className={`ml-auto rounded px-2 py-0.5 text-xs ${settings.mockMode ? 'bg-sky-900' : 'bg-amber-700'}`}>{settings.mockMode ? 'DEMO' : 'LIVE'}</span>
         <button className="btn-danger" onClick={panic} disabled={settings.stopped}>{settings.stopped ? 'STOPPED' : 'PANIC STOP'}</button>
       </header>
-      <main className="mx-auto max-w-6xl p-4">
+      <main className="mx-auto max-w-6xl p-3 pb-28 sm:p-4 sm:pb-6">
         {tab === 'Dashboard' && <Dashboard />}
         {tab === 'Signals' && <SignalCenter />}
         {tab === 'History' && <History />}
         {tab === 'Logs' && <Logs />}
         {tab === 'Settings' && <Settings />}
       </main>
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-800 bg-slate-950/95 sm:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {TABS.map(([t, icon]) => (
+          <button key={t} onClick={() => setTab(t)} className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === t ? 'bg-slate-800 text-white' : 'text-slate-400'}`}>
+            <span className="text-lg leading-none">{icon}</span>
+            {t}
+            {t === 'Signals' && newCount > 0 && <span className="absolute right-3 top-1 rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white">{newCount}</span>}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
