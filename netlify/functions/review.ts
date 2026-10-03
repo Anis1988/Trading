@@ -96,7 +96,9 @@ export default async (req: Request): Promise<Response> => {
     });
   } catch (e) {
     const status = e instanceof Anthropic.APIError ? e.status ?? 502 : 502;
-    console.error('review failed', e instanceof Error ? e.message : e);
-    return json({ error: `AI review failed (${status}).` }, status === 429 ? 429 : 502);
+    // Upstream API error text (never contains the key) so misconfiguration is diagnosable from the UI.
+    const detail = (e instanceof Error ? e.message : String(e)).replace(/sk-ant-[A-Za-z0-9_-]+/g, '[key]').slice(0, 400);
+    console.error('review failed', model, detail);
+    return json({ error: `AI review failed (${status}, model ${model}): ${detail}` }, status === 429 ? 429 : 502);
   }
 };
