@@ -56,7 +56,7 @@ async function req(method: 'GET' | 'PUT', body?: unknown): Promise<{ status: num
   } catch {
     /* not JSON */
   }
-  if (json === null) throw new Error('Sync is only available on Netlify or `npm run dev:full`.');
+  if (json === null) throw new Error(`Sync service not found (HTTP ${res.status}). It only exists on Netlify or with \`npm run dev:full\`; if this is your Netlify site, redeploy the latest code.`);
   return { status: res.status, json };
 }
 

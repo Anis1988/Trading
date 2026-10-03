@@ -36,25 +36,22 @@ export default function App() {
         <span className={`ml-auto rounded px-2 py-0.5 text-xs ${settings.mockMode ? 'bg-sky-900' : 'bg-amber-700'}`}>{settings.mockMode ? 'DEMO' : 'LIVE'}</span>
         <button className="btn-danger" onClick={panic} disabled={settings.stopped}>{settings.stopped ? 'STOPPED' : 'PANIC STOP'}</button>
       </header>
-      <main className="mx-auto max-w-6xl p-3 pb-28 sm:p-4 sm:pb-6">
+      <nav className="sticky top-[52px] z-30 grid grid-cols-5 border-b border-slate-800 bg-slate-950/95 sm:hidden">
+        {TABS.map(([t, icon]) => (
+          <button key={t} onClick={() => setTab(t)} className={`relative flex flex-col items-center gap-0.5 py-1.5 text-[11px] ${tab === t ? 'border-b-2 border-emerald-500 bg-slate-800 text-white' : 'text-slate-400'}`}>
+            <span className="text-base leading-none">{icon}</span>
+            {t}
+            {t === 'Signals' && newCount > 0 && <span className="absolute right-2 top-0.5 rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white">{newCount}</span>}
+          </button>
+        ))}
+      </nav>
+      <main className="mx-auto max-w-6xl p-3 pb-10 sm:p-4 sm:pb-6">
         {tab === 'Dashboard' && <Dashboard />}
         {tab === 'Signals' && <SignalCenter />}
         {tab === 'History' && <History />}
         {tab === 'Logs' && <Logs />}
         {tab === 'Settings' && <Settings />}
       </main>
-      <nav
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-800 bg-slate-950/95 sm:hidden"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        {TABS.map(([t, icon]) => (
-          <button key={t} onClick={() => setTab(t)} className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${tab === t ? 'bg-slate-800 text-white' : 'text-slate-400'}`}>
-            <span className="text-lg leading-none">{icon}</span>
-            {t}
-            {t === 'Signals' && newCount > 0 && <span className="absolute right-3 top-1 rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white">{newCount}</span>}
-          </button>
-        ))}
-      </nav>
     </div>
   );
 }

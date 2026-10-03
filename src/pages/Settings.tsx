@@ -171,7 +171,7 @@ export function Settings() {
         </p>
         <div className="flex flex-wrap gap-2">
           <input className="input w-full sm:w-56" type="password" placeholder="Access token" value={tok} onChange={(e) => setTok(e.target.value)} />
-          <button className="btn-primary" disabled={st.syncStatus === 'syncing'} onClick={() => { setAccessToken(tok.trim()); void st.syncNow(); }}>
+          <button className="btn-primary" disabled={st.syncStatus === 'syncing'} onClick={() => { setAccessToken(tok.trim()); void st.syncNow(true); }}>
             {st.syncStatus === 'syncing' ? <><span className="spinner" /> Syncing…</> : 'Save & sync now'}
           </button>
         </div>

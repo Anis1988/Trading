@@ -19,7 +19,7 @@ interface Stored {
 
 // GET  /api/sync            -> { updatedAt, data } (both null if nothing saved yet)
 // PUT  /api/sync {baseUpdatedAt, data} -> { updatedAt } | 409 { updatedAt, data } when another device saved first
-export default async (req: Request): Promise<Response> => {
+async function handle(req: Request): Promise<Response> {
   const blocked = guard(req, 'sync', 60);
   if (blocked) return blocked;
   // Holdings and history are private: refuse to run without an access token configured.
@@ -44,4 +44,13 @@ export default async (req: Request): Promise<Response> => {
   const next: Stored = { updatedAt: new Date().toISOString(), data: body.data };
   await store.setJSON('state', next);
   return json({ updatedAt: next.updatedAt });
+}
+
+export default async (req: Request): Promise<Response> => {
+  try {
+    return await handle(req);
+  } catch (e) {
+    console.error('sync failed', e instanceof Error ? e.message : e);
+    return json({ error: `Sync storage error: ${(e instanceof Error ? e.message : String(e)).slice(0, 300)}` }, 500);
+  }
 };

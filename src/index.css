@@ -23,3 +23,6 @@
 .toast-in { animation: toast-in 0.18s ease-out; }
 .spinner { width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Hide third-party hosting widgets/badges (e.g. Netlify drawer) that could overlap the UI */
+#netlify-drawer, netlify-drawer, [id^="netlify-"], iframe[src*="netlify"][style*="fixed"] { display: none !important; }

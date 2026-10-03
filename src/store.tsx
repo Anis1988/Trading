@@ -49,7 +49,8 @@ interface Store {
   syncStatus: 'off' | 'syncing' | 'ok' | 'error';
   syncMessage: string;
   lastSync: string;
-  syncNow: () => Promise<void>;
+  syncNow: (manual?: boolean) => Promise<void>;
+  toast: (kind: Toast['kind'], msg: string) => void;
   sending: string[];
   toasts: Toast[];
   dismissToast: (id: string) => void;
@@ -325,9 +326,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const sync = useRef({ at: load<string | null>('ta.syncAt', null), lastJson: '', skipNext: false, busy: false, timer: undefined as ReturnType<typeof setTimeout> | undefined });
   const jsonOf = (d: SyncData) => JSON.stringify(d);
 
-  const syncNow = useCallback(async () => {
+  const syncNow = useCallback(async (manual = false) => {
     const sc = sync.current;
-    if (!getAccessToken()) return setSyncStatus('off');
+    if (!getAccessToken()) {
+      if (manual) toast('error', 'Enter your access token first.');
+      return setSyncStatus('off');
+    }
     if (sc.busy) return;
     sc.busy = true;
     setSyncStatus('syncing');
@@ -383,13 +387,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setLastSync(nowIso());
       setSyncStatus('ok');
       setSyncMessage(fromRemote ? 'Updated from your other device.' : 'Up to date.');
+      if (manual) toast('success', fromRemote ? 'Synced: loaded data from your other device.' : 'Synced: this device is up to date.');
     } catch (e) {
       setSyncStatus('error');
       setSyncMessage(e instanceof Error ? e.message : String(e));
+      if (manual) toast('error', `Sync failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       sc.busy = false;
     }
-  }, []);
+  }, [toast]);
 
   const syncRef = useRef(syncNow);
   syncRef.current = syncNow;
@@ -506,7 +512,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     settings, update, watchlist, setWatchlist, signals, history, setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, goLive, goMock, setAutoEmail, setUseMcp, panic, resume,
-    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s),
+    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s),
   };
   return (
     <Ctx.Provider value={value}>
