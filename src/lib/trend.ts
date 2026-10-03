@@ -20,6 +20,7 @@ export interface Analysis {
   label: TrendLabel;
   idea: string; // plain-words takeaway
   ideaKind: 'buy' | 'wait' | 'hold' | 'sell' | 'avoid';
+  action?: 'SELL' | 'HOLD' | 'BUY MORE'; // only for stocks you own
   closes: number[];
 }
 
@@ -64,24 +65,36 @@ export function analyze(symbol: string, closes: number[], owned?: Holding): Anal
 
   let idea: string;
   let ideaKind: Analysis['ideaKind'];
-  if (score >= 4 && r <= 70) {
+  let action: Analysis['action'];
+  if (owned) {
+    // For a stock you own the question is: sell, hold, or buy more.
+    if (score <= 1) {
+      action = 'SELL'; ideaKind = 'sell'; idea = 'Trend is weak. Think about selling some or all.';
+    } else if (score >= 5 && r <= 65) {
+      action = 'BUY MORE'; ideaKind = 'buy'; idea = 'Strong, steady climb. Adding more is reasonable.';
+    } else if (score >= 4 && r > 70) {
+      action = 'HOLD'; ideaKind = 'hold'; idea = 'Rising fast and looks stretched. Keep holding, but do not add now.';
+    } else {
+      action = 'HOLD'; ideaKind = 'hold'; idea = 'No clear reason to act. Keep holding.';
+    }
+  } else if (score >= 4 && r <= 70) {
     ideaKind = 'buy';
-    idea = owned ? 'Trend is healthy. Hold, or add a little if you want more.' : 'Steady climb and not overheated. Worth a closer look to buy.';
+    idea = 'Steady climb and not overheated. Worth a closer look to buy.';
   } else if (score >= 4) {
     ideaKind = 'wait';
     idea = 'Rising fast and looks stretched. Better to wait for a small dip.';
   } else if (score <= 1) {
-    ideaKind = owned ? 'sell' : 'avoid';
-    idea = owned ? 'Trend is weak. Think about selling some or all.' : 'Trend is weak. Better to stay away for now.';
+    ideaKind = 'avoid';
+    idea = 'Trend is weak. Better to stay away for now.';
   } else {
-    ideaKind = owned ? 'hold' : 'wait';
-    idea = owned ? 'No clear direction. Holding is fine.' : 'No clear direction. Nothing to act on yet.';
+    ideaKind = 'wait';
+    idea = 'No clear direction. Nothing to act on yet.';
   }
   if (r < 30) idea += ' It has dropped a lot lately, so it may bounce, but that is risky.';
 
   return {
     symbol, price: round(price, 2), ret1m: round(ret1m), ret3m: round(ret3m), sma20: round(s20, 2), sma50: round(s50, 2),
-    rsi: round(r, 0), fromHigh: round(((price - high) / high) * 100), score, label, idea, ideaKind, closes,
+    rsi: round(r, 0), fromHigh: round(((price - high) / high) * 100), score, label, idea, ideaKind, action, closes,
   };
 }
 
@@ -103,3 +116,9 @@ export function mockSeries(symbol: string, days = 126): Series {
 }
 
 export const POPULAR = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'AVGO', 'JPM', 'V', 'UNH', 'XOM', 'LLY', 'COST', 'WMT', 'NFLX', 'AMD', 'ORCL', 'KO', 'PEP', 'HD', 'PG', 'MA', 'BAC'];
+
+export const ACTION_STYLE = {
+  SELL: 'bg-red-700 text-white',
+  HOLD: 'bg-slate-600 text-white',
+  'BUY MORE': 'bg-emerald-700 text-white',
+} as const;

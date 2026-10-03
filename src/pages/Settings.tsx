@@ -5,6 +5,8 @@ import { buildBackup, download } from '../lib/storage';
 import type { HistoryItem } from '../types';
 import { cleanSymbol } from '../lib/util';
 import { Logs } from './Logs';
+import { useTrends } from '../lib/useTrends';
+import { ACTION_STYLE } from '../lib/trend';
 import { getAccessToken, setAccessToken } from '../lib/api';
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -26,6 +28,7 @@ export function Settings() {
   const [pass2, setPass2] = useState('');
   const [msg, setMsg] = useState('');
   const file = useRef<HTMLInputElement>(null);
+  const holdTrends = useTrends(s.holdings.map((h) => h.symbol), s);
   const [wSym, setWSym] = useState('');
   const [showLogs, setShowLogs] = useState(false);
   const deployUrl = config.siteName ? `https://app.netlify.com/sites/${config.siteName}/deploys` : 'https://app.netlify.com/';
@@ -163,8 +166,8 @@ export function Settings() {
       <section className="card">
         <h2 className="mb-2 font-semibold">My holdings (what I own in Fidelity)</h2>
         <p className="mb-2 text-xs text-slate-500">
-          Entered by hand and kept in this browser only. The AI review compares each signal with this: it will not let you sell what you do not own,
-          lowers a sell to the shares you have, and shows your profit or loss. Leave empty to skip this check.
+          Typed in by hand (synced to your other devices if sync is on). Each stock shows whether to SELL, HOLD or BUY MORE from its price trend, and it updates with the market.
+          The AI review also uses this list: it will not let you sell what you do not own and lowers a sell to the shares you have.
         </p>
         <div className="mb-2 flex flex-wrap gap-2">
           <input className="input w-24" placeholder="Symbol" value={hSym} onChange={(e) => setHSym(e.target.value)} />
@@ -172,15 +175,40 @@ export function Settings() {
           <input className="input w-28" placeholder="Avg cost $" inputMode="decimal" value={hCost} onChange={(e) => setHCost(e.target.value)} />
           <button className="btn" onClick={addHolding}>Add / update</button>
         </div>
-        <ul className="space-y-1 text-sm">
-          {s.holdings.map((h) => (
-            <li key={h.symbol} className="flex items-center justify-between rounded bg-slate-800 px-2 py-1">
-              <span>{h.symbol} · {h.shares} sh @ ${h.avgCost}</span>
-              <button className="text-slate-400 hover:text-red-400" aria-label={`Remove ${h.symbol}`} onClick={() => update({ holdings: s.holdings.filter((x) => x.symbol !== h.symbol) })}>×</button>
-            </li>
-          ))}
+        <ul className="space-y-2 text-sm">
+          {s.holdings.map((h) => {
+            const t = holdTrends.rows.find((r) => r.symbol === h.symbol);
+            const gain = t ? (t.price - h.avgCost) * h.shares : null;
+            const pl = t && h.avgCost > 0 ? ((t.price - h.avgCost) / h.avgCost) * 100 : null;
+            return (
+              <li key={h.symbol} className="rounded bg-slate-800 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{h.symbol} <span className="font-normal text-slate-400">· {h.shares} sh @ ${h.avgCost}</span></span>
+                  <button className="px-2 text-slate-400 hover:text-red-400" aria-label={`Remove ${h.symbol}`} onClick={() => update({ holdings: s.holdings.filter((x) => x.symbol !== h.symbol) })}>×</button>
+                </div>
+                {t?.action ? (
+                  <div className="mt-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded px-2 py-0.5 text-xs font-bold ${ACTION_STYLE[t.action]}`}>{t.action}</span>
+                      <span className="text-slate-300">${t.price}</span>
+                      {pl !== null && gain !== null && <span className={pl >= 0 ? 'text-emerald-300' : 'text-red-300'}>{pl >= 0 ? '+' : '-'}${Math.abs(gain).toFixed(0)} ({pl >= 0 ? '+' : ''}{pl.toFixed(1)}%)</span>}
+                    </div>
+                    <p className="text-xs text-slate-400">{t.idea}</p>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-slate-500">{holdTrends.loading ? 'Checking…' : 'No price data yet.'}</p>
+                )}
+              </li>
+            );
+          })}
           {!s.holdings.length && <li className="text-xs text-slate-500">None entered.</li>}
         </ul>
+        {s.holdings.length > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <button className="btn" disabled={holdTrends.loading} onClick={() => void holdTrends.reload()}>{holdTrends.loading ? <><span className="spinner" /> Checking…</> : 'Check again'}</button>
+            {holdTrends.updated && <span className="text-xs text-slate-500">Updated {holdTrends.updated}</span>}
+          </div>
+        )}
       </section>
 
       <section className="card">

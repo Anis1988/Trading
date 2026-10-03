@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import { SignalCard } from '../components/SignalCard';
 import { SignalCenter } from './SignalCenter';
 import { useTrends } from '../lib/useTrends';
-import type { Analysis } from '../lib/trend';
+import { ACTION_STYLE, type Analysis } from '../lib/trend';
 
 const IDEA: Record<Analysis['ideaKind'], string> = {
   buy: 'border-emerald-700 text-emerald-200',
@@ -68,6 +68,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings') => void }) {
               <div key={h.symbol} className="card">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-lg font-semibold">{h.symbol}</span>
+                  {a?.action && <span className={`rounded px-2 py-0.5 text-xs font-bold ${ACTION_STYLE[a.action]}`}>{a.action}</span>}
                   {a && <span className={`rounded px-2 py-0.5 text-xs font-bold ${LABEL[a.label]}`}>{a.label}</span>}
                   <span className="ml-auto text-sm text-slate-400">{h.shares} sh · bought ${h.avgCost}</span>
                 </div>
