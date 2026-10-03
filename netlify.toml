@@ -5,6 +5,12 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Local full-stack dev (Vite + functions): npm run dev:full  ->  http://localhost:8888
+[dev]
+  command = "npm run dev"
+  targetPort = 5173
+  framework = "#custom"
+
 # Branch deploy for the `demo` branch: locked to mock mode (no live sources, no real emails).
 [context.demo.environment]
   FORCE_MOCK = "true"

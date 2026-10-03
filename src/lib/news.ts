@@ -1,6 +1,7 @@
 import type { Headline, Settings } from '../types';
 import { config } from './config';
 import { fetchFeed, SourceError } from './rss';
+import { fetchServerHeadlines } from './api';
 
 async function fetchNewsApi(symbol: string): Promise<Headline[]> {
   const url =
@@ -32,6 +33,11 @@ export interface FetchResult {
 
 /** Fetches every enabled source for every symbol. Individual failures are collected, not thrown. */
 export async function fetchAllNews(symbols: string[], s: Settings): Promise<FetchResult> {
+  if (s.useServerFeeds) {
+    const r = await fetchServerHeadlines(symbols);
+    if (!r.headlines.length && r.errors.length) throw new SourceError(r.errors.join(' | '));
+    return r;
+  }
   const tasks: Promise<Headline[]>[] = [];
   for (const sym of symbols) {
     if (s.useNewsApi && config.newsApiKey) tasks.push(fetchNewsApi(sym));

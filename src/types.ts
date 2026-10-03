@@ -10,6 +10,19 @@ export interface Headline {
   symbol?: string; // symbol the item was fetched for
 }
 
+export type Verdict = 'APPROVE' | 'CAUTION' | 'REJECT';
+
+export interface Review {
+  verdict: Verdict;
+  confidence: number;
+  rationale: string;
+  risks: string[];
+  price?: number;
+  changePct?: number;
+  model?: string;
+  simulated?: boolean;
+}
+
 export type SignalSource = 'local' | 'mcp' | 'mock';
 export type SignalStatus = 'new' | 'emailed' | 'copied' | 'dismissed';
 
@@ -25,6 +38,9 @@ export interface Signal {
   source: SignalSource;
   autoEmail?: boolean; // requested by MCP; still gated by passphrase
   headlineUrl?: string;
+  review?: Review;
+  reviewStatus?: 'pending' | 'error';
+  reviewError?: string;
 }
 
 export type HistoryStatus = 'pending' | 'executed' | 'cancelled' | 'failed';
@@ -61,6 +77,8 @@ export interface Settings {
   stopped: boolean; // Panic Stop engaged
   pollIntervalSec: number;
   useNewsApi: boolean;
+  useServerFeeds: boolean; // fetch news via the Netlify function (/api/news) - avoids CORS blocks
+  useAiReview: boolean; // AI second opinion; REJECT blocks emails
   useRss: boolean;
   rssFeeds: string[]; // may contain {SYMBOL}
   corsProxy: string; // e.g. https://example.com/?url={URL}

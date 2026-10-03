@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { Headline, HistoryItem, LogEntry, Settings, Signal } from './types';
+import type { Headline, HistoryItem, LogEntry, Review, Settings, Signal } from './types';
+import { fetchReview, mockReview } from './lib/api';
 import { canGoLive, config, emailConfigured, mcpConfigured } from './lib/config';
 import { KEYS, load, loadSettings, save } from './lib/storage';
 import { fetchAllNews } from './lib/news';
@@ -43,6 +44,7 @@ interface Store {
   emailSignal: (s: Signal) => Promise<void>;
   copySignal: (s: Signal) => Promise<void>;
   dismissSignal: (s: Signal) => void;
+  reviewSignal: (s: Signal) => Promise<Review | null>;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -69,8 +71,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [polling, setPolling] = useState(false);
   const [modal, setModal] = useState<{ reason: string; resolve: (ok: boolean) => void } | null>(null);
 
-  const ref = useRef({ settings, watchlist, signals, unlocked });
-  ref.current = { settings, watchlist, signals, unlocked };
+  const ref = useRef({ settings, watchlist, signals, unlocked, headlines });
+  ref.current = { settings, watchlist, signals, unlocked, headlines };
   const seen = useRef(new Set<string>());
   const unlockTimer = useRef<ReturnType<typeof setTimeout>>();
   const autoSent = useRef<number[]>([]);
@@ -199,9 +201,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ]);
   };
 
+  const patchSignal = (id: string, patch: Partial<Signal>) =>
+    setSignals((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+
+  /** AI second opinion. Never throws; on failure the signal is marked reviewStatus:'error' (not approved). */
+  const reviewSignal = useCallback(async (sig: Signal, context?: Headline[]): Promise<Review | null> => {
+    patchSignal(sig.id, { reviewStatus: 'pending', reviewError: undefined });
+    try {
+      const r = ref.current.settings.mockMode ? mockReview(sig) : await fetchReview(sig, context ?? ref.current.headlines);
+      patchSignal(sig.id, { review: r, reviewStatus: undefined });
+      log(r.verdict === 'REJECT' ? 'warn' : 'info', `AI review ${sig.symbol}: ${r.verdict}${r.simulated ? ' (simulated)' : ''} - ${r.rationale}`);
+      return r;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      patchSignal(sig.id, { reviewStatus: 'error', reviewError: msg });
+      log('error', `AI review failed for ${sig.symbol}: ${msg}`);
+      return null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [log]);
+
   const emailSignal = useCallback(async (sig: Signal, auto = false) => {
     const { settings: s } = ref.current;
     if (s.stopped) return log('warn', 'Panic Stop is engaged; email not sent.');
+    // Re-read the latest copy: the review may have completed after this object was captured.
+    const current = ref.current.signals.find((x) => x.id === sig.id) ?? sig;
+    if (s.useAiReview) {
+      if (current.review?.verdict === 'REJECT') return log('error', `Email blocked: AI review REJECTED ${sig.side} ${sig.symbol}.`);
+      if (auto && current.review?.verdict !== 'APPROVE') return log('warn', `Auto-email for ${sig.symbol} skipped: needs AI verdict APPROVE (got ${current.review?.verdict ?? 'none'}).`);
+      if (!auto && current.reviewStatus === 'pending') return log('warn', 'AI review still running; try again in a moment.');
+      if (!auto && current.review?.verdict !== 'APPROVE') log('warn', `Emailing ${sig.symbol} without AI approval (${current.review?.verdict ?? 'no review'}).`);
+    }
     if (!ref.current.unlocked) {
       if (auto) return log('warn', `Auto-email for ${sig.symbol} skipped: session is locked (passphrase required).`);
       if (!hasPass()) return log('error', 'Set a passphrase in Settings before sending emails.');
@@ -215,12 +245,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     const plan = planOrder(s.limits[sig.symbol]);
     if (s.mockMode) {
-      log('info', `[MOCK] Email would be sent to ${s.toEmail || '(no recipient)'}:\n${formatInstruction(sig, plan)}`);
+      log('info', `[MOCK] Email would be sent to ${s.toEmail || '(no recipient)'}:\n${formatInstruction(current, plan)}`);
       addHistory(sig, 'email-simulated', 'pending', 'Simulated in mock mode');
       return setSignalStatus(sig.id, 'emailed');
     }
     try {
-      await sendTradeEmail(sig, plan, s.toEmail);
+      await sendTradeEmail(current, plan, s.toEmail);
       log('info', `Email sent: ${sig.side} ${sig.qty} ${sig.symbol}`);
       addHistory(sig, 'email', 'pending');
       setSignalStatus(sig.id, 'emailed');
@@ -233,7 +263,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [log, requestUnlock]);
 
   const copySignal = async (sig: Signal) => {
-    const text = formatInstruction(sig, planOrder(ref.current.settings.limits[sig.symbol]));
+    const text = formatInstruction(ref.current.signals.find((x) => x.id === sig.id) ?? sig, planOrder(ref.current.settings.limits[sig.symbol]));
     try {
       await navigator.clipboard.writeText(text);
       log('info', `Instruction copied for ${sig.symbol}`);
@@ -285,15 +315,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
     }
     if (newSignals.length) {
-      setSignals((l) => [...newSignals, ...l]);
+      const aiOn = s.useAiReview;
+      setSignals((l) => [...newSignals.map((n) => (aiOn ? { ...n, reviewStatus: 'pending' as const } : n)), ...l]);
       newSignals.forEach((n) => log('info', `Signal: ${n.side} ${n.symbol} @ ${(n.confidence * 100).toFixed(0)}% (${n.source})`));
+      if (aiOn) await Promise.all(newSignals.map((n) => reviewSignal(n, fresh)));
       for (const n of newSignals) {
         if (ref.current.settings.autoEmail) await emailSignal(n, true);
         else if (n.autoEmail) log('warn', `MCP requested auto-email for ${n.symbol}, ignored because Auto-Email is OFF.`);
       }
     }
     if (mcpFailed) throw mcpFailed; // trigger backoff
-  }, [log, emailSignal]);
+  }, [log, emailSignal, reviewSignal]);
 
   const stopped = settings.stopped;
   const intervalSec = settings.pollIntervalSec;
@@ -326,7 +358,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     settings, update, watchlist, setWatchlist, signals, history, setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, goLive, goMock, setAutoEmail, setUseMcp, panic, resume,
-    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal,
+    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, reviewSignal: (s) => reviewSignal(s),
   };
   return (
     <Ctx.Provider value={value}>

@@ -7,7 +7,8 @@ React + TypeScript + Tailwind SPA, deployed to Netlify from GitHub. It watches n
 ## Features
 - Dashboard, Signal Center, History (CSV export + executed/order-id audit trail), Logs, Settings
 - Poller with exponential backoff + jitter (default 30 s, configurable, min 10 s)
-- Sources: RSS (parsed in browser), NewsAPI, optional MCP (also the route for X/Twitter, which is never fetched in-browser)
+- Sources: **Netlify function `/api/news`** (Yahoo Finance + Google News RSS, optional Finnhub - server-side, so no CORS blocks), browser RSS/NewsAPI as a fallback, optional MCP (also the route for X/Twitter, which is never fetched in-browser)
+- **AI trade review** (`/api/review`, Claude): every signal gets APPROVE / CAUTION / REJECT with rationale, risks and live price context. **REJECT blocks emails**; auto-email requires APPROVE; a failed review never counts as approval
 - Local engine: keyword weights + small sentiment lexicon -> side + confidence (`src/lib/signals.ts`)
 - Optional MCP: POST headlines, receive `{ signals: [{symbol, side, confidence, reason, qty, autoEmail?}] }`
 - EmailJS fallback; **Panic Stop** button; **mock/demo mode is the default**
@@ -18,9 +19,10 @@ Requires Node 20+.
 ```bash
 npm install
 cp .env.example .env     # optional: fill in EMAILJS_SERVICE_ID / EMAILJS_TEMPLATE_ID / EMAILJS_USER_ID
-npm run dev              # open http://localhost:5173
+npm run dev              # UI only, http://localhost:5173 (mock mode works fully)
+npm run dev:full         # UI + Netlify functions, http://localhost:8888 (needed for live news + AI review)
 ```
-It starts in mock mode, so no keys are needed. `.env` is git-ignored; restart `npm run dev` after editing it.
+It starts in mock mode, so no keys are needed (AI review is simulated there). `.env` is git-ignored; restart `npm run dev` after editing it.
 Production check: `npm run build && npm run preview`.
 
 ## 1. GitHub setup
@@ -47,11 +49,20 @@ git checkout -b demo && git push -u origin demo   # optional demo branch
 | `NETLIFY_MCP_API_KEY` | optional | MCP key (also the HMAC key) |
 | `NEWSAPI_KEY` | optional | NewsAPI |
 | `FORCE_MOCK` | optional | `true` locks the build to mock mode |
+| `ANTHROPIC_API_KEY` | for AI review | **Server-only** (functions). Never reaches the browser |
+| `REVIEW_MODEL` | optional | Default `claude-opus-5-5`; set `claude-sonnet-5-5` for faster/cheaper reviews |
+| `FINNHUB_KEY` | optional | **Server-only**. Adds Finnhub company news |
+| `APP_ACCESS_TOKEN` | strongly recommended | **Server-only**. If set, `/api/*` requires it; enter it in Settings -> AI trade review |
+
+The last four are read only by the Netlify functions at runtime and are **not** compiled into the bundle. Set them in Netlify (or `.env` for `npm run dev:full`).
 
 (The spec's optional webhook URL is intentionally not implemented: a client-side webhook would be another public secret.)
 
+### AI review: what it is and isn't
+Claude reads the headlines plus a live quote and returns a verdict. It is a second-opinion filter (stale news, rumours, wrong ticker, already-priced-in moves), not a prediction and not financial advice; it knows nothing about your portfolio. Each review costs a small amount of API credit, so it only runs on signals that already passed the local threshold. Because `/api/review` spends your credits, the functions only accept same-origin requests, are rate-limited per IP, and honour `APP_ACCESS_TOKEN`. **Set `APP_ACCESS_TOKEN`** (or password-protect the site), otherwise anyone who finds your URL can trigger reviews. Netlify sync functions time out after ~10 s by default; if reviews time out, set `REVIEW_MODEL=claude-sonnet-5-5` or raise the function timeout in Netlify.
+
 ### Security note — read this
-Without a backend, **every variable above is compiled into the public JS bundle** and readable by anyone who opens the site.
+Without a backend, **the variables in the first table (`NETLIFY_MCP_*`, `EMAILJS_*`, `NEWSAPI_KEY`) are compiled into the public JS bundle** and readable by anyone who opens the site. The server-only variables (`ANTHROPIC_API_KEY`, `FINNHUB_KEY`, `APP_ACCESS_TOKEN`) are not.
 - EmailJS service/template/public key are designed to be public: restrict them to your Netlify domain and set a low send quota in the EmailJS dashboard.
 - `NETLIFY_MCP_API_KEY` and `NEWSAPI_KEY` are real secrets. Use a dedicated, rate-limited, revocable key; or protect the whole site (Netlify password protection / SSO / Identity); or keep MCP unset. Anyone who can load the site can reuse an embedded key.
 - Do not commit `.env`. Rotate any key you ever pasted into the repo.
@@ -75,6 +86,6 @@ The response must include header `X-MCP-Signature: hex(HMAC-SHA256(body, apiKey)
 - [ ] Review every instruction before placing it in Fidelity; record order id + price in History
 
 ## Known limitations
-- Most RSS feeds and NewsAPI (free plan) block browser CORS. The UI reports this in Logs; use a proxy you trust or MCP.
+- Yahoo/Google can still rate-limit or change their feeds; failures show up in Logs and trigger backoff. Browser-side RSS/NewsAPI (when `Fetch news via Netlify function` is off) is mostly CORS-blocked.
 - Polling only runs while a tab is open. No price data is fetched, so limit prices are user-entered.
 - localStorage is per-browser and not encrypted.

@@ -4,6 +4,7 @@ import { config, emailConfigured, mcpConfigured } from '../lib/config';
 import { buildBackup, download } from '../lib/storage';
 import type { HistoryItem } from '../types';
 import { cleanSymbol } from '../lib/util';
+import { getAccessToken, setAccessToken } from '../lib/api';
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <label className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
@@ -108,6 +109,10 @@ export function Settings() {
 
       <section className="card">
         <h2 className="mb-2 font-semibold">Data sources</h2>
+        <Row label="Fetch news via Netlify function (recommended, avoids CORS blocks)">
+          <input type="checkbox" className="h-4 w-4" checked={s.useServerFeeds} onChange={(e) => update({ useServerFeeds: e.target.checked })} />
+        </Row>
+        <p className="text-xs text-slate-500">Server-side: Yahoo Finance + Google News (+ Finnhub if FINNHUB_KEY is set). Needs Netlify or <code>npm run dev:full</code>. The sources below only apply when this is off.</p>
         <Row label={`NewsAPI (key ${config.newsApiKey ? 'set' : 'missing'})`}>
           <input type="checkbox" className="h-4 w-4" checked={s.useNewsApi} disabled={!config.newsApiKey} onChange={(e) => update({ useNewsApi: e.target.checked })} />
         </Row>
@@ -121,6 +126,20 @@ export function Settings() {
           <input className="input w-full" placeholder="https://your-proxy.example/?url={URL}" value={s.corsProxy} onChange={(e) => update({ corsProxy: e.target.value.trim() })} />
         </Row>
         <p className="text-xs text-amber-300">A proxy sees every request you make. Only use one you control or trust. X/Twitter search is not fetched in-browser; route it through MCP.</p>
+      </section>
+
+      <section className="card">
+        <h2 className="mb-2 font-semibold">AI trade review</h2>
+        <Row label="Ask Claude to review each signal (REJECT blocks emails)">
+          <input type="checkbox" className="h-4 w-4" checked={s.useAiReview} onChange={(e) => update({ useAiReview: e.target.checked })} />
+        </Row>
+        <p className="text-xs text-slate-500">
+          Runs in the <code>/api/review</code> function using ANTHROPIC_API_KEY (never in the browser). With this on: REJECT blocks all emails, auto-email needs APPROVE,
+          and a failed review blocks auto-email. Demo mode uses a simulated review. It is a second opinion, not financial advice.
+        </p>
+        <Row label="Access token (only if APP_ACCESS_TOKEN is set on Netlify; kept for this tab session)">
+          <input className="input w-48" type="password" defaultValue={getAccessToken()} onChange={(e) => setAccessToken(e.target.value)} />
+        </Row>
       </section>
 
       <section className="card">

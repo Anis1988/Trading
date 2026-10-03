@@ -20,6 +20,7 @@ export function formatInstruction(sig: Signal, plan: OrderPlan): string {
     `Order type: ${plan.orderType}${plan.limitPrice ? ` @ ${plan.limitPrice.toFixed(2)}` : ''}`,
     `Reason: ${sig.reason}`,
     `Confidence: ${(sig.confidence * 100).toFixed(0)}%`,
+    ...(sig.review ? [`AI review: ${sig.review.verdict}${sig.review.simulated ? ' (simulated)' : ''} - ${sig.review.rationale}`, ...(sig.review.risks.length ? [`AI risks: ${sig.review.risks.join('; ')}`] : [])] : []),
     `Timestamp: ${sig.createdAt}`,
     '',
     `Place this order manually in your Fidelity account. This app is not a broker and has not placed any order.`,

@@ -8,12 +8,15 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:full": "npx netlify-cli dev"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@emailjs/browser": "^4.4.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
