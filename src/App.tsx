@@ -7,10 +7,12 @@ import { SignalCenter } from './pages/SignalCenter';
 import { Settings } from './pages/Settings';
 import { History } from './pages/History';
 import { Logs } from './pages/Logs';
+import { Trends } from './pages/Trends';
 
 const TABS = [
   ['Dashboard', '🏠'],
   ['Signals', '📈'],
+  ['Trends', '📊'],
   ['History', '🧾'],
   ['Logs', '📋'],
   ['Settings', '⚙️'],
@@ -36,7 +38,7 @@ export default function App() {
         <span className={`ml-auto rounded px-2 py-0.5 text-xs ${settings.mockMode ? 'bg-sky-900' : 'bg-amber-700'}`}>{settings.mockMode ? 'DEMO' : 'LIVE'}</span>
         <button className="btn-danger" onClick={panic} disabled={settings.stopped}>{settings.stopped ? 'STOPPED' : 'PANIC STOP'}</button>
       </header>
-      <nav className="sticky top-[52px] z-30 grid grid-cols-5 border-b border-slate-800 bg-slate-950/95 sm:hidden">
+      <nav className="sticky top-[52px] z-30 grid grid-cols-6 border-b border-slate-800 bg-slate-950/95 sm:hidden">
         {TABS.map(([t, icon]) => (
           <button key={t} onClick={() => setTab(t)} className={`relative flex flex-col items-center gap-0.5 py-1.5 text-[11px] ${tab === t ? 'border-b-2 border-emerald-500 bg-slate-800 text-white' : 'text-slate-400'}`}>
             <span className="text-base leading-none">{icon}</span>
@@ -48,6 +50,7 @@ export default function App() {
       <main className="mx-auto max-w-6xl p-3 pb-10 sm:p-4 sm:pb-6">
         {tab === 'Dashboard' && <Dashboard />}
         {tab === 'Signals' && <SignalCenter />}
+        {tab === 'Trends' && <Trends />}
         {tab === 'History' && <History />}
         {tab === 'Logs' && <Logs />}
         {tab === 'Settings' && <Settings />}

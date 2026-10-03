@@ -99,3 +99,28 @@ export async function yahooQuote(symbol: string): Promise<Quote | null> {
     currency: r.meta.currency,
   };
 }
+
+export interface History {
+  dates: string[]; // YYYY-MM-DD
+  closes: number[];
+  currency?: string;
+}
+
+/** ~6 months of daily closes from Yahoo's chart endpoint (no key). */
+export async function yahooHistory(symbol: string): Promise<History | null> {
+  const res = await get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=6mo&interval=1d`);
+  const j = (await res.json()) as any;
+  const r = j?.chart?.result?.[0];
+  const ts: number[] = r?.timestamp ?? [];
+  const cl: Array<number | null> = r?.indicators?.quote?.[0]?.close ?? [];
+  const dates: string[] = [];
+  const closes: number[] = [];
+  ts.forEach((t, i) => {
+    const c = cl[i];
+    if (typeof c === 'number' && isFinite(c)) {
+      dates.push(new Date(t * 1000).toISOString().slice(0, 10));
+      closes.push(Math.round(c * 100) / 100);
+    }
+  });
+  return closes.length >= 30 ? { dates, closes, currency: r?.meta?.currency } : null;
+}

@@ -58,6 +58,9 @@ The last four are read only by the Netlify functions at runtime and are **not** 
 
 (The spec's optional webhook URL is intentionally not implemented: a client-side webhook would be another public secret.)
 
+### Trends tab
+Shows ~6 months of daily prices (via `/api/trends`, Yahoo, no key) for your watchlist and holdings, or a built-in list of 24 popular large companies. Each card has a chart, 1- and 3-month change, a simple 0-5 trend score (price above 50-day average, 20-day above 50-day, positive 1- and 3-month change, RSI between 40 and 70), a plain-words idea (buy candidate / wait / hold / sell / avoid), and your own profit or loss if you own it. *Ask the AI what to look at* (`/api/recommend`, a few cents per click, never automatic) picks up to 3 BUY and 2 SELL ideas from the table; SELL ideas are limited to stocks you own. It sees only price trends, not news or company financials. It is for ideas, not advice, and nothing here sends emails or places orders.
+
 ### Syncing between your phone and computer
 Browser storage is per device, so the app saves your holdings, watchlist, history and settings to a private Netlify Blobs document through `/api/sync`. Requirements: set `APP_ACCESS_TOKEN` in Netlify (sync refuses to run without it), redeploy, then on **each device** open Settings -> Sync & access, enter the same token and press *Save & sync now*. After that it syncs on open, when you switch back to the tab, and ~1.5 s after each change. History from both devices is merged; for settings, holdings and watchlist the latest save wins. Mock/live mode, Panic Stop, auto-email and MCP are deliberately **not** synced. Signals and logs stay per device. The access token itself is stored only in that device's browser.
 
