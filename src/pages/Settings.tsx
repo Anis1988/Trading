@@ -20,6 +20,7 @@ const Badge = ({ ok }: { ok: boolean }) => (
 export function Settings() {
   const st = useStore();
   const { settings: s, update } = st;
+  const [tok, setTok] = useState(getAccessToken());
   const [pass, setPass] = useState('');
   const [pass2, setPass2] = useState('');
   const [msg, setMsg] = useState('');
@@ -163,6 +164,23 @@ export function Settings() {
       </section>
 
       <section className="card">
+        <h2 className="mb-2 font-semibold">Sync &amp; access</h2>
+        <p className="mb-2 text-xs text-slate-500">
+          Enter the same access token (Netlify variable <code>APP_ACCESS_TOKEN</code>) on every device. Your holdings, watchlist, history and settings are then
+          saved to your private Netlify storage and appear on all devices. Safety switches (mock/live, Panic Stop, auto-email, MCP) stay per device.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input className="input w-full sm:w-56" type="password" placeholder="Access token" value={tok} onChange={(e) => setTok(e.target.value)} />
+          <button className="btn-primary" disabled={st.syncStatus === 'syncing'} onClick={() => { setAccessToken(tok.trim()); void st.syncNow(); }}>
+            {st.syncStatus === 'syncing' ? <><span className="spinner" /> Syncing…</> : 'Save & sync now'}
+          </button>
+        </div>
+        <p className={`mt-2 text-sm ${st.syncStatus === 'error' ? 'text-red-400' : st.syncStatus === 'ok' ? 'text-emerald-400' : 'text-slate-400'}`}>
+          {st.syncStatus === 'off' ? 'Sync is off. Enter your access token.' : st.syncStatus === 'ok' ? `✓ ${st.syncMessage} (${new Date(st.lastSync).toLocaleTimeString()})` : st.syncStatus === 'error' ? `✕ ${st.syncMessage}` : 'Syncing…'}
+        </p>
+      </section>
+
+      <section className="card">
         <h2 className="mb-2 font-semibold">AI trade review</h2>
         <Row label="Ask Claude to review each signal (REJECT blocks emails)">
           <input type="checkbox" className="h-4 w-4" checked={s.useAiReview} onChange={(e) => update({ useAiReview: e.target.checked })} />
@@ -171,9 +189,6 @@ export function Settings() {
           Runs in the <code>/api/review</code> function using ANTHROPIC_API_KEY (never in the browser). With this on: REJECT blocks all emails, auto-email needs APPROVE,
           and a failed review blocks auto-email. Demo mode uses a simulated review. It is a second opinion, not financial advice.
         </p>
-        <Row label="Access token (only if APP_ACCESS_TOKEN is set on Netlify; kept for this tab session)">
-          <input className="input w-48" type="password" defaultValue={getAccessToken()} onChange={(e) => setAccessToken(e.target.value)} />
-        </Row>
       </section>
 
       <section className="card">

@@ -5,7 +5,7 @@ import { cleanSymbol } from '../lib/util';
 import { config } from '../lib/config';
 
 export function Dashboard() {
-  const { watchlist, setWatchlist, headlines, signals, settings, resume, lastPoll, polling, log } = useStore();
+  const { watchlist, setWatchlist, headlines, signals, settings, resume, lastPoll, polling, log, syncStatus } = useStore();
   const [sym, setSym] = useState('');
   const active = signals.filter((s) => s.status === 'new').slice(0, 5);
   const deployUrl = config.siteName ? `https://app.netlify.com/sites/${config.siteName}/deploys` : 'https://app.netlify.com/';
@@ -28,6 +28,7 @@ export function Dashboard() {
             <li>Mode: <b className={settings.mockMode ? 'text-sky-400' : 'text-amber-400'}>{settings.mockMode ? 'MOCK / DEMO' : 'LIVE'}</b></li>
             <li>Polling: {settings.stopped ? <b className="text-red-400">STOPPED (Panic)</b> : polling ? `every ${settings.pollIntervalSec}s` : 'idle'}</li>
             <li>Auto-email: {settings.autoEmail ? 'ON' : 'OFF'}</li>
+            <li>Sync: {syncStatus === 'ok' ? <span className="text-emerald-400">✓ on</span> : syncStatus === 'error' ? <span className="text-red-400">✕ error (see Settings)</span> : syncStatus === 'syncing' ? 'syncing…' : <span className="text-slate-500">off (Settings)</span>}</li>
             <li>Last poll: {lastPoll ? new Date(lastPoll).toLocaleTimeString() : '—'}</li>
             <li>
               Deploy: <a className="text-sky-400 underline" href={deployUrl} target="_blank" rel="noopener noreferrer">Netlify deploys</a>

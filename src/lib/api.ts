@@ -5,14 +5,14 @@ import { SourceError } from './rss';
 const TOKEN_KEY = 'ta.accessToken';
 export const getAccessToken = (): string => {
   try {
-    return sessionStorage.getItem(TOKEN_KEY) ?? '';
+    return localStorage.getItem(TOKEN_KEY) ?? '';
   } catch {
     return '';
   }
 };
 export const setAccessToken = (t: string): void => {
   try {
-    sessionStorage.setItem(TOKEN_KEY, t);
+    localStorage.setItem(TOKEN_KEY, t);
   } catch {
     /* ignore */
   }

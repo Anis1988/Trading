@@ -11,6 +11,8 @@ import { sendTradeEmail } from './lib/email';
 import { formatInstruction, planOrder } from './lib/instructions';
 import { Poller } from './lib/poller';
 import { hashPassphrase, newSalt, nowIso, uid, timingSafeEqual } from './lib/util';
+import { mergeHistory, pullRemote, pushRemote, snapshot, type SyncData } from './lib/sync';
+import { getAccessToken } from './lib/api';
 import { PassphraseModal } from './components/PassphraseModal';
 
 const UNLOCK_MS = 30 * 60_000;
@@ -44,6 +46,10 @@ interface Store {
   emailSignal: (s: Signal) => Promise<void>;
   copySignal: (s: Signal) => Promise<void>;
   dismissSignal: (s: Signal) => void;
+  syncStatus: 'off' | 'syncing' | 'ok' | 'error';
+  syncMessage: string;
+  lastSync: string;
+  syncNow: () => Promise<void>;
   sending: string[];
   toasts: Toast[];
   dismissToast: (id: string) => void;
@@ -78,12 +84,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState(false);
   const [lastPoll, setLastPoll] = useState('');
   const [polling, setPolling] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'off' | 'syncing' | 'ok' | 'error'>('off');
+  const [syncMessage, setSyncMessage] = useState('');
+  const [lastSync, setLastSync] = useState('');
   const [sending, setSending] = useState<string[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [modal, setModal] = useState<{ reason: string; resolve: (ok: boolean) => void } | null>(null);
 
-  const ref = useRef({ settings, watchlist, signals, unlocked, headlines });
-  ref.current = { settings, watchlist, signals, unlocked, headlines };
+  const ref = useRef({ settings, watchlist, signals, unlocked, headlines, history });
+  ref.current = { settings, watchlist, signals, unlocked, headlines, history };
   const seen = useRef(new Set<string>());
   const unlockTimer = useRef<ReturnType<typeof setTimeout>>();
   const autoSent = useRef<number[]>([]);
@@ -312,6 +321,107 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const dismissSignal = (sig: Signal) => setSignalStatus(sig.id, 'dismissed');
 
+  // ---- cross-device sync (settings, watchlist, holdings, history) via /api/sync ----
+  const sync = useRef({ at: load<string | null>('ta.syncAt', null), lastJson: '', skipNext: false, busy: false, timer: undefined as ReturnType<typeof setTimeout> | undefined });
+  const jsonOf = (d: SyncData) => JSON.stringify(d);
+
+  const syncNow = useCallback(async () => {
+    const sc = sync.current;
+    if (!getAccessToken()) return setSyncStatus('off');
+    if (sc.busy) return;
+    sc.busy = true;
+    setSyncStatus('syncing');
+    try {
+      let remote = await pullRemote();
+      let fromRemote = false;
+      let curSettings = ref.current.settings;
+      let curWatch = ref.current.watchlist;
+      let curHist = ref.current.history;
+      // "dirty" = this device has edits the server has not seen yet. A brand-new device (lastJson === '') is never dirty.
+      let dirty = sc.lastJson !== '' && jsonOf(snapshot(curSettings, curWatch, curHist)) !== sc.lastJson;
+      let mergedJson = '';
+      for (let attempt = 0; attempt < 2; attempt++) {
+        let mSettings = curSettings;
+        let mWatch = curWatch;
+        let mHist = curHist;
+        if (remote.data && remote.updatedAt !== sc.at) {
+          mHist = mergeHistory(curHist, remote.data.history); // history is never lost: union of both devices
+          if (!dirty) {
+            mSettings = { ...curSettings, ...remote.data.settings } as Settings;
+            mWatch = remote.data.watchlist;
+          }
+          sc.at = remote.updatedAt;
+          fromRemote = true;
+        }
+        const merged = snapshot(mSettings, mWatch, mHist);
+        mergedJson = jsonOf(merged);
+        if (mergedJson !== jsonOf(snapshot(curSettings, curWatch, curHist))) {
+          sc.skipNext = true; // this state change came from the server, not the user
+          setSettings(mSettings);
+          setWatchlistState(mWatch);
+          setHistory(mHist);
+        }
+        curSettings = mSettings;
+        curWatch = mWatch;
+        curHist = mHist;
+        const remoteJson = remote.data ? jsonOf(snapshot({ ...mSettings, ...remote.data.settings } as Settings, remote.data.watchlist, remote.data.history)) : '';
+        if (remote.data && mergedJson === remoteJson) break; // server already has everything
+        const res = await pushRemote(remote.updatedAt, merged);
+        if ('updatedAt' in res) {
+          sc.at = res.updatedAt;
+          break;
+        }
+        remote = res.conflict; // someone saved in between: merge once more
+        dirty = true;
+      }
+      sc.lastJson = mergedJson;
+      try {
+        localStorage.setItem('ta.syncAt', JSON.stringify(sc.at));
+      } catch {
+        /* ignore */
+      }
+      setLastSync(nowIso());
+      setSyncStatus('ok');
+      setSyncMessage(fromRemote ? 'Updated from your other device.' : 'Up to date.');
+    } catch (e) {
+      setSyncStatus('error');
+      setSyncMessage(e instanceof Error ? e.message : String(e));
+    } finally {
+      sc.busy = false;
+    }
+  }, []);
+
+  const syncRef = useRef(syncNow);
+  syncRef.current = syncNow;
+
+  // Pull on open and whenever the app comes back to the foreground (e.g. switching to the phone).
+  useEffect(() => {
+    void syncRef.current();
+    const onVis = () => document.visibilityState === 'visible' && void syncRef.current();
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', onVis);
+    };
+  }, []);
+
+  // Push shortly after the user changes something that is synced.
+  useEffect(() => {
+    const sc = sync.current;
+    if (!getAccessToken()) return;
+    const json = jsonOf(snapshot(settings, watchlist, history));
+    if (sc.skipNext) {
+      sc.skipNext = false;
+      sc.lastJson = json;
+      return;
+    }
+    if (sc.lastJson === '' || json === sc.lastJson) return;
+    clearTimeout(sc.timer);
+    sc.timer = setTimeout(() => void syncRef.current(), 1500);
+    return () => clearTimeout(sc.timer);
+  }, [settings, watchlist, history]);
+
   // ---- polling ----
   const tick = useCallback(async () => {
     const { settings: s, watchlist, signals: existing } = ref.current;
@@ -396,7 +506,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     settings, update, watchlist, setWatchlist, signals, history, setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, goLive, goMock, setAutoEmail, setUseMcp, panic, resume,
-    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s),
+    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s),
   };
   return (
     <Ctx.Provider value={value}>
