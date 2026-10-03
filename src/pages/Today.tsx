@@ -43,7 +43,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings') => void }) {
   // Only signals worth acting on: not dismissed, not rejected by the AI.
   const attention = signals.filter((s) => s.status === 'new' && s.review?.verdict !== 'REJECT');
 
-  if (!held.length) {
+  if (!held.length && !attention.length) {
     return (
       <div className="card space-y-2 text-center">
         <p className="text-lg font-semibold">Tell me what you own</p>
@@ -62,7 +62,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings') => void }) {
         </div>
       )}
 
-      <section className="card">
+      {held.length > 0 && <section className="card">
         {priced.length ? (
           <>
             <p className="text-xs text-slate-400">Total profit / loss on what you own</p>
@@ -75,7 +75,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings') => void }) {
         ) : (
           <p className="text-sm text-slate-500">{loading ? 'Loading your profit / loss…' : 'Profit / loss will show here once prices load.'}</p>
         )}
-      </section>
+      </section>}
 
       <section>
         <h2 className="mb-2 text-lg font-semibold">{attention.length ? `${attention.length} thing${attention.length > 1 ? 's' : ''} for you to look at` : 'Nothing needs you right now'}</h2>
@@ -85,7 +85,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings') => void }) {
         </div>
       </section>
 
-      <section>
+      {held.length > 0 ? <section>
         <h2 className="mb-2 font-semibold">My stocks</h2>
         {err && <p className="mb-2 rounded border border-amber-800 bg-amber-950 p-2 text-sm text-amber-200">{err}</p>}
         <div className="grid gap-3 md:grid-cols-2">
@@ -128,7 +128,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings') => void }) {
             );
           })}
         </div>
-      </section>
+      </section> : <button className="btn mx-auto" onClick={() => goTo('Settings')}>Add my holdings for personal advice</button>}
 
       <button className="text-xs text-slate-500 underline" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Hide' : 'Show'} all earlier signals ({signals.length})</button>
       {showAll && <SignalCenter />}

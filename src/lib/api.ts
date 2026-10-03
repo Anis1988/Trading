@@ -1,6 +1,8 @@
 import type { Headline, Review, Signal } from '../types';
 import { assessHolding, type Holding } from './holdings';
-import { mockSeries, type Analysis, type Series } from './trend';
+import { analyze, mockSeries, type Analysis, type Series } from './trend';
+import { toIdea, type Idea } from './picks';
+import { UNIVERSE } from './universe';
 import { SourceError } from './rss';
 
 const TOKEN_KEY = 'ta.accessToken';
@@ -127,4 +129,42 @@ export function mockRecommendation(rows: Analysis[]): Recommendation {
     ...rows.filter((r) => r.ideaKind === 'sell').slice(0, 2).map((r) => ({ symbol: r.symbol, action: 'SELL' as const, reason: r.idea })),
   ];
   return { summary: 'Demo mode: these picks come from the simple trend rules, not from the AI.', picks, simulated: true };
+}
+
+export async function fetchScan(): Promise<{ ideas: Idea[]; scanned: number; errors: string[] }> {
+  return call('/api/scan');
+}
+
+/** Demo mode: same ranking on made-up prices (no news). */
+export function mockScan(): { ideas: Idea[]; scanned: number; errors: string[] } {
+  const ideas = UNIVERSE.map((s) => analyze(s, mockSeries(s).closes))
+    .filter((a): a is Analysis => !!a)
+    .map((a) => toIdea(a))
+    .sort((a, b) => b.score - a.score);
+  return { ideas: ideas.slice(0, 15), scanned: ideas.length, errors: [] };
+}
+
+/** Ask the AI to rank the scan results (clear BUY / WATCH picks, aware of what you own). */
+export async function fetchIdeaPicks(ideas: Idea[], holdings: Holding[]): Promise<Recommendation> {
+  return call('/api/recommend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      rows: ideas.slice(0, 15).map((i) => {
+        const h = holdings.find((x) => x.symbol === i.symbol);
+        return {
+          symbol: i.symbol, price: i.price, ret1m: i.ret1m, ret3m: i.ret3m, rsi: i.rsi, aboveSma50: i.price > i.sma50, trend: i.label,
+          owned: h ? { shares: h.shares, avgCost: h.avgCost } : null, strength: i.score, headline: i.headline?.slice(0, 200),
+        };
+      }),
+    }),
+  });
+}
+
+export function mockIdeaPicks(ideas: Idea[]): Recommendation {
+  return {
+    summary: 'Demo mode: these picks come straight from the model score, not from the AI.',
+    picks: ideas.filter((i) => i.score >= 60).slice(0, 3).map((i) => ({ symbol: i.symbol, action: 'BUY' as const, reason: `Model score ${i.score}/100 with a ${i.label.toLowerCase()}.` })),
+    simulated: true,
+  };
 }

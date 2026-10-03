@@ -57,6 +57,7 @@ interface Store {
   dismissToast: (id: string) => void;
   reviewSignal: (s: Signal) => Promise<Review | null>;
   setSignalQty: (id: string, qty: number) => void;
+  addIdeaSignal: (symbol: string, price: number, reason: string, confidence: number, news?: { title: string; url: string }) => void;
 }
 
 export interface Toast {
@@ -255,6 +256,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [log]);
+
+  /** Turn a buy idea into a normal signal: it then gets the AI check (with your holdings) and the Email / Copy buttons on Today. */
+  const addIdeaSignal = (symbol: string, price: number, reason: string, confidence: number, news?: { title: string; url: string }) => {
+    const st = ref.current.settings;
+    if (ref.current.signals.some((x) => x.symbol === symbol && x.side === 'BUY' && x.status === 'new')) return toast('info', `${symbol} is already waiting on Today.`);
+    const sig: Signal = {
+      id: uid(), symbol, side: 'BUY', confidence, reason, qty: st.defaultQty, createdAt: nowIso(), status: 'new',
+      source: st.mockMode ? 'mock' : 'local', headlineUrl: news?.url, entryPrice: price,
+    };
+    setSignals((l) => [{ ...sig, reviewStatus: st.useAiReview ? 'pending' : undefined }, ...l]);
+    log('info', `Idea sent to Today: BUY ${symbol}`);
+    toast('success', `${symbol} sent to Today for the AI check.`);
+    if (st.useAiReview) {
+      const ctx: Headline[] = news ? [{ id: 'idea-' + symbol, title: news.title, url: news.url, source: 'scan', publishedAt: nowIso(), symbol }] : [];
+      void reviewSignal(sig, ctx);
+    }
+  };
 
   const emailSignal = useCallback(async (sig: Signal, auto = false) => {
     const { settings: s } = ref.current;
@@ -520,7 +538,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     settings, update, watchlist, setWatchlist, signals, history, setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, goLive, goMock, setAutoEmail, setUseMcp, panic, resume,
-    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s), setSignalQty: (id, qty) => patchSignal(id, { qty }),
+    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s), setSignalQty: (id, qty) => patchSignal(id, { qty }), addIdeaSignal,
   };
   return (
     <Ctx.Provider value={value}>

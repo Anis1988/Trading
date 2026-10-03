@@ -58,6 +58,9 @@ The last four are read only by the Netlify functions at runtime and are **not** 
 
 (The spec's optional webhook URL is intentionally not implemented: a client-side webhook would be another public secret.)
 
+### Ideas tab (what to buy now)
+`/api/scan` pulls ~6 months of prices for ~60 large US stocks and ETFs (list in `src/lib/universe.ts`), scores each 0-100 (trend 60, 3-month momentum 15, near its high 5, minus 15 if overheated, +/-10 for recent news headlines on the top candidates), and the tab shows only healthy, not-overheated ones with reasons, a stop-loss and a share count for your risk limit. *Ask the AI for its top picks* reuses `/api/recommend`. *Check with AI & send to Today* turns an idea into a normal signal (AI review with your holdings, then Email/Copy). Results are cached 10 minutes. It ranks by price behaviour and news tone; it cannot predict returns, and "nothing looks good" is a valid result. If the scan times out on Netlify's 10 s function limit, fewer stocks get scored; trim the list in `universe.ts`.
+
 ### Risk, P&L and scoreboard
 - **Today** opens with total profit/loss in dollars and today's change for everything you own.
 - Every BUY card shows a suggested **stop-loss** (Settings: stop-loss %, default 5) and how many shares keep your loss within *Most I want to lose on one trade* (default $100). The stop is only a suggestion included in the email: you place any stop order yourself in Fidelity. SELL cards show the proceeds and gain/loss versus what you paid.
