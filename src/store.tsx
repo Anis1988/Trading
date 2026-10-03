@@ -76,7 +76,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // Safety: never auto-email or stay in live mode on a locked build; session starts locked.
     return { ...s, autoEmail: false, mockMode: config.forceMock ? true : s.mockMode };
   });
-  const [watchlist, setWatchlistState] = useState<string[]>(() => load(KEYS.watchlist, ['AAPL', 'MSFT', 'TSLA']));
+  const [watchlist, setWatchlistState] = useState<string[]>(() => load(KEYS.watchlist, []));
   const [signals, setSignals] = useState<Signal[]>(() => load(KEYS.signals, []));
   const [history, setHistory] = useState<HistoryItem[]>(() => load(KEYS.history, []));
   const [logs, setLogs] = useState<LogEntry[]>(() => load(KEYS.logs, []));

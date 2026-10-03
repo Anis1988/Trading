@@ -20,8 +20,7 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
         <span className="text-lg font-semibold">{s.symbol}</span>
         <span className="text-sm text-slate-400">qty {s.qty}</span>
         <span className="text-sm">{(s.confidence * 100).toFixed(0)}% confidence</span>
-        <span className="rounded bg-slate-800 px-2 py-0.5 text-xs">{s.source}</span>
-        <span className="rounded bg-slate-800 px-2 py-0.5 text-xs">{s.status}</span>
+        {s.status !== 'new' && <span className="rounded bg-slate-800 px-2 py-0.5 text-xs">{s.status}</span>}
         {s.reviewStatus === 'pending' && <span className="rounded bg-slate-700 px-2 py-0.5 text-xs">AI reviewing…</span>}
         {s.review && (
           <span className={`rounded px-2 py-0.5 text-xs font-bold ${VERDICT[s.review.verdict]}`}>

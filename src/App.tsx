@@ -1,32 +1,26 @@
 import { useState } from 'react';
 import { useStore } from './store';
-import { Disclaimer } from './components/Disclaimer';
 import { Toasts } from './components/Toasts';
-import { Dashboard } from './pages/Dashboard';
-import { SignalCenter } from './pages/SignalCenter';
+import { Today } from './pages/Today';
 import { Settings } from './pages/Settings';
 import { History } from './pages/History';
-import { Logs } from './pages/Logs';
 import { Trends } from './pages/Trends';
 
 const TABS = [
-  ['Dashboard', '🏠'],
-  ['Signals', '📈'],
+  ['Today', '🏠'],
   ['Trends', '📊'],
   ['History', '🧾'],
-  ['Logs', '📋'],
   ['Settings', '⚙️'],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('Dashboard');
+  const [tab, setTab] = useState<Tab>('Today');
   const { panic, settings, signals } = useStore();
-  const newCount = signals.filter((s) => s.status === 'new').length;
+  const newCount = signals.filter((s) => s.status === 'new' && s.review?.verdict !== 'REJECT').length;
   return (
     <div className="min-h-screen">
       <Toasts />
-      <Disclaimer />
       <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 sm:px-4">
         <h1 className="mr-1 text-sm font-bold sm:text-base">Trading Assistant</h1>
         {/* Desktop/tablet tabs; phones use the bottom bar */}
@@ -38,21 +32,19 @@ export default function App() {
         <span className={`ml-auto rounded px-2 py-0.5 text-xs ${settings.mockMode ? 'bg-sky-900' : 'bg-amber-700'}`}>{settings.mockMode ? 'DEMO' : 'LIVE'}</span>
         <button className="btn-danger" onClick={panic} disabled={settings.stopped}>{settings.stopped ? 'STOPPED' : 'PANIC STOP'}</button>
       </header>
-      <nav className="sticky top-[52px] z-30 grid grid-cols-6 border-b border-slate-800 bg-slate-950/95 sm:hidden">
+      <nav className="sticky top-[52px] z-30 grid grid-cols-4 border-b border-slate-800 bg-slate-950/95 sm:hidden">
         {TABS.map(([t, icon]) => (
           <button key={t} onClick={() => setTab(t)} className={`relative flex flex-col items-center gap-0.5 py-1.5 text-[11px] ${tab === t ? 'border-b-2 border-emerald-500 bg-slate-800 text-white' : 'text-slate-400'}`}>
             <span className="text-base leading-none">{icon}</span>
             {t}
-            {t === 'Signals' && newCount > 0 && <span className="absolute right-2 top-0.5 rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white">{newCount}</span>}
+            {t === 'Today' && newCount > 0 && <span className="absolute right-2 top-0.5 rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white">{newCount}</span>}
           </button>
         ))}
       </nav>
       <main className="mx-auto max-w-6xl p-3 pb-10 sm:p-4 sm:pb-6">
-        {tab === 'Dashboard' && <Dashboard />}
-        {tab === 'Signals' && <SignalCenter />}
+        {tab === 'Today' && <Today goTo={setTab} />}
         {tab === 'Trends' && <Trends />}
         {tab === 'History' && <History />}
-        {tab === 'Logs' && <Logs />}
         {tab === 'Settings' && <Settings />}
       </main>
     </div>

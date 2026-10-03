@@ -67,7 +67,7 @@ export function generateSignals(headlines: Headline[], symbols: string[], o: Eng
       const s = sentimentScore(h.title);
       const w = k.score + s * 0.5;
       total += w;
-      if (w !== 0) reasons.push({ w, text: `"${h.title}"${k.hits.length ? ` [${k.hits.join(', ')}]` : ''}`, url: h.url });
+      if (w !== 0) reasons.push({ w, text: `"${h.title}"`, url: h.url });
     }
     if (Math.abs(total) < 2) continue;
     const side = total > 0 ? 'BUY' : 'SELL';
@@ -80,7 +80,7 @@ export function generateSignals(headlines: Headline[], symbols: string[], o: Eng
       symbol,
       side,
       confidence: Math.round(confidence * 100) / 100,
-      reason: `${rel.length} headline(s), net score ${total.toFixed(1)}. Top: ${reasons[0]?.text ?? 'n/a'}`,
+      reason: `${rel.length > 1 ? `${rel.length} headlines, mainly: ` : 'Headline: '}${reasons[0]?.text ?? 'n/a'}`,
       qty: o.defaultQty,
       createdAt: nowIso(),
       status: 'new',

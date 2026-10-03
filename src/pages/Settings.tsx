@@ -4,6 +4,7 @@ import { config, emailConfigured, mcpConfigured } from '../lib/config';
 import { buildBackup, download } from '../lib/storage';
 import type { HistoryItem } from '../types';
 import { cleanSymbol } from '../lib/util';
+import { Logs } from './Logs';
 import { getAccessToken, setAccessToken } from '../lib/api';
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -25,6 +26,14 @@ export function Settings() {
   const [pass2, setPass2] = useState('');
   const [msg, setMsg] = useState('');
   const file = useRef<HTMLInputElement>(null);
+  const [wSym, setWSym] = useState('');
+  const [showLogs, setShowLogs] = useState(false);
+  const deployUrl = config.siteName ? `https://app.netlify.com/sites/${config.siteName}/deploys` : 'https://app.netlify.com/';
+  const addWatch = () => {
+    const sym = cleanSymbol(wSym);
+    if (sym && !st.watchlist.includes(sym)) st.setWatchlist([...st.watchlist, sym]);
+    setWSym('');
+  };
   const [hSym, setHSym] = useState('');
   const [hShares, setHShares] = useState('');
   const [hCost, setHCost] = useState('');
@@ -61,6 +70,35 @@ export function Settings() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <section className="card">
+        <h2 className="mb-2 font-semibold">Status</h2>
+        <ul className="space-y-1 text-sm text-slate-300">
+          <li>Mode: <b className={s.mockMode ? 'text-sky-400' : 'text-amber-400'}>{s.mockMode ? 'DEMO (made-up data)' : 'LIVE'}</b></li>
+          <li>Checking news: {s.stopped ? <b className="text-red-400">stopped (Panic Stop)</b> : st.polling ? `every ${s.pollIntervalSec}s` : 'idle'}{st.lastPoll ? ` · last ${new Date(st.lastPoll).toLocaleTimeString()}` : ''}</li>
+          <li>Auto-email: {s.autoEmail ? 'on' : 'off'} · Sync: {st.syncStatus === 'ok' ? 'on' : st.syncStatus === 'error' ? 'error' : st.syncStatus === 'syncing' ? 'syncing…' : 'off'}</li>
+          <li><a className="text-sky-400 underline" href={deployUrl} target="_blank" rel="noopener noreferrer">Netlify deploys</a></li>
+        </ul>
+        {s.stopped && <button className="btn-primary mt-3" onClick={st.resume}>Resume</button>}
+      </section>
+
+      <section className="card">
+        <h2 className="mb-2 font-semibold">Also watching (not owned)</h2>
+        <p className="mb-2 text-xs text-slate-500">Optional. Stocks you want ideas about but do not own. Your holdings are always watched.</p>
+        <div className="mb-2 flex gap-2">
+          <input className="input w-full" placeholder="Symbol e.g. NVDA" value={wSym} onChange={(e) => setWSym(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addWatch()} />
+          <button className="btn" onClick={addWatch}>Add</button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {st.watchlist.map((w) => (
+            <span key={w} className="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-sm">
+              {w}
+              <button aria-label={`Remove ${w}`} className="px-1 text-slate-400 hover:text-red-400" onClick={() => st.setWatchlist(st.watchlist.filter((x) => x !== w))}>×</button>
+            </span>
+          ))}
+          {!st.watchlist.length && <span className="text-xs text-slate-500">None.</span>}
+        </div>
+      </section>
+
       <section className="card">
         <h2 className="mb-2 font-semibold">Mode & safety</h2>
         <Row label={`Mode: ${s.mockMode ? 'Mock / demo' : 'LIVE'}`}>
@@ -227,6 +265,10 @@ export function Settings() {
           <input ref={file} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && void importBackup(e.target.files[0])} />
         </div>
         <p className="mt-2 text-xs text-slate-500">Exports exclude the passphrase hash. History CSV export is on the History page.</p>
+      </section>
+      <section className="card lg:col-span-2">
+        <button className="text-sm font-semibold" onClick={() => setShowLogs((v) => !v)}>{showLogs ? '▾' : '▸'} Activity log (for troubleshooting)</button>
+        {showLogs && <div className="mt-3"><Logs /></div>}
       </section>
     </div>
   );

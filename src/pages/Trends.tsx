@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore } from '../store';
-import { analyze, mockSeries, POPULAR, type Analysis } from '../lib/trend';
-import { fetchRecommendation, fetchTrendSeries, mockRecommendation, type Recommendation } from '../lib/api';
+import type { Analysis } from '../lib/trend';
+import { useTrends } from '../lib/useTrends';
+import { fetchRecommendation, mockRecommendation, type Recommendation } from '../lib/api';
 
 const LABEL_STYLE: Record<Analysis['label'], string> = {
   'Strong uptrend': 'bg-emerald-700 text-emerald-50',
@@ -35,48 +36,10 @@ const pct = (n: number) => `${n >= 0 ? '+' : ''}${n}%`;
 
 export function Trends() {
   const { watchlist, settings, toast, log } = useStore();
-  const [scope, setScope] = useState<'mine' | 'popular'>('mine');
-  const [rows, setRows] = useState<Analysis[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState('');
-  const [updated, setUpdated] = useState('');
+  const symbols = useMemo(() => [...new Set([...settings.holdings.map((h) => h.symbol), ...watchlist])], [watchlist, settings.holdings]);
+  const { rows, loading, err, updated, reload } = useTrends(symbols, settings);
   const [rec, setRec] = useState<Recommendation | null>(null);
   const [recLoading, setRecLoading] = useState(false);
-
-  const mine = useMemo(() => [...new Set([...watchlist, ...settings.holdings.map((h) => h.symbol)])], [watchlist, settings.holdings]);
-  const symbols = scope === 'mine' ? mine : [...new Set([...POPULAR, ...mine])];
-
-  const load = useCallback(async () => {
-    if (!symbols.length) return setRows([]);
-    setLoading(true);
-    setErr('');
-    setRec(null);
-    try {
-      const series: Record<string, { closes: number[] }> = {};
-      let errors: string[] = [];
-      if (settings.mockMode) symbols.forEach((s) => (series[s] = mockSeries(s)));
-      else {
-        const r = await fetchTrendSeries(symbols);
-        Object.assign(series, r.series);
-        errors = r.errors;
-      }
-      const out = symbols
-        .map((s) => analyze(s, series[s]?.closes ?? [], settings.holdings.find((h) => h.symbol === s)))
-        .filter((a): a is Analysis => !!a)
-        .sort((a, b) => b.score - a.score || b.ret3m - a.ret3m);
-      setRows(out);
-      setUpdated(new Date().toLocaleTimeString());
-      if (errors.length) setErr(`${errors.length} symbol(s) had no data (${errors.slice(0, 2).join('; ')}${errors.length > 2 ? '…' : ''}).`);
-      else if (!out.length) setErr('No price history came back.');
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbols.join(','), settings.mockMode, settings.holdings]);
-
-  useEffect(() => void load(), [load]);
 
   const askAi = async () => {
     setRecLoading(true);
@@ -94,15 +57,8 @@ export function Trends() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="mr-auto font-semibold">Trends &amp; ideas</h2>
-        <div className="flex overflow-hidden rounded border border-slate-700 text-sm">
-          {(['mine', 'popular'] as const).map((k) => (
-            <button key={k} className={`min-h-[44px] px-3 sm:min-h-0 sm:py-1 ${scope === k ? 'bg-slate-700' : ''}`} onClick={() => setScope(k)}>
-              {k === 'mine' ? 'My stocks' : 'Popular'}
-            </button>
-          ))}
-        </div>
-        <button className="btn" disabled={loading} onClick={() => void load()}>{loading ? <><span className="spinner" /> Loading…</> : 'Refresh'}</button>
+        <h2 className="mr-auto font-semibold">Trends for my stocks</h2>
+        <button className="btn" disabled={loading} onClick={() => void reload()}>{loading ? <><span className="spinner" /> Loading…</> : 'Refresh'}</button>
       </div>
       <p className="text-xs text-slate-500">
         Based on the last ~6 months of daily prices only. No news or company numbers. {settings.mockMode ? 'Demo mode: prices are made up. ' : ''}
