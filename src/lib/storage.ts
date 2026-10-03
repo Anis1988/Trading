@@ -16,6 +16,7 @@ export const defaultSettings: Settings = {
   useNewsApi: false,
   useServerFeeds: true,
   useAiReview: true,
+  holdings: [],
   useRss: true,
   rssFeeds: ['https://feeds.finance.yahoo.com/rss/2.0/headline?s={SYMBOL}&region=US&lang=en-US'],
   corsProxy: '',

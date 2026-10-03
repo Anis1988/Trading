@@ -1,3 +1,5 @@
+import type { Holding } from './lib/holdings';
+
 export type Side = 'BUY' | 'SELL';
 export type OrderType = 'MARKET' | 'LIMIT';
 
@@ -21,6 +23,8 @@ export interface Review {
   changePct?: number;
   model?: string;
   simulated?: boolean;
+  holdingNote?: string; // plain-words comparison with what the user owns
+  suggestedQty?: number; // quantity after checking holdings
 }
 
 export type SignalSource = 'local' | 'mcp' | 'mock';
@@ -79,6 +83,7 @@ export interface Settings {
   useNewsApi: boolean;
   useServerFeeds: boolean; // fetch news via the Netlify function (/api/news) - avoids CORS blocks
   useAiReview: boolean; // AI second opinion; REJECT blocks emails
+  holdings: Holding[]; // what the user actually owns (entered manually)
   useRss: boolean;
   rssFeeds: string[]; // may contain {SYMBOL}
   corsProxy: string; // e.g. https://example.com/?url={URL}

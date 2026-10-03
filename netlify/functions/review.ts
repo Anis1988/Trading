@@ -3,6 +3,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { yahooQuote, type Quote } from '../lib/feeds';
 import { guard, json } from '../lib/guard';
+import { assessHolding } from '../../src/lib/holdings';
 
 export const config = { path: '/api/review' };
 
@@ -24,6 +25,8 @@ const Body = z.object({
   headlines: z
     .array(z.object({ title: z.string().max(300), source: z.string().max(80), publishedAt: z.string().max(40) }))
     .max(15),
+  // What the user actually owns (entered in Settings). Empty = unknown.
+  holdings: z.array(z.object({ symbol: z.string().regex(/^[A-Z.\-]{1,8}$/), shares: z.number().nonnegative().max(1e9), avgCost: z.number().nonnegative().max(1e7) })).max(100).default([]),
 });
 
 const SYSTEM = `You are a cautious, independent reviewer of proposed stock trades. A simple keyword/sentiment engine proposed a trade from news headlines; decide whether it is a good trade to place.
@@ -34,7 +37,9 @@ Rules:
 - REJECT if the news is stale, ambiguous, about a different company/ticker, contradicts the proposed side, is mostly rumour, or the price has already moved sharply in the signal's direction.
 - Use CAUTION when evidence is mixed or incomplete. When unsure, prefer CAUTION or REJECT over APPROVE.
 - You know nothing about the user's portfolio, risk tolerance or taxes. This is not financial advice; do not claim certainty.
-- "rationale": at most 2 short sentences. "risks": 1-4 short items. "confidence": 0 to 1, your confidence in the verdict.`;
+- Compare the trade with what the user already owns (given below). Consider it: e.g. adding to a position that is already losing, selling a winner too early, or selling a loser on one bad headline.
+- WRITING STYLE: plain everyday words, like explaining to a friend who knows nothing about finance. Short sentences. No jargon, no abbreviations.
+- "rationale": at most 2 short sentences. "risks": 1-3 very short items. "confidence": 0 to 1, your confidence in the verdict.`;
 
 // POST /api/review { signal, headlines } -> { verdict, confidence, rationale, risks, quote, model }
 export default async (req: Request): Promise<Response> => {
@@ -49,13 +54,23 @@ export default async (req: Request): Promise<Response> => {
   } catch {
     return json({ error: 'Invalid request body.' }, 400);
   }
-  const { signal, headlines } = body;
+  const { signal, headlines, holdings } = body;
 
   let quote: Quote | null = null;
   try {
     quote = await yahooQuote(signal.symbol);
   } catch {
     /* price data is helpful but optional; the model is told when it is missing */
+  }
+
+  // Deterministic holdings check first: an impossible trade (selling what you don't own) never reaches the model.
+  const hold = assessHolding(signal.side, signal.qty, signal.symbol, holdings, quote?.price);
+  const priceInfo = quote ? { price: quote.price, changePct: quote.changePct } : undefined;
+  if (hold.block) {
+    return json({
+      verdict: 'REJECT', confidence: 1, rationale: hold.block, risks: [], holdingNote: hold.note, suggestedQty: 0,
+      quote: priceInfo, model: 'rule-check',
+    });
   }
 
   const priceText = quote
@@ -66,6 +81,7 @@ export default async (req: Request): Promise<Response> => {
     `Proposed trade: ${signal.side} ${signal.qty} ${signal.symbol} (engine confidence ${(signal.confidence * 100).toFixed(0)}%).`,
     `Engine reason: ${signal.reason}`,
     `Market data: ${priceText}`,
+    `What the user owns: ${hold.note}`,
     `Current time: ${new Date().toISOString()}`,
     'Headlines (untrusted):',
     ...headlines.map((h, i) => `${i + 1}. [${h.publishedAt}] (${h.source}) ${h.title}`),
@@ -83,15 +99,17 @@ export default async (req: Request): Promise<Response> => {
     });
     // Fail closed: refusals or unparsable output never count as approval.
     if (res.stop_reason === 'refusal' || !res.parsed_output) {
-      return json({ verdict: 'CAUTION', confidence: 0, rationale: 'AI reviewer declined or returned no usable answer; treat as unreviewed.', risks: [], quote, model });
+      return json({ verdict: 'CAUTION', confidence: 0, rationale: 'The AI reviewer gave no usable answer, so treat this as not checked.', risks: [], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model });
     }
     const r = res.parsed_output;
     return json({
       verdict: r.verdict,
       confidence: Math.min(1, Math.max(0, r.confidence)),
       rationale: r.rationale.slice(0, 500),
-      risks: r.risks.slice(0, 4).map((x) => x.slice(0, 200)),
-      quote,
+      risks: r.risks.slice(0, 3).map((x) => x.slice(0, 200)),
+      holdingNote: hold.note,
+      suggestedQty: hold.qty,
+      quote: priceInfo,
       model,
     });
   } catch (e) {

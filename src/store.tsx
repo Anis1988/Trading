@@ -208,8 +208,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const reviewSignal = useCallback(async (sig: Signal, context?: Headline[]): Promise<Review | null> => {
     patchSignal(sig.id, { reviewStatus: 'pending', reviewError: undefined });
     try {
-      const r = ref.current.settings.mockMode ? mockReview(sig) : await fetchReview(sig, context ?? ref.current.headlines);
-      patchSignal(sig.id, { review: r, reviewStatus: undefined });
+      const r = ref.current.settings.mockMode ? mockReview(sig, ref.current.settings.holdings) : await fetchReview(sig, context ?? ref.current.headlines, ref.current.settings.holdings);
+      const qty = r.suggestedQty && r.suggestedQty > 0 ? r.suggestedQty : sig.qty;
+      if (qty !== sig.qty) log('info', `${sig.symbol}: quantity changed ${sig.qty} -> ${qty} to match what you own.`);
+      patchSignal(sig.id, { review: r, reviewStatus: undefined, qty });
       log(r.verdict === 'REJECT' ? 'warn' : 'info', `AI review ${sig.symbol}: ${r.verdict}${r.simulated ? ' (simulated)' : ''} - ${r.rationale}`);
       return r;
     } catch (e) {

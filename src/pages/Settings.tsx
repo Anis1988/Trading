@@ -24,6 +24,17 @@ export function Settings() {
   const [pass2, setPass2] = useState('');
   const [msg, setMsg] = useState('');
   const file = useRef<HTMLInputElement>(null);
+  const [hSym, setHSym] = useState('');
+  const [hShares, setHShares] = useState('');
+  const [hCost, setHCost] = useState('');
+  const addHolding = () => {
+    const symbol = cleanSymbol(hSym);
+    const shares = Number(hShares);
+    const avgCost = Number(hCost);
+    if (!symbol || !(shares > 0) || !(avgCost >= 0)) return setMsg('Holding needs a symbol, shares > 0 and an average cost.');
+    update({ holdings: [...s.holdings.filter((h) => h.symbol !== symbol), { symbol, shares, avgCost }] });
+    setHSym(''); setHShares(''); setHCost(''); setMsg('');
+  };
 
   const savePass = async () => {
     if (pass.length < 8) return setMsg('Passphrase must be at least 8 characters.');
@@ -105,6 +116,29 @@ export function Settings() {
             </label>
           ))}
         </div>
+      </section>
+
+      <section className="card">
+        <h2 className="mb-2 font-semibold">My holdings (what I own in Fidelity)</h2>
+        <p className="mb-2 text-xs text-slate-500">
+          Entered by hand and kept in this browser only. The AI review compares each signal with this: it will not let you sell what you do not own,
+          lowers a sell to the shares you have, and shows your profit or loss. Leave empty to skip this check.
+        </p>
+        <div className="mb-2 flex flex-wrap gap-2">
+          <input className="input w-24" placeholder="Symbol" value={hSym} onChange={(e) => setHSym(e.target.value)} />
+          <input className="input w-24" placeholder="Shares" inputMode="decimal" value={hShares} onChange={(e) => setHShares(e.target.value)} />
+          <input className="input w-28" placeholder="Avg cost $" inputMode="decimal" value={hCost} onChange={(e) => setHCost(e.target.value)} />
+          <button className="btn" onClick={addHolding}>Add / update</button>
+        </div>
+        <ul className="space-y-1 text-sm">
+          {s.holdings.map((h) => (
+            <li key={h.symbol} className="flex items-center justify-between rounded bg-slate-800 px-2 py-1">
+              <span>{h.symbol} · {h.shares} sh @ ${h.avgCost}</span>
+              <button className="text-slate-400 hover:text-red-400" aria-label={`Remove ${h.symbol}`} onClick={() => update({ holdings: s.holdings.filter((x) => x.symbol !== h.symbol) })}>×</button>
+            </li>
+          ))}
+          {!s.holdings.length && <li className="text-xs text-slate-500">None entered.</li>}
+        </ul>
       </section>
 
       <section className="card">

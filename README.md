@@ -59,6 +59,8 @@ The last four are read only by the Netlify functions at runtime and are **not** 
 (The spec's optional webhook URL is intentionally not implemented: a client-side webhook would be another public secret.)
 
 ### AI review: what it is and isn't
+Enter what you own (symbol, shares, average cost) under Settings -> My holdings. Each review is written in plain words, compares the signal with your holdings (profit/loss, 'you do not own this', sell amount capped to your shares) and ends with one line: `CONFIRM: SELL 4 AAPL`, `WAIT: ...` or `DO NOT BUY ...`. Selling something you don't own is rejected by a rule before the AI is called (free). Holdings are typed by hand and stored only in your browser; keep them up to date after each trade.
+
 Claude reads the headlines plus a live quote and returns a verdict. It is a second-opinion filter (stale news, rumours, wrong ticker, already-priced-in moves), not a prediction and not financial advice; it knows nothing about your portfolio. Each review costs a small amount of API credit, so it only runs on signals that already passed the local threshold. Because `/api/review` spends your credits, the functions only accept same-origin requests, are rate-limited per IP, and honour `APP_ACCESS_TOKEN`. **Set `APP_ACCESS_TOKEN`** (or password-protect the site), otherwise anyone who finds your URL can trigger reviews. Netlify sync functions time out after ~10 s by default; if reviews time out, set `REVIEW_MODEL=claude-sonnet-5-5` or raise the function timeout in Netlify.
 
 ### Security note — read this

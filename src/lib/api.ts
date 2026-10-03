@@ -1,4 +1,5 @@
 import type { Headline, Review, Signal } from '../types';
+import { assessHolding, type Holding } from './holdings';
 import { SourceError } from './rss';
 
 const TOKEN_KEY = 'ta.accessToken';
@@ -45,13 +46,14 @@ export async function fetchServerHeadlines(symbols: string[]): Promise<{ headlin
   return call(`/api/news?symbols=${encodeURIComponent(symbols.join(','))}`);
 }
 
-export async function fetchReview(sig: Signal, headlines: Headline[]): Promise<Review> {
+export async function fetchReview(sig: Signal, headlines: Headline[], holdings: Holding[]): Promise<Review> {
   const rel = headlines.filter((h) => h.symbol === sig.symbol || h.title.includes(sig.symbol)).slice(0, 15);
   const r = await call<Review & { quote?: { price: number; changePct: number } | null }>('/api/review', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       signal: { symbol: sig.symbol, side: sig.side, confidence: sig.confidence, reason: sig.reason, qty: sig.qty },
+      holdings: holdings.map((h) => ({ symbol: h.symbol, shares: h.shares, avgCost: h.avgCost })),
       headlines: rel.map((h) => ({ title: h.title.slice(0, 300), source: h.source.slice(0, 80), publishedAt: h.publishedAt })),
     }),
   });
@@ -64,17 +66,22 @@ export async function fetchReview(sig: Signal, headlines: Headline[]): Promise<R
     price: r.quote?.price,
     changePct: r.quote?.changePct,
     model: r.model,
+    holdingNote: r.holdingNote,
+    suggestedQty: r.suggestedQty,
   };
 }
 
-/** Offline stand-in for demo mode: no API call, no cost. */
-export function mockReview(sig: Signal): Review {
-  const verdict = sig.confidence >= 0.85 ? 'APPROVE' : sig.confidence >= 0.7 ? 'CAUTION' : 'REJECT';
+/** Offline stand-in for demo mode: no API call, no cost. Still checks holdings. */
+export function mockReview(sig: Signal, holdings: Holding[]): Review {
+  const hold = assessHolding(sig.side, sig.qty, sig.symbol, holdings);
+  const verdict = hold.block ? 'REJECT' : sig.confidence >= 0.85 ? 'APPROVE' : sig.confidence >= 0.7 ? 'CAUTION' : 'REJECT';
   return {
     verdict,
     confidence: sig.confidence,
-    rationale: `Simulated review (demo mode): verdict derived from the engine confidence only.`,
-    risks: ['Simulated - no real analysis was performed'],
+    rationale: hold.block ?? 'Demo mode: this answer is made up from the signal score only.',
+    risks: ['Demo mode: no real checking was done.'],
     simulated: true,
+    holdingNote: hold.note,
+    suggestedQty: hold.qty,
   };
 }

@@ -1,5 +1,6 @@
 import type { Signal } from '../types';
 import { useStore } from '../store';
+import { confirmLine } from '../lib/holdings';
 
 const VERDICT = { APPROVE: 'bg-emerald-800 text-emerald-100', CAUTION: 'bg-amber-700 text-amber-100', REJECT: 'bg-red-800 text-red-100' } as const;
 
@@ -35,12 +36,14 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
         )}
       </p>
       {s.review && (
-        <div className="mt-2 rounded border border-slate-800 bg-slate-950 p-2 text-xs text-slate-300">
+        <div className="mt-2 space-y-1 rounded border border-slate-800 bg-slate-950 p-2 text-sm text-slate-300">
           <p>{s.review.rationale}</p>
-          {s.review.risks.length > 0 && <p className="mt-1 text-slate-400">Risks: {s.review.risks.join(' · ')}</p>}
+          {s.review.holdingNote && <p className="text-slate-400">{s.review.holdingNote}</p>}
+          {s.review.risks.length > 0 && <p className="text-xs text-slate-400">Watch out: {s.review.risks.join(' · ')}</p>}
           {s.review.price !== undefined && (
-            <p className="mt-1 text-slate-500">Price {s.review.price} ({s.review.changePct}% today){s.review.model ? ` · ${s.review.model}` : ''}</p>
+            <p className="text-xs text-slate-500">Price {s.review.price} ({s.review.changePct}% today){s.review.model ? ` · ${s.review.model}` : ''}</p>
           )}
+          <p className={`rounded px-2 py-1 text-sm font-bold ${VERDICT[s.review.verdict]}`}>{confirmLine(s.review.verdict, s.side, s.qty, s.symbol)}{s.review.simulated ? ' (demo)' : ''}</p>
         </div>
       )}
       {s.reviewStatus === 'error' && <p className="mt-2 text-xs text-red-400">AI review failed: {s.reviewError}. Auto-email is blocked until a review succeeds.</p>}
