@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { historyToCsv } from '../lib/csv';
 import { download } from '../lib/storage';
 import type { HistoryItem, HistoryStatus } from '../types';
+import { Scoreboard } from '../components/Scoreboard';
 
 // Distinct colour per status (the text label is always shown too, never colour alone).
 const STATUS: Record<HistoryStatus, { label: string; border: string; badge: string; active: string }> = {
@@ -58,6 +59,8 @@ export function History() {
         <h2 className="font-semibold">History / audit trail ({items.length})</h2>
         <button className="btn" onClick={() => download(`history-${Date.now()}.csv`, historyToCsv(items), 'text/csv')}>Export CSV</button>
       </div>
+
+      <Scoreboard />
 
       <div className="mb-3 flex gap-1 overflow-x-auto pb-1">
         {FILTERS.map((f) => (

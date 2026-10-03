@@ -10,6 +10,7 @@ import { callMcp } from './lib/mcp';
 import { sendTradeEmail } from './lib/email';
 import { formatInstruction, planOrder } from './lib/instructions';
 import { Poller } from './lib/poller';
+import { computeRisk } from './lib/risk';
 import { hashPassphrase, newSalt, nowIso, uid, timingSafeEqual } from './lib/util';
 import { mergeHistory, pullRemote, pushRemote, snapshot, type SyncData } from './lib/sync';
 import { getAccessToken } from './lib/api';
@@ -55,6 +56,7 @@ interface Store {
   toasts: Toast[];
   dismissToast: (id: string) => void;
   reviewSignal: (s: Signal) => Promise<Review | null>;
+  setSignalQty: (id: string, qty: number) => void;
 }
 
 export interface Toast {
@@ -74,7 +76,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings();
     // Safety: never auto-email or stay in live mode on a locked build; session starts locked.
-    return { ...s, autoEmail: false, mockMode: config.forceMock ? true : s.mockMode };
+    // Auto-email stays as you left it (it needed your passphrase to enable). Panic Stop / demo mode turn it off.
+    return { ...s, autoEmail: config.forceMock ? false : s.autoEmail, mockMode: config.forceMock ? true : s.mockMode };
   });
   const [watchlist, setWatchlistState] = useState<string[]>(() => load(KEYS.watchlist, []));
   const [signals, setSignals] = useState<Signal[]>(() => load(KEYS.signals, []));
@@ -207,7 +210,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const panic = () => {
     update({ stopped: true, autoEmail: false });
     lock();
-    log('error', 'PANIC STOP: polling and auto-email disabled, session locked.');
+    log('error', 'STOP ALERTS: news checking and auto-email switched off, session locked.');
   };
   const resume = () => {
     update({ stopped: false });
@@ -239,7 +242,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const r = ref.current.settings.mockMode ? mockReview(sig, ref.current.settings.holdings) : await fetchReview(sig, context ?? ref.current.headlines, ref.current.settings.holdings);
       const qty = r.suggestedQty && r.suggestedQty > 0 ? r.suggestedQty : sig.qty;
       if (qty !== sig.qty) log('info', `${sig.symbol}: quantity changed ${sig.qty} -> ${qty} to match what you own.`);
-      patchSignal(sig.id, { review: r, reviewStatus: undefined, qty });
+      const st = ref.current.settings;
+      const risk = computeRisk(sig.side, r.price, st.riskPerTrade, st.stopLossPct);
+      patchSignal(sig.id, { review: r, reviewStatus: undefined, qty, entryPrice: r.price, stopPrice: risk?.stop, suggestedQty: risk?.suggestedQty });
       log(r.verdict === 'REJECT' ? 'warn' : 'info', `AI review ${sig.symbol}: ${r.verdict}${r.simulated ? ' (simulated)' : ''} - ${r.rationale}`);
       return r;
     } catch (e) {
@@ -258,7 +263,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       log(level, msg);
       if (!auto) toast(level === 'error' ? 'error' : 'warn', msg);
     };
-    if (s.stopped) return say('warn', 'Panic Stop is on. Email not sent.');
+    if (s.stopped) return say('warn', 'Alerts are stopped. Email not sent.');
     // Re-read the latest copy: the review may have completed after this object was captured.
     const current = ref.current.signals.find((x) => x.id === sig.id) ?? sig;
     if (auto && current.confidence < s.autoEmailMinConfidence) {
@@ -270,8 +275,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!auto && current.reviewStatus === 'pending') return say('warn', 'AI review is still running. Try again in a moment.');
       if (!auto && current.review?.verdict !== 'APPROVE') log('warn', `Emailing ${sig.symbol} without AI approval (${current.review?.verdict ?? 'no review'}).`);
     }
-    if (!ref.current.unlocked) {
-      if (auto) return log('warn', `Auto-email for ${sig.symbol} skipped: session is locked (passphrase required).`);
+    // Automatic sends were authorised when Auto-Email was switched on (passphrase); manual sends ask each session.
+    if (!auto && !ref.current.unlocked) {
       if (!hasPass()) return say('error', 'Set a passphrase in Settings before sending emails.');
       if (!(await requestUnlock(`Confirm emailing ${sig.side} ${sig.symbol}.`))) return toast('info', 'Cancelled. No email sent.');
     }
@@ -492,7 +497,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return;
     }
     const p = new Poller({
-      intervalMs: () => Math.max(5, ref.current.settings.pollIntervalSec) * 1000,
+      intervalMs: () => Math.max(30, ref.current.settings.pollIntervalSec) * 1000,
       tick: async () => {
         try {
           await tick();
@@ -515,7 +520,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     settings, update, watchlist, setWatchlist, signals, history, setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, goLive, goMock, setAutoEmail, setUseMcp, panic, resume,
-    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s),
+    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s), setSignalQty: (id, qty) => patchSignal(id, { qty }),
   };
   return (
     <Ctx.Provider value={value}>

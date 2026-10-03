@@ -30,3 +30,10 @@ export function timingSafeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return r === 0;
 }
+
+/** 30 -> "30 sec", 60 -> "1 min", 300 -> "5 min", 90 -> "1.5 min" */
+export function fmtInterval(sec: number): string {
+  if (sec < 60) return `${sec} sec`;
+  const m = sec / 60;
+  return `${Number.isInteger(m) ? m : m.toFixed(1)} min`;
+}

@@ -30,7 +30,7 @@ export default function App() {
           ))}
         </nav>
         <span className={`ml-auto rounded px-2 py-0.5 text-xs ${settings.mockMode ? 'bg-sky-900' : 'bg-amber-700'}`}>{settings.mockMode ? 'DEMO' : 'LIVE'}</span>
-        <button className="btn-danger" onClick={panic} disabled={settings.stopped}>{settings.stopped ? 'STOPPED' : 'PANIC STOP'}</button>
+        <button className="btn-danger" onClick={() => window.confirm('Stop alerts?\n\nThis stops checking the news and turns Auto-Email off. Nothing is cancelled in Fidelity and nothing is deleted. You can resume any time.') && panic()} disabled={settings.stopped}>{settings.stopped ? 'STOPPED' : 'STOP ALERTS'}</button>
       </header>
       <nav className="sticky top-[52px] z-30 grid grid-cols-4 border-b border-slate-800 bg-slate-950/95 sm:hidden">
         {TABS.map(([t, icon]) => (

@@ -58,6 +58,12 @@ The last four are read only by the Netlify functions at runtime and are **not** 
 
 (The spec's optional webhook URL is intentionally not implemented: a client-side webhook would be another public secret.)
 
+### Risk, P&L and scoreboard
+- **Today** opens with total profit/loss in dollars and today's change for everything you own.
+- Every BUY card shows a suggested **stop-loss** (Settings: stop-loss %, default 5) and how many shares keep your loss within *Most I want to lose on one trade* (default $100). The stop is only a suggestion included in the email: you place any stop order yourself in Fidelity. SELL cards show the proceeds and gain/loss versus what you paid.
+- **History -> Scoreboard** compares each real signal's price with the close 5 trading days later, with win rate and average move, split by what the AI said. Needs 20+ signals before it means anything and only counts this device's signals.
+- **Stop Alerts** (top right) stops news checking and turns Auto-Email off. It does not touch anything in Fidelity and deletes nothing. Auto-Email itself now persists across refreshes; it needs your passphrase to switch on.
+
 ### Trends tab
 Shows ~6 months of daily prices (via `/api/trends`, Yahoo, no key) for your watchlist and holdings, or a built-in list of 24 popular large companies. Each card has a chart, 1- and 3-month change, a simple 0-5 trend score (price above 50-day average, 20-day above 50-day, positive 1- and 3-month change, RSI between 40 and 70), a plain-words idea (buy candidate / wait / hold / sell / avoid), and your own profit or loss if you own it. *Ask the AI what to look at* (`/api/recommend`, a few cents per click, never automatic) picks up to 3 BUY and 2 SELL ideas from the table; SELL ideas are limited to stocks you own. It sees only price trends, not news or company financials. It is for ideas, not advice, and nothing here sends emails or places orders.
 

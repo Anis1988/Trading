@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import { config, emailConfigured, mcpConfigured } from '../lib/config';
 import { buildBackup, download } from '../lib/storage';
 import type { HistoryItem } from '../types';
-import { cleanSymbol } from '../lib/util';
+import { cleanSymbol, fmtInterval } from '../lib/util';
 import { Logs } from './Logs';
 import { useTrends } from '../lib/useTrends';
 import { ACTION_STYLE } from '../lib/trend';
@@ -77,7 +77,7 @@ export function Settings() {
         <h2 className="mb-2 font-semibold">Status</h2>
         <ul className="space-y-1 text-sm text-slate-300">
           <li>Mode: <b className={s.mockMode ? 'text-sky-400' : 'text-amber-400'}>{s.mockMode ? 'DEMO (made-up data)' : 'LIVE'}</b></li>
-          <li>Checking news: {s.stopped ? <b className="text-red-400">stopped (Panic Stop)</b> : st.polling ? `every ${s.pollIntervalSec}s` : 'idle'}{st.lastPoll ? ` · last ${new Date(st.lastPoll).toLocaleTimeString()}` : ''}</li>
+          <li>Checking news: {s.stopped ? <b className="text-red-400">stopped (Stop Alerts)</b> : st.polling ? `every ${fmtInterval(s.pollIntervalSec)}` : 'idle'}{st.lastPoll ? ` · last ${new Date(st.lastPoll).toLocaleTimeString()}` : ''}</li>
           <li>Auto-email: {s.autoEmail ? 'on' : 'off'} · Sync: {st.syncStatus === 'ok' ? 'on' : st.syncStatus === 'error' ? 'error' : st.syncStatus === 'syncing' ? 'syncing…' : 'off'}</li>
           <li><a className="text-sky-400 underline" href={deployUrl} target="_blank" rel="noopener noreferrer">Netlify deploys</a></li>
         </ul>
@@ -132,19 +132,29 @@ export function Settings() {
         <Row label="Recipient email">
           <input className="input w-60" type="email" value={s.toEmail} onChange={(e) => update({ toEmail: e.target.value.trim() })} />
         </Row>
-        <p className="text-xs text-slate-500">Auto-email is always switched OFF on page load and by Panic Stop. The session re-locks after 30 minutes. Max 10 auto-emails/hour.</p>
+        <p className="text-xs text-slate-500">Auto-email stays on after a refresh (you confirmed it with your passphrase when you turned it on). It is switched off by Stop Alerts, by going back to demo mode, or by this toggle. It only runs while the app is open in a tab. Max 10 auto-emails per hour.</p>
       </section>
 
       <section className="card">
         <h2 className="mb-2 font-semibold">Polling & strategy</h2>
-        <Row label="Poll interval (seconds, min 10)">
-          <input className="input w-24" type="number" min={10} value={s.pollIntervalSec} onChange={(e) => update({ pollIntervalSec: Math.max(10, Number(e.target.value) || 30) })} />
+        <Row label="Check the news every">
+          <select className="input" value={s.pollIntervalSec} onChange={(e) => update({ pollIntervalSec: Number(e.target.value) })}>
+            {[...new Set([60, 120, 300, 600, 900, 1800, s.pollIntervalSec])].sort((a, b) => a - b).map((v) => (
+              <option key={v} value={v}>{fmtInterval(v)}</option>
+            ))}
+          </select>
         </Row>
         <Row label="Default quantity">
           <input className="input w-24" type="number" min={1} value={s.defaultQty} onChange={(e) => update({ defaultQty: Math.max(1, Math.floor(Number(e.target.value)) || 1) })} />
         </Row>
         <Row label={`Min confidence: ${(s.minConfidence * 100).toFixed(0)}%`}>
           <input type="range" min={0.3} max={0.95} step={0.05} value={s.minConfidence} onChange={(e) => update({ minConfidence: Number(e.target.value) })} />
+        </Row>
+        <Row label="Most I want to lose on one trade ($)">
+          <input className="input w-24" type="number" min={1} value={s.riskPerTrade} onChange={(e) => update({ riskPerTrade: Math.max(1, Number(e.target.value) || 100) })} />
+        </Row>
+        <Row label="Stop-loss: sell if it falls this much (%)">
+          <input className="input w-24" type="number" min={1} max={50} value={s.stopLossPct} onChange={(e) => update({ stopLossPct: Math.min(50, Math.max(1, Number(e.target.value) || 5)) })} />
         </Row>
         <p className="mt-2 text-sm text-slate-300">Limit prices (optional, per symbol; blank = MARKET order)</p>
         <div className="mt-1 flex flex-wrap gap-2">
@@ -236,7 +246,7 @@ export function Settings() {
         <h2 className="mb-2 font-semibold">Sync &amp; access</h2>
         <p className="mb-2 text-xs text-slate-500">
           Enter the same access token (Netlify variable <code>APP_ACCESS_TOKEN</code>) on every device. Your holdings, watchlist, history and settings are then
-          saved to your private Netlify storage and appear on all devices. Safety switches (mock/live, Panic Stop, auto-email, MCP) stay per device.
+          saved to your private Netlify storage and appear on all devices. Safety switches (demo/live, Stop Alerts, auto-email, MCP) stay per device.
         </p>
         <div className="flex flex-wrap gap-2">
           <input className="input w-full sm:w-56" type="password" placeholder="Access token" value={tok} onChange={(e) => setTok(e.target.value)} />

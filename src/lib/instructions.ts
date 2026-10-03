@@ -21,6 +21,7 @@ export function formatInstruction(sig: Signal, plan: OrderPlan): string {
     `Order type: ${plan.orderType}${plan.limitPrice ? ` @ ${plan.limitPrice.toFixed(2)}` : ''}`,
     `Reason: ${sig.reason}`,
     `Confidence: ${(sig.confidence * 100).toFixed(0)}%`,
+    ...(sig.stopPrice ? [`Suggested stop-loss: $${sig.stopPrice.toFixed(2)} (about $${((sig.entryPrice! - sig.stopPrice) * sig.qty).toFixed(0)} maximum loss at ${sig.qty} shares)`] : []),
     ...(sig.review
       ? [
           `AI review: ${sig.review.rationale}${sig.review.simulated ? ' (simulated)' : ''}`,

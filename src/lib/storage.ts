@@ -12,7 +12,7 @@ export const KEYS = {
 export const defaultSettings: Settings = {
   mockMode: true, // demo mode is the default
   stopped: false,
-  pollIntervalSec: 30,
+  pollIntervalSec: 300,
   useNewsApi: false,
   useServerFeeds: true,
   useAiReview: true,
@@ -26,6 +26,8 @@ export const defaultSettings: Settings = {
   defaultQty: 1,
   limits: {},
   minConfidence: 0.6,
+  riskPerTrade: 100,
+  stopLossPct: 5,
   autoEmailMinConfidence: 0.85,
   passphraseHash: '',
   passphraseSalt: '',

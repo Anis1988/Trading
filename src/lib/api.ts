@@ -1,6 +1,6 @@
 import type { Headline, Review, Signal } from '../types';
 import { assessHolding, type Holding } from './holdings';
-import type { Analysis, Series } from './trend';
+import { mockSeries, type Analysis, type Series } from './trend';
 import { SourceError } from './rss';
 
 const TOKEN_KEY = 'ta.accessToken';
@@ -82,6 +82,7 @@ export function mockReview(sig: Signal, holdings: Holding[]): Review {
     rationale: hold.block ?? 'Demo mode: this answer is made up from the signal score only.',
     risks: ['Demo mode: no real checking was done.'],
     simulated: true,
+    price: mockSeries(sig.symbol).closes.slice(-1)[0],
     holdingNote: hold.note,
     suggestedQty: hold.qty,
   };

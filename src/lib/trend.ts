@@ -10,6 +10,7 @@ export type TrendLabel = 'Strong uptrend' | 'Uptrend' | 'Mixed' | 'Downtrend';
 export interface Analysis {
   symbol: string;
   price: number;
+  prevClose: number; // previous trading day's close
   ret1m: number; // % over ~21 trading days
   ret3m: number; // % over ~63 trading days
   sma20: number;
@@ -93,7 +94,7 @@ export function analyze(symbol: string, closes: number[], owned?: Holding): Anal
   if (r < 30) idea += ' It has dropped a lot lately, so it may bounce, but that is risky.';
 
   return {
-    symbol, price: round(price, 2), ret1m: round(ret1m), ret3m: round(ret3m), sma20: round(s20, 2), sma50: round(s50, 2),
+    symbol, price: round(price, 2), prevClose: round(closes[closes.length - 2], 2), ret1m: round(ret1m), ret3m: round(ret3m), sma20: round(s20, 2), sma50: round(s50, 2),
     rsi: round(r, 0), fromHigh: round(((price - high) / high) * 100), score, label, idea, ideaKind, action, closes,
   };
 }

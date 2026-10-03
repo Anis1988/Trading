@@ -4,6 +4,7 @@ import { SignalCard } from '../components/SignalCard';
 import { SignalCenter } from './SignalCenter';
 import { useTrends } from '../lib/useTrends';
 import { ACTION_STYLE, type Analysis } from '../lib/trend';
+import { money } from '../lib/risk';
 
 const IDEA: Record<Analysis['ideaKind'], string> = {
   buy: 'border-emerald-700 text-emerald-200',
@@ -25,6 +26,20 @@ export function Today({ goTo }: { goTo: (tab: 'Settings') => void }) {
   const held = settings.holdings;
   const { rows, loading, err } = useTrends(held.map((h) => h.symbol), settings);
 
+  // Portfolio totals in dollars (only for holdings that have a price).
+  const priced = held.filter((h) => rows.some((r) => r.symbol === h.symbol));
+  const tot = priced.reduce(
+    (t, h) => {
+      const r = rows.find((x) => x.symbol === h.symbol)!;
+      return { value: t.value + h.shares * r.price, cost: t.cost + h.shares * h.avgCost, day: t.day + h.shares * (r.price - r.prevClose) };
+    },
+    { value: 0, cost: 0, day: 0 },
+  );
+  const pl = tot.value - tot.cost;
+  const plPct = tot.cost > 0 ? (pl / tot.cost) * 100 : 0;
+  const dayPct = tot.value - tot.day > 0 ? (tot.day / (tot.value - tot.day)) * 100 : 0;
+  const sign = (n: number) => (n >= 0 ? '+' : '-');
+
   // Only signals worth acting on: not dismissed, not rejected by the AI.
   const attention = signals.filter((s) => s.status === 'new' && s.review?.verdict !== 'REJECT');
 
@@ -42,10 +57,25 @@ export function Today({ goTo }: { goTo: (tab: 'Settings') => void }) {
     <div className="space-y-4">
       {settings.stopped && (
         <div className="flex items-center justify-between gap-2 rounded border border-red-700 bg-red-950 p-3 text-sm">
-          <span>Everything is stopped (Panic Stop).</span>
+          <span>Alerts are stopped: no news checking, no auto-email.</span>
           <button className="btn-primary" onClick={resume}>Resume</button>
         </div>
       )}
+
+      <section className="card">
+        {priced.length ? (
+          <>
+            <p className="text-xs text-slate-400">Total profit / loss on what you own</p>
+            <p className={`text-3xl font-bold ${pl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+              {sign(pl)}{money(pl)} <span className="text-base font-medium">({sign(pl)}{Math.abs(plPct).toFixed(1)}%)</span>
+            </p>
+            <p className={`text-sm ${tot.day >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>Today: {sign(tot.day)}{money(tot.day)} ({sign(tot.day)}{Math.abs(dayPct).toFixed(1)}%)</p>
+            <p className="mt-1 text-xs text-slate-500">Worth {money(tot.value)} · you paid {money(tot.cost)}{priced.length < held.length ? ` · ${held.length - priced.length} stock(s) have no price yet` : ''}</p>
+          </>
+        ) : (
+          <p className="text-sm text-slate-500">{loading ? 'Loading your profit / loss…' : 'Profit / loss will show here once prices load.'}</p>
+        )}
+      </section>
 
       <section>
         <h2 className="mb-2 text-lg font-semibold">{attention.length ? `${attention.length} thing${attention.length > 1 ? 's' : ''} for you to look at` : 'Nothing needs you right now'}</h2>
@@ -75,6 +105,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings') => void }) {
                 {a ? (
                   <>
                     <p className="mt-1 text-2xl font-semibold">${a.price}
+                      <span className={`ml-2 text-xs ${a.price >= a.prevClose ? 'text-emerald-400' : 'text-red-400'}`}>today {sign((a.price - a.prevClose) * h.shares)}{money((a.price - a.prevClose) * h.shares)}</span>
                       {pl !== null && gain !== null && (
                         <span className={`ml-2 text-sm font-medium ${pl >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                           {pl >= 0 ? '+' : '-'}${Math.abs(gain).toFixed(0)} ({pl >= 0 ? '+' : ''}{pl.toFixed(1)}%)
