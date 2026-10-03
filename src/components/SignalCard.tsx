@@ -2,6 +2,7 @@ import type { Signal } from '../types';
 import { useStore } from '../store';
 import { confirmLine } from '../lib/holdings';
 
+const VERDICT_TEXT = { APPROVE: 'AI agrees', CAUTION: 'AI unsure', REJECT: 'AI says no' } as const;
 const VERDICT = { APPROVE: 'bg-emerald-800 text-emerald-100', CAUTION: 'bg-amber-700 text-amber-100', REJECT: 'bg-red-800 text-red-100' } as const;
 
 export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolean }) {
@@ -10,9 +11,11 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
   const done = s.status === 'dismissed';
   const rejected = settings.useAiReview && s.review?.verdict === 'REJECT';
   return (
-    <div className={`card ${done ? 'opacity-50' : ''}`}>
+    <div className={`card ${done ? 'opacity-50' : ''} ${rejected ? 'border-red-900' : ''}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded px-2 py-0.5 text-xs font-bold ${buy ? 'bg-emerald-700' : 'bg-red-700'}`}>{s.side}</span>
+        <span className={`rounded px-2 py-0.5 text-xs font-bold ${s.review && s.review.verdict !== 'APPROVE' ? 'bg-slate-700 text-slate-300' : buy ? 'bg-emerald-700' : 'bg-red-700'}`}>
+          {s.review ? `Proposed: ${s.side}` : s.side}
+        </span>
         <span className="text-lg font-semibold">{s.symbol}</span>
         <span className="text-sm text-slate-400">qty {s.qty}</span>
         <span className="text-sm">{(s.confidence * 100).toFixed(0)}% confidence</span>
@@ -21,7 +24,7 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
         {s.reviewStatus === 'pending' && <span className="rounded bg-slate-700 px-2 py-0.5 text-xs">AI reviewing…</span>}
         {s.review && (
           <span className={`rounded px-2 py-0.5 text-xs font-bold ${VERDICT[s.review.verdict]}`}>
-            AI: {s.review.verdict}{s.review.simulated ? ' (sim)' : ''}
+            {VERDICT_TEXT[s.review.verdict]}{s.review.simulated ? ' (demo)' : ''}
           </span>
         )}
         <span className="ml-auto text-xs text-slate-500">{new Date(s.createdAt).toLocaleString()}</span>
