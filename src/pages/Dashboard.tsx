@@ -56,6 +56,20 @@ export function Dashboard() {
         </section>
 
         <section className="card text-sm text-slate-300">
+          <h2 className="mb-1 font-semibold">My holdings</h2>
+          {settings.holdings.length ? (
+            <ul className="space-y-0.5">
+              {settings.holdings.map((h) => (
+                <li key={h.symbol}>{h.symbol}: {h.shares} sh @ ${h.avgCost}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-slate-500">None yet. Add them in Settings → My holdings.</p>
+          )}
+          <p className="mt-1 text-xs text-slate-500">Monitored automatically. Signals on these are checked against what you own.</p>
+        </section>
+
+        <section className="card text-sm text-slate-300">
           <h2 className="mb-1 font-semibold">Account note</h2>
           Execute trades yourself in Fidelity. After placing an order, open <b>History</b> and mark the instruction executed with order id and price.
         </section>

@@ -280,7 +280,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ---- polling ----
   const tick = useCallback(async () => {
-    const { settings: s, watchlist: wl, signals: existing } = ref.current;
+    const { settings: s, watchlist, signals: existing } = ref.current;
+    // Stocks you own are always monitored, even if they are not on the watchlist.
+    const wl = [...new Set([...watchlist, ...s.holdings.map((h) => h.symbol)])];
     if (s.stopped || !wl.length) return;
     setLastPoll(nowIso());
 
