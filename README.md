@@ -14,11 +14,14 @@ React + TypeScript + Tailwind SPA, deployed to Netlify from GitHub. It watches n
 - State in `localStorage` (settings, watchlist, signals, history, logs); JSON import/export, history CSV
 
 ## Run locally
+Requires Node 20+.
 ```bash
 npm install
-npm run dev        # mock mode, no keys needed
-npm test && npm run build
+cp .env.example .env     # optional: fill in EMAILJS_SERVICE_ID / EMAILJS_TEMPLATE_ID / EMAILJS_USER_ID
+npm run dev              # open http://localhost:5173
 ```
+It starts in mock mode, so no keys are needed. `.env` is git-ignored; restart `npm run dev` after editing it.
+Production check: `npm run build && npm run preview`.
 
 ## 1. GitHub setup
 ```bash
