@@ -120,7 +120,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const update = useCallback((patch: Partial<Settings>) => setSettings((s) => ({ ...s, ...patch })), []);
   const setWatchlist = useCallback((w: string[]) => setWatchlistState(w), []);
   const patchHistory = useCallback((id: string, patch: Partial<HistoryItem>) => {
-    setHistory((h) => h.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    setHistory((h) => h.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: nowIso() } : x)));
     log('info', `History ${id} updated: ${Object.keys(patch).join(', ')}`);
   }, [log]);
 
@@ -223,7 +223,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       {
         id: uid(), signalId: sig.id, createdAt: nowIso(), symbol: sig.symbol, side: sig.side, qty: sig.qty,
         orderType: plan.orderType, limitPrice: plan.limitPrice, reason: sig.reason, confidence: sig.confidence,
-        channel, status, note,
+        channel, status, note, updatedAt: nowIso(),
       },
       ...h,
     ]);
@@ -261,6 +261,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (s.stopped) return say('warn', 'Panic Stop is on. Email not sent.');
     // Re-read the latest copy: the review may have completed after this object was captured.
     const current = ref.current.signals.find((x) => x.id === sig.id) ?? sig;
+    if (auto && current.confidence < s.autoEmailMinConfidence) {
+      return log('info', `Auto-email for ${sig.symbol} skipped: confidence ${(current.confidence * 100).toFixed(0)}% is below your ${(s.autoEmailMinConfidence * 100).toFixed(0)}% minimum.`);
+    }
     if (s.useAiReview) {
       if (current.review?.verdict === 'REJECT') return say('error', `Email blocked: the AI said do not ${sig.side} ${sig.symbol}.`);
       if (auto && current.review?.verdict !== 'APPROVE') return log('warn', `Auto-email for ${sig.symbol} skipped: needs AI verdict APPROVE (got ${current.review?.verdict ?? 'none'}).`);

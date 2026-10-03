@@ -67,6 +67,8 @@ export interface HistoryItem {
   executedPrice?: number;
   executedAt?: string;
   note?: string;
+  updatedAt?: string; // last edit; used to merge edits made on different devices
+  deleted?: boolean; // soft delete so the deletion also syncs to other devices
 }
 
 export interface LogEntry {
@@ -93,6 +95,7 @@ export interface Settings {
   defaultQty: number;
   limits: Record<string, number>; // optional per-symbol limit price; present => LIMIT order, else MARKET
   minConfidence: number; // 0..1
+  autoEmailMinConfidence: number; // auto-email only at or above this signal confidence
   passphraseHash: string;
   passphraseSalt: string;
 }

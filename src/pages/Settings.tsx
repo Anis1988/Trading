@@ -85,6 +85,9 @@ export function Settings() {
         <Row label="Enable Auto-Email">
           <input type="checkbox" className="h-4 w-4" checked={s.autoEmail} onChange={(e) => void st.setAutoEmail(e.target.checked)} />
         </Row>
+        <Row label={`Auto-email only at ${(s.autoEmailMinConfidence * 100).toFixed(0)}%+ confidence`}>
+          <input type="range" min={0.6} max={0.95} step={0.05} value={s.autoEmailMinConfidence} onChange={(e) => update({ autoEmailMinConfidence: Number(e.target.value) })} />
+        </Row>
         <Row label="Recipient email">
           <input className="input w-60" type="email" value={s.toEmail} onChange={(e) => update({ toEmail: e.target.value.trim() })} />
         </Row>

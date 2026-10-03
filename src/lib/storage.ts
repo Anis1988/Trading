@@ -26,6 +26,7 @@ export const defaultSettings: Settings = {
   defaultQty: 1,
   limits: {},
   minConfidence: 0.6,
+  autoEmailMinConfidence: 0.85,
   passphraseHash: '',
   passphraseSalt: '',
 };

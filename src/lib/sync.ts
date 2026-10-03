@@ -22,12 +22,13 @@ export function snapshot(s: Settings, watchlist: string[], history: HistoryItem[
 
 const rank = (h: HistoryItem) => (h.status === 'executed' ? 3 : h.status === 'cancelled' ? 2 : h.status === 'failed' ? 1 : 0);
 
-/** Union by id; when both sides have an item, keep the more "final" one (executed > cancelled > failed > pending). */
+/** Union by id; when both devices have an item, the most recently edited copy wins (ties: the more "final" status). */
 export function mergeHistory(a: HistoryItem[], b: HistoryItem[]): HistoryItem[] {
+  const stamp = (h: HistoryItem) => h.updatedAt ?? h.createdAt;
   const map = new Map<string, HistoryItem>();
   for (const h of [...a, ...b]) {
     const cur = map.get(h.id);
-    if (!cur || rank(h) > rank(cur)) map.set(h.id, h);
+    if (!cur || stamp(h) > stamp(cur) || (stamp(h) === stamp(cur) && rank(h) > rank(cur))) map.set(h.id, h);
   }
   return [...map.values()].sort((x, y) => y.createdAt.localeCompare(x.createdAt));
 }
