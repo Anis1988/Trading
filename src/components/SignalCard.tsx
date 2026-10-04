@@ -38,6 +38,7 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
             <ActionChip action={action} size="lg" />
             <span className="font-display text-xl font-semibold">{s.symbol}</span>
             <span className="num text-sm text-slate-400">× {s.qty}</span>
+            {s.origin === 'trend' && <span className="rounded-md bg-violet-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-violet-200" title="Created by the price-trend check, not by news">trend</span>}
             {s.status !== 'new' && <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-slate-300">{s.status}</span>}
           </div>
           <p className="mt-2 text-[15px] leading-snug text-slate-200">{note}</p>

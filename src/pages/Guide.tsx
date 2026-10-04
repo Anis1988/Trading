@@ -52,7 +52,7 @@ export function Guide() {
             <Steps
               items={[
                 'Every few minutes the app reads the news about the stocks you own (and any you are watching).',
-                'If the news is clearly good or bad, it creates a signal: a suggestion to BUY or SELL.',
+                'If the news is clearly good or bad, it creates a signal: a suggestion to BUY or SELL. Every hour it also checks the price trend of what you own: if one has been sliding for weeks, it creates a SELL signal even when the news is quiet.',
                 'Free safety rules check it first: you cannot sell what you do not own, no buying right before earnings, no buying while the whole market is falling.',
                 'If it passes, Claude (the AI) reads the news, the price and your holdings, and gives its opinion in simple words.',
                 'You see the result on Today. You decide. You can email yourself the instruction or copy it.',
@@ -83,6 +83,26 @@ export function Guide() {
             </div>
           </Section>
 
+          <Section title="What the AI looks at" subtitle="Everything it gets before it answers" icon={Icon.ideas}>
+            <P>When a signal passes the free safety rules, Claude gets all of this and answers in plain words:</P>
+            <ul className="grid gap-1.5 text-sm text-slate-300 sm:grid-cols-2">
+              {[
+                ['📰', 'The headlines about the stock (titles, up to 15)'],
+                ['💲', 'Today\'s price and the last few days'],
+                ['📈', 'The 6-month trend: 1 and 3-month change, 50-day average, overheated or not'],
+                ['🌎', 'Whether the whole market is rising or falling'],
+                ['🗓', 'Upcoming earnings date'],
+                ['👥', 'What analysts say, P/E, dividend, 52-week range'],
+                ['💼', 'What you own: shares, price paid, gain or loss'],
+                ['🥧', 'How big a share of your money this stock would become'],
+                ['🛡', 'Your stop-loss and your risk limit per trade'],
+              ].map(([i, t]) => (
+                <li key={t} className="flex gap-2"><span aria-hidden="true">{i}</span><span>{t}</span></li>
+              ))}
+            </ul>
+            <Tip>It reads headline titles, not full articles, so a misleading headline can still fool it. That is why you always decide.</Tip>
+          </Section>
+
           <Section title="Reading a signal card" subtitle="The cards under Action needed" icon={Icon.today}>
             <Example caption="Read it from top to bottom: the word, one sentence why, then the money numbers, then the buttons.">
               <article className="card relative overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-emerald-400">
@@ -111,6 +131,7 @@ export function Guide() {
               <li><b>Max loss</b>: about how much you lose if the stop-loss is hit.</li>
               <li><b>Email me</b> sends the instruction to your inbox. <b>Copy</b> puts it on the clipboard. <b>Re-check</b> asks the AI again (uses a credit). <b>Dismiss</b> hides it.</li>
               <li><b>Details</b> shows the headline that caused it, the AI's warnings, the market, earnings and analysts.</li>
+              <li>A <span className="rounded-md bg-violet-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-violet-200">trend</span> tag means it came from the hourly price-trend check, not from news.</li>
             </ul>
             <Tip>A "Use 7" link means: buying 7 shares keeps your possible loss within your risk limit (Settings → Risk).</Tip>
           </Section>
@@ -242,7 +263,7 @@ export function Guide() {
             <ul className="space-y-2 text-sm text-slate-300">
               <li><b>Email me</b> (button): sends one instruction now.</li>
               <li><b>Auto-email (app open)</b>: emails BUY/SELL calls the AI approved, but only while the app is open on that device.</li>
-              <li><b>Background alerts (app closed)</b>: the server checks every 15 minutes on weekdays (7am–8pm New York) and emails you approved calls even when your phone is locked.</li>
+              <li><b>Background alerts (app closed)</b>: the server checks every 15 minutes on weekdays (7am–8pm New York) and emails you approved calls even when your phone is locked. It also checks your stocks' trends every hour. When this is on, the app does not send its own auto-email too, so you never get the same email twice.</li>
               <li><b>Notifications</b>: a phone alert for background alerts. On iPhone, first add the app to your Home Screen (Safari → Share → Add to Home Screen) and open it from there.</li>
               <li><b>Weekly summary</b>: every Friday after the market closes: your profit/loss, the week's instructions and the scoreboard.</li>
               <li><b>Stop alerts</b> (top right): stops checking the news and turns auto-email off on that device. It does not touch Fidelity and deletes nothing. Press Resume to start again.</li>

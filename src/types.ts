@@ -46,6 +46,7 @@ export interface Signal {
   source: SignalSource;
   autoEmail?: boolean; // requested by MCP; still gated by passphrase
   headlineUrl?: string;
+  origin?: 'news' | 'trend'; // what created it: headlines, or a held stock's price trend turning weak
   review?: Review;
   reviewStatus?: 'pending' | 'error';
   reviewError?: string;

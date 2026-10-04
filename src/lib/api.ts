@@ -48,7 +48,7 @@ export async function fetchServerHeadlines(symbols: string[]): Promise<{ headlin
   return call(`/api/news?symbols=${encodeURIComponent(symbols.join(','))}`);
 }
 
-export async function fetchReview(sig: Signal, headlines: Headline[], holdings: Holding[]): Promise<Review> {
+export async function fetchReview(sig: Signal, headlines: Headline[], holdings: Holding[], risk?: { riskPerTrade: number; stopLossPct: number; smartStop: boolean }): Promise<Review> {
   const rel = headlines.filter((h) => h.symbol === sig.symbol || h.title.includes(sig.symbol)).slice(0, 15);
   const r = await call<Review & { quote?: { price: number; changePct: number; volPct?: number } | null }>('/api/review', {
     method: 'POST',
@@ -56,6 +56,7 @@ export async function fetchReview(sig: Signal, headlines: Headline[], holdings: 
     body: JSON.stringify({
       signal: { symbol: sig.symbol, side: sig.side, confidence: sig.confidence, reason: sig.reason, qty: sig.qty },
       holdings: holdings.map((h) => ({ symbol: h.symbol, shares: h.shares, avgCost: h.avgCost })),
+      risk,
       headlines: rel.map((h) => ({ title: h.title.slice(0, 300), source: h.source.slice(0, 80), publishedAt: h.publishedAt })),
     }),
   });

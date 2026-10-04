@@ -17,6 +17,7 @@ const Body = z.object({
     .max(15),
   // What the user actually owns (entered in Settings). Empty = unknown.
   holdings: z.array(z.object({ symbol: z.string().regex(/^[A-Z.\-]{1,8}$/), shares: z.number().nonnegative().max(1e9), avgCost: z.number().nonnegative().max(1e7) })).max(100).default([]),
+  risk: z.object({ riskPerTrade: z.number().positive().max(1e7), stopLossPct: z.number().min(1).max(50), smartStop: z.boolean() }).optional(),
 });
 
 // POST /api/review { signal, headlines, holdings } -> { verdict, confidence, rationale, risks, holdingNote, suggestedQty, quote, model }

@@ -10,6 +10,9 @@ import { sendTradeEmail } from './lib/email';
 import { formatInstruction, planOrder } from './lib/instructions';
 import { Poller } from './lib/poller';
 import { computeRisk, stopPctFor } from './lib/risk';
+import { fetchTrendSeries } from './lib/api';
+import { analyze, type Analysis } from './lib/trend';
+import { TREND_CHECK_EVERY_MS, trendSellSignals } from './lib/trendSignals';
 import { hashPassphrase, newSalt, nowIso, uid, timingSafeEqual } from './lib/util';
 import { mergeHistory, mergeScoreLog, pullRemote, pushRemote, snapshot, type SyncData } from './lib/sync';
 import { getAccessToken } from './lib/api';
@@ -106,6 +109,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const unlockTimer = useRef<ReturnType<typeof setTimeout>>();
   const autoSent = useRef<number[]>([]);
   const lastErr = useRef('');
+  const lastTrendCheck = useRef(0);
 
   useEffect(() => save(KEYS.settings, settings), [settings]);
   useEffect(() => save(KEYS.watchlist, watchlist), [watchlist]);
@@ -248,7 +252,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const reviewSignal = useCallback(async (sig: Signal, context?: Headline[]): Promise<Review | null> => {
     patchSignal(sig.id, { reviewStatus: 'pending', reviewError: undefined });
     try {
-      const r = await fetchReview(sig, context ?? ref.current.headlines, ref.current.settings.holdings);
+      const cs = ref.current.settings;
+      const r = await fetchReview(sig, context ?? ref.current.headlines, cs.holdings, { riskPerTrade: cs.riskPerTrade, stopLossPct: cs.stopLossPct, smartStop: cs.smartStop });
       const qty = r.suggestedQty && r.suggestedQty > 0 ? r.suggestedQty : sig.qty;
       if (qty !== sig.qty) log('info', `${sig.symbol}: quantity changed ${sig.qty} -> ${qty} to match what you own.`);
       const st = ref.current.settings;
@@ -481,8 +486,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     all.forEach((h) => seen.current.add(h.id));
     if (seen.current.size > 2000) seen.current = new Set([...seen.current].slice(-1000));
     save(KEYS.seen, [...seen.current]);
-    if (!fresh.length) return;
-    setHeadlines((cur) => [...fresh, ...cur].slice(0, 100));
+
+    // Hourly: a stock you own whose price trend turned weak gets a SELL signal even when the news is quiet.
+    let trendSignals: Signal[] = [];
+    if (s.holdings.length && Date.now() - lastTrendCheck.current > TREND_CHECK_EVERY_MS) {
+      lastTrendCheck.current = Date.now();
+      try {
+        const t = await fetchTrendSeries(s.holdings.map((h) => h.symbol));
+        const analyses = s.holdings.map((h) => (t.series[h.symbol] ? analyze(h.symbol, t.series[h.symbol].closes, h) : null)).filter((a): a is Analysis => !!a);
+        trendSignals = trendSellSignals(analyses, s.holdings, existing);
+      } catch (e) {
+        log('warn', `Trend check failed: ${e instanceof Error ? e.message : e}`);
+      }
+    }
+    if (!fresh.length && !trendSignals.length) return;
+    if (fresh.length) setHeadlines((cur) => [...fresh, ...cur].slice(0, 100));
 
     let newSignals: Signal[] = [];
     let mcpFailed: Error | null = null;
@@ -501,16 +519,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!usingMcp || mcpFailed) {
       newSignals = generateSignals(fresh, wl, {
         defaultQty: s.defaultQty, minConfidence: s.minConfidence, existing, source: 'local',
-      });
+      }).map((x) => ({ ...x, origin: 'news' as const }));
     }
+    newSignals = [...newSignals, ...trendSignals];
     if (newSignals.length) {
       const aiOn = s.useAiReview;
       setSignals((l) => [...newSignals.map((n) => (aiOn && n.confidence >= s.aiMinConfidence ? { ...n, reviewStatus: 'pending' as const } : n)), ...l]);
-      newSignals.forEach((n) => log('info', `Signal: ${n.side} ${n.symbol} @ ${(n.confidence * 100).toFixed(0)}% (${n.source})`));
+      newSignals.forEach((n) => log('info', `Signal: ${n.side} ${n.symbol} @ ${(n.confidence * 100).toFixed(0)}% (${n.origin === 'trend' ? 'price trend' : n.source})`));
       // Paid AI checks only for strong signals; weaker ones keep an "AI check" button for a manual check.
       if (aiOn) await Promise.all(newSignals.filter((n) => n.confidence >= s.aiMinConfidence).map((n) => reviewSignal(n, fresh)));
       for (const n of newSignals) {
-        if (ref.current.settings.autoEmail) await emailSignal(n, true);
+        // Background alerts already email approved calls; the app does not send a second copy.
+        if (ref.current.settings.autoEmail && !ref.current.settings.serverAlerts) await emailSignal(n, true);
         else if (n.autoEmail) log('warn', `MCP requested auto-email for ${n.symbol}, ignored because Auto-Email is OFF.`);
       }
     }

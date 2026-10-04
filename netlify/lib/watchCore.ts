@@ -4,7 +4,9 @@ import { planOrder, formatInstruction } from '../../src/lib/instructions';
 import { computeRisk, stopPctFor } from '../../src/lib/risk';
 import { tradeEmailParams } from '../../src/lib/emailParams';
 import { uid } from '../../src/lib/util';
-import { finnhubNews, googleNews, yahooNews, type ServerHeadline } from './feeds';
+import { finnhubNews, googleNews, yahooHistory, yahooNews, type ServerHeadline } from './feeds';
+import { analyze, type Analysis } from '../../src/lib/trend';
+import { TREND_CHECK_EVERY_MS, trendSellSignals } from '../../src/lib/trendSignals';
 import { reviewTrade } from './reviewCore';
 import { sendServerEmail, serverEmailReady } from './mailer';
 import { pushAll } from './push';
@@ -57,9 +59,25 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
 
     // 2. signals (6h cooldown against what the server already sent)
     const previous = await readServer<Signal[]>('signals', []);
-    const signals = generateSignals(fresh, symbols, {
-      defaultQty: s.defaultQty ?? 1, minConfidence: s.minConfidence ?? 0.6, existing: previous, source: 'local',
-    })
+    // Hourly: SELL for a held stock whose price trend turned weak, even with quiet news.
+    let trendSignals: Signal[] = [];
+    const lastTrend = await readServer<number>('trendAt', 0);
+    if (holdings.length && Date.now() - lastTrend > TREND_CHECK_EVERY_MS) {
+      await writeServer('trendAt', Date.now());
+      const analyses = (
+        await Promise.all(holdings.slice(0, 15).map(async (h) => {
+          const hist = await yahooHistory(h.symbol).catch(() => null);
+          return hist ? analyze(h.symbol, hist.closes, h) : null;
+        }))
+      ).filter((a): a is Analysis => !!a);
+      trendSignals = trendSellSignals(analyses, holdings, previous);
+    }
+    const signals = [
+      ...generateSignals(fresh, symbols, {
+        defaultQty: s.defaultQty ?? 1, minConfidence: s.minConfidence ?? 0.6, existing: previous, source: 'local',
+      }).map((x) => ({ ...x, origin: 'news' as const })),
+      ...trendSignals,
+    ]
       // Only strong signals are worth paying an AI check for.
       .filter((x) => x.confidence >= Math.max(s.aiMinConfidence ?? 0.75, s.autoEmailMinConfidence ?? 0.85))
       .sort((a, b) => b.confidence - a.confidence)
@@ -85,6 +103,7 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
           signal: { symbol: sig.symbol, side: sig.side, confidence: sig.confidence, reason: sig.reason, qty: sig.qty },
           headlines: fresh.filter((h) => h.symbol === sig.symbol).slice(0, 15).map((h) => ({ title: h.title, source: h.source, publishedAt: h.publishedAt })),
           holdings,
+          risk: { riskPerTrade: s.riskPerTrade ?? 100, stopLossPct: s.stopLossPct ?? 5, smartStop: s.smartStop ?? true },
         }),
       ),
     );

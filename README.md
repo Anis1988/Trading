@@ -78,6 +78,9 @@ The server-only variables are read only by the Netlify functions at runtime and 
 - **Smart stop-loss:** about 2.5x the stock's typical daily move (3-15%), so calm stocks get tight stops and jumpy ones looser stops. Turn off in Settings -> Risk to use a fixed %.
 - **Concentration:** warns when one single stock (funds like VTI excluded) is over 25% of your money, or would be after a suggested buy.
 
+### What the AI check receives
+Headlines, today's price, the **6-month trend** (1/3-month change, 50-day average, RSI), market trend, earnings, analysts and basics, your holdings, the **share of your money** the stock would become, and your **stop-loss / risk limit**. Every hour (in the app and in background alerts) a held stock whose trend turned weak gets a **trend SELL** signal even when the news is quiet; it goes through the same rules and AI check. With background alerts on, the app's own auto-email stays quiet to avoid duplicate emails.
+
 ### Saving AI credits
 - Default review model is `claude-sonnet-5-5` (about half the cost of Opus); set `REVIEW_MODEL` to change it.
 - Only signals scoring at or above *Only auto-check signals scoring X%* (default 75%) get an automatic AI check; weaker ones show an *AI check* button.
