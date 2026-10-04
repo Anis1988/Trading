@@ -21,7 +21,7 @@ export const setAccessToken = (t: string): void => {
   }
 };
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
+export async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAccessToken();
   let res: Response;
   try {
@@ -96,7 +96,7 @@ export async function fetchTrendSeries(symbols: string[]): Promise<{ series: Rec
 
 export interface Pick {
   symbol: string;
-  action: 'BUY' | 'SELL' | 'WATCH';
+  action: 'BUY' | 'SELL' | 'WAIT';
   reason: string;
 }
 export interface Recommendation {
@@ -104,31 +104,6 @@ export interface Recommendation {
   picks: Pick[];
   model?: string;
   simulated?: boolean;
-}
-
-export async function fetchRecommendation(rows: Analysis[], holdings: Holding[]): Promise<Recommendation> {
-  return call('/api/recommend', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      rows: rows.slice(0, 40).map((a) => {
-        const h = holdings.find((x) => x.symbol === a.symbol);
-        return {
-          symbol: a.symbol, price: a.price, ret1m: a.ret1m, ret3m: a.ret3m, rsi: a.rsi, aboveSma50: a.price > a.sma50, trend: a.label,
-          owned: h ? { shares: h.shares, avgCost: h.avgCost } : null,
-        };
-      }),
-    }),
-  });
-}
-
-/** Demo-mode stand-in: picks straight from the rule-based labels. No API call. */
-export function mockRecommendation(rows: Analysis[]): Recommendation {
-  const picks: Pick[] = [
-    ...rows.filter((r) => r.ideaKind === 'buy').slice(0, 3).map((r) => ({ symbol: r.symbol, action: 'BUY' as const, reason: r.idea })),
-    ...rows.filter((r) => r.ideaKind === 'sell').slice(0, 2).map((r) => ({ symbol: r.symbol, action: 'SELL' as const, reason: r.idea })),
-  ];
-  return { summary: 'Demo mode: these picks come from the simple trend rules, not from the AI.', picks, simulated: true };
 }
 
 export async function fetchScan(): Promise<{ ideas: Idea[]; scanned: number; errors: string[] }> {
@@ -144,7 +119,7 @@ export function mockScan(): { ideas: Idea[]; scanned: number; errors: string[] }
   return { ideas: ideas.slice(0, 15), scanned: ideas.length, errors: [] };
 }
 
-/** Ask the AI to rank the scan results (clear BUY / WATCH picks, aware of what you own). */
+/** Ask the AI to rank the scan results (clear BUY / WAIT picks, aware of what you own). */
 export async function fetchIdeaPicks(ideas: Idea[], holdings: Holding[]): Promise<Recommendation> {
   return call('/api/recommend', {
     method: 'POST',

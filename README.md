@@ -5,13 +5,16 @@ React + TypeScript + Tailwind SPA, deployed to Netlify from GitHub. It watches n
 > **Not a broker.** This app never places or routes orders and never calls a broker API. You must manually confirm and execute every trade in your Fidelity account. Not financial advice.
 
 ## Features
-- Dashboard, Signal Center, History (CSV export + executed/order-id audit trail), Logs, Settings
-- Poller with exponential backoff + jitter (default 30 s, configurable, min 10 s)
+- Four tabs: **Today** (P&L, action needed, your stocks), **Ideas** (what to buy), **History** (audit trail + scoreboard), **Settings** (grouped: Holdings, Alerts & email, Risk, Sync, Advanced)
+- One action vocabulary everywhere: **BUY · SELL · HOLD · WAIT · SKIP**, each with a fixed colour, arrow/icon and text label
+- **Background alerts** (Netlify Scheduled Function every 15 min) email / notify you even when the app is closed; **weekly summary** email on Fridays
+- **Installable app** (Add to Home Screen) and **phone notifications** (Web Push)
+- Poller with exponential backoff + jitter (default 5 min, configurable)
 - Sources: **Netlify function `/api/news`** (Yahoo Finance + Google News RSS, optional Finnhub - server-side, so no CORS blocks), browser RSS/NewsAPI as a fallback, optional MCP (also the route for X/Twitter, which is never fetched in-browser)
 - **AI trade review** (`/api/review`, Claude): every signal gets APPROVE / CAUTION / REJECT with rationale, risks and live price context. **REJECT blocks emails**; auto-email requires APPROVE; a failed review never counts as approval
 - Local engine: keyword weights + small sentiment lexicon -> side + confidence (`src/lib/signals.ts`)
 - Optional MCP: POST headlines, receive `{ signals: [{symbol, side, confidence, reason, qty, autoEmail?}] }`
-- EmailJS fallback; **Panic Stop** button; **mock/demo mode is the default**
+- EmailJS; **Stop alerts** button; **demo mode is the default**
 - State in `localStorage` (settings, watchlist, signals, history, logs); JSON import/export, history CSV
 
 ## Run locally
@@ -52,9 +55,12 @@ git checkout -b demo && git push -u origin demo   # optional demo branch
 | `ANTHROPIC_API_KEY` | for AI review | **Server-only** (functions). Never reaches the browser |
 | `REVIEW_MODEL` | optional | Default `claude-opus-5-5`; set `claude-sonnet-5-5` for faster/cheaper reviews |
 | `FINNHUB_KEY` | optional | **Server-only**. Adds Finnhub company news |
-| `APP_ACCESS_TOKEN` | strongly recommended | **Server-only**. If set, `/api/*` requires it; enter it in Settings -> AI trade review |
+| `APP_ACCESS_TOKEN` | required for sync & background alerts | **Server-only**. `/api/*` requires it; enter it in Settings -> Sync & access |
+| `EMAILJS_PRIVATE_KEY` | for background alerts / weekly email | **Server-only**. EmailJS -> Account -> API keys -> Private key. Also tick *Allow EmailJS API for non-browser applications* (Account -> Security) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | for notifications | **Server-only**. Generate once with `npx web-push generate-vapid-keys` |
+| `VAPID_SUBJECT` | optional | `mailto:you@example.com` (contact for the push service) |
 
-The last four are read only by the Netlify functions at runtime and are **not** compiled into the bundle. Set them in Netlify (or `.env` for `npm run dev:full`).
+The server-only variables are read only by the Netlify functions at runtime and are **not** compiled into the bundle. Set them in Netlify (or `.env` for `npm run dev:full`).
 
 (The spec's optional webhook URL is intentionally not implemented: a client-side webhook would be another public secret.)
 
@@ -67,11 +73,14 @@ The last four are read only by the Netlify functions at runtime and are **not** 
 - **History -> Scoreboard** compares each real signal's price with the close 5 trading days later, with win rate and average move, split by what the AI said. Needs 20+ signals before it means anything and only counts this device's signals.
 - **Stop Alerts** (top right) stops news checking and turns Auto-Email off. It does not touch anything in Fidelity and deletes nothing. Auto-Email itself now persists across refreshes; it needs your passphrase to switch on.
 
-### Trends tab
-Shows ~6 months of daily prices (via `/api/trends`, Yahoo, no key) for your watchlist and holdings, or a built-in list of 24 popular large companies. Each card has a chart, 1- and 3-month change, a simple 0-5 trend score (price above 50-day average, 20-day above 50-day, positive 1- and 3-month change, RSI between 40 and 70), a plain-words idea (buy candidate / wait / hold / sell / avoid), and your own profit or loss if you own it. *Ask the AI what to look at* (`/api/recommend`, a few cents per click, never automatic) picks up to 3 BUY and 2 SELL ideas from the table; SELL ideas are limited to stocks you own. It sees only price trends, not news or company financials. It is for ideas, not advice, and nothing here sends emails or places orders.
+### Background alerts, weekly summary, notifications
+- **Background alerts** (Settings -> Alerts & email): `netlify/functions/watch.ts` runs every 15 minutes, Mon-Fri 7am-8pm New York. It reads your synced holdings/watchlist, takes headlines from the last 24 h it has not seen, generates signals, asks Claude, and only for **APPROVE** at or above your auto-email score threshold sends the email (and a notification). Max 3 AI checks per run and 10 emails per day. Each alert is added to History and the Scoreboard on all devices. Needs sync, `ANTHROPIC_API_KEY`, `EMAILJS_PRIVATE_KEY` (and/or VAPID keys), live mode, and the toggle on. *Run a check now* runs one immediately (1 AI check, to fit the request time limit); *Test email* checks the server email setup.
+- **Weekly summary** (`weekly.ts`, Fridays 21:00 UTC): profit/loss for the week and overall, this week's instructions, and the scoreboard. *Send summary now* to try it.
+- **Notifications**: turn on per device. On iPhone, first add the app to the Home Screen (Safari -> Share -> Add to Home Screen) and open it from there; iOS 16.4+ only allows web notifications for installed apps.
+- The service worker (`public/sw.js`) only handles notifications; it caches nothing, so you never see an old version.
 
 ### Syncing between your phone and computer
-Browser storage is per device, so the app saves your holdings, watchlist, history and settings to a private Netlify Blobs document through `/api/sync`. Requirements: set `APP_ACCESS_TOKEN` in Netlify (sync refuses to run without it), redeploy, then on **each device** open Settings -> Sync & access, enter the same token and press *Save & sync now*. After that it syncs on open, when you switch back to the tab, and ~1.5 s after each change. History from both devices is merged; for settings, holdings and watchlist the latest save wins. Mock/live mode, Panic Stop, auto-email and MCP are deliberately **not** synced. Signals and logs stay per device. The access token itself is stored only in that device's browser.
+Browser storage is per device, so the app saves your holdings, watchlist, history and settings to a private Netlify Blobs document through `/api/sync`. Requirements: set `APP_ACCESS_TOKEN` in Netlify (sync refuses to run without it), redeploy, then on **each device** open Settings -> Sync & access, enter the same token and press *Save & sync now*. After that it syncs on open, when you switch back to the tab, and ~1.5 s after each change. History from both devices is merged; for settings, holdings and watchlist the latest save wins. Demo/live mode and the scoreboard sync; Stop Alerts, auto-email, MCP and notifications are deliberately **not** synced. Signals and logs stay per device. The access token itself is stored only in that device's browser.
 
 Enter what you own (symbol, shares, average cost) under Settings -> My holdings. Each review is written in plain words, compares the signal with your holdings (profit/loss, 'you do not own this', sell amount capped to your shares) and ends with one line: `CONFIRM: SELL 4 AAPL`, `WAIT: ...` or `DO NOT BUY ...`. Selling something you don't own is rejected by a rule before the AI is called (free). Holdings are typed by hand and stored only in your browser; keep them up to date after each trade.
 

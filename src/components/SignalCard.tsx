@@ -1,96 +1,105 @@
+import { useState } from 'react';
 import type { Signal } from '../types';
 import { useStore } from '../store';
-import { confirmLine } from '../lib/holdings';
-import { money } from '../lib/risk';
+import { ActionChip, Stat, fmtMoney, type Action } from './ui';
 
-const VERDICT_TEXT = { APPROVE: 'AI agrees', CAUTION: 'AI unsure', REJECT: 'AI says no' } as const;
-const VERDICT = { APPROVE: 'bg-emerald-800 text-emerald-100', CAUTION: 'bg-amber-700 text-amber-100', REJECT: 'bg-red-800 text-red-100' } as const;
+/** The single word the user acts on. */
+export function finalAction(s: Signal, aiOn: boolean): { action: Action; note: string } {
+  if (s.reviewStatus === 'pending') return { action: 'CHECKING', note: 'The AI is checking this…' };
+  if (s.review) {
+    if (s.review.verdict === 'APPROVE') return { action: s.side, note: s.review.rationale };
+    if (s.review.verdict === 'CAUTION') return { action: 'WAIT', note: s.review.rationale };
+    return { action: 'SKIP', note: s.review.rationale };
+  }
+  if (s.reviewStatus === 'error') return { action: 'WAIT', note: `The AI check failed: ${s.reviewError ?? 'unknown error'}` };
+  return { action: aiOn ? 'WAIT' : s.side, note: aiOn ? 'Not checked by the AI yet.' : s.reason };
+}
 
 export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolean }) {
   const { emailSignal, copySignal, dismissSignal, reviewSignal, settings, sending, setSignalQty } = useStore();
+  const [open, setOpen] = useState(false);
   const hold = settings.holdings.find((h) => h.symbol === s.symbol);
   const isSending = sending.includes(s.id);
-  const buy = s.side === 'BUY';
   const done = s.status === 'dismissed';
-  const rejected = settings.useAiReview && s.review?.verdict === 'REJECT';
+  const { action, note } = finalAction(s, settings.useAiReview);
+  const blocked = settings.useAiReview && s.review?.verdict === 'REJECT';
+  const accent = action === 'BUY' ? 'before:bg-emerald-400' : action === 'SELL' ? 'before:bg-red-400' : action === 'WAIT' ? 'before:bg-amber-400' : 'before:bg-slate-500';
+
   return (
-    <div className={`card ${done ? 'opacity-50' : ''} ${rejected ? 'border-red-900' : ''}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded px-2 py-0.5 text-xs font-bold ${s.review && s.review.verdict !== 'APPROVE' ? 'bg-slate-700 text-slate-300' : buy ? 'bg-emerald-700' : 'bg-red-700'}`}>
-          {s.review ? `Proposed: ${s.side}` : s.side}
-        </span>
-        <span className="text-lg font-semibold">{s.symbol}</span>
-        <span className="text-sm text-slate-400">qty {s.qty}</span>
-        <span className="text-sm">{(s.confidence * 100).toFixed(0)}% confidence</span>
-        {s.status !== 'new' && <span className="rounded bg-slate-800 px-2 py-0.5 text-xs">{s.status}</span>}
-        {s.reviewStatus === 'pending' && <span className="rounded bg-slate-700 px-2 py-0.5 text-xs">AI reviewing…</span>}
-        {s.review && (
-          <span className={`rounded px-2 py-0.5 text-xs font-bold ${VERDICT[s.review.verdict]}`}>
-            {VERDICT_TEXT[s.review.verdict]}{s.review.simulated ? ' (demo)' : ''}
-          </span>
-        )}
-        <span className="ml-auto text-xs text-slate-500">{new Date(s.createdAt).toLocaleString()}</span>
-      </div>
-      <p className="mt-2 break-words text-sm text-slate-300">
-        {s.reason}
-        {s.headlineUrl && (
-          <>
-            {' '}
-            <a className="text-sky-400 underline" href={s.headlineUrl} target="_blank" rel="noopener noreferrer">source</a>
-          </>
-        )}
-      </p>
-      {s.review && (
-        <div className="mt-2 space-y-1 rounded border border-slate-800 bg-slate-950 p-2 text-sm text-slate-300">
-          <p>{s.review.rationale}</p>
-          {s.review.holdingNote && <p className="text-slate-400">{s.review.holdingNote}</p>}
-          {s.review.risks.length > 0 && <p className="text-xs text-slate-400">Watch out: {s.review.risks.join(' · ')}</p>}
-          {s.review.price !== undefined && (
-            <p className="text-xs text-slate-500">Price {s.review.price}{s.review.changePct !== undefined ? ` (${s.review.changePct}% today)` : ''}{s.review.model ? ` · ${s.review.model}` : ''}</p>
-          )}
-          <p className={`rounded px-2 py-1 text-sm font-bold ${VERDICT[s.review.verdict]}`}>{confirmLine(s.review.verdict, s.side, s.qty, s.symbol)}{s.review.simulated ? ' (demo)' : ''}</p>
+    <article className={`card relative overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-1 ${accent} ${done ? 'opacity-50' : ''}`}>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <ActionChip action={action} size="lg" />
+            <span className="font-display text-xl font-semibold">{s.symbol}</span>
+            <span className="num text-sm text-slate-400">× {s.qty}</span>
+            {s.status !== 'new' && <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-slate-300">{s.status}</span>}
+            {s.review?.simulated && <span className="rounded-md bg-sky-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-sky-200">demo</span>}
+          </div>
+          <p className="mt-2 text-[15px] leading-snug text-slate-200">{note}</p>
         </div>
-      )}
+      </div>
+
       {s.entryPrice && s.side === 'BUY' && s.stopPrice && (
-        <div className="mt-2 rounded border border-slate-700 bg-slate-950 p-2 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Risk</p>
-          <p>Buy near <b>{money(s.entryPrice)}</b> · Stop-loss <b className="text-red-300">{money(s.stopPrice)}</b> <span className="text-slate-500">({settings.stopLossPct}% below)</span></p>
-          <p>Most you lose with {s.qty} share{s.qty === 1 ? '' : 's'}: <b className="text-red-300">≈ {money((s.entryPrice - s.stopPrice) * s.qty)}</b></p>
-          {s.suggestedQty !== undefined && s.suggestedQty !== s.qty && (
-            <p className="mt-1 flex flex-wrap items-center gap-2 text-slate-300">
-              To risk only {money(settings.riskPerTrade)}: {s.suggestedQty} share{s.suggestedQty === 1 ? '' : 's'}
-              <button className="btn" onClick={() => setSignalQty(s.id, s.suggestedQty!)}>Use {s.suggestedQty}</button>
-            </p>
-          )}
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <Stat label="Buy near" value={fmtMoney(s.entryPrice)} />
+          <Stat label="Stop-loss" value={fmtMoney(s.stopPrice)} tone="down" />
+          <Stat label="Max loss" value={`−${fmtMoney((s.entryPrice - s.stopPrice) * s.qty)}`} tone="down" />
         </div>
       )}
       {s.entryPrice && s.side === 'SELL' && (
-        <div className="mt-2 rounded border border-slate-700 bg-slate-950 p-2 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">If you sell</p>
-          <p>{s.qty} share{s.qty === 1 ? '' : 's'} at about <b>{money(s.entryPrice)}</b> = <b>{money(s.entryPrice * s.qty)}</b></p>
-          {hold && hold.avgCost > 0 && (
-            <p className={(s.entryPrice - hold.avgCost) * s.qty >= 0 ? 'text-emerald-300' : 'text-red-300'}>
-              Compared with what you paid: {(s.entryPrice - hold.avgCost) * s.qty >= 0 ? 'a gain of ' : 'a loss of '}{money((s.entryPrice - hold.avgCost) * s.qty)}
-            </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Stat label="You get about" value={fmtMoney(s.entryPrice * s.qty)} />
+          {hold && hold.avgCost > 0 ? (
+            <Stat
+              label="Vs what you paid"
+              value={`${(s.entryPrice - hold.avgCost) * s.qty >= 0 ? '+' : '−'}${fmtMoney((s.entryPrice - hold.avgCost) * s.qty)}`}
+              tone={(s.entryPrice - hold.avgCost) * s.qty >= 0 ? 'up' : 'down'}
+            />
+          ) : (
+            <Stat label="Price" value={fmtMoney(s.entryPrice)} />
           )}
         </div>
       )}
-      {s.reviewStatus === 'error' && <p className="mt-2 text-xs text-red-400">AI review failed: {s.reviewError}. Auto-email is blocked until a review succeeds.</p>}
+      {s.side === 'BUY' && s.suggestedQty !== undefined && s.suggestedQty !== s.qty && !compact && !done && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-300">
+          <span>To risk only {fmtMoney(settings.riskPerTrade)}: <b className="num">{s.suggestedQty}</b> shares</span>
+          <button className="btn-ghost" onClick={() => setSignalQty(s.id, s.suggestedQty!)}>Use {s.suggestedQty}</button>
+        </div>
+      )}
+
       {!compact && !done && (
         <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <button
-            className={s.status === 'emailed' && !isSending ? 'btn border-emerald-600 text-emerald-300' : 'btn-primary'}
-            disabled={rejected || isSending || s.reviewStatus === 'pending'}
-            title={rejected ? 'Blocked: the AI said do not trade this' : ''}
+            className={s.status === 'emailed' && !isSending ? 'btn border-emerald-400/50 text-emerald-200' : 'btn-primary'}
+            disabled={blocked || isSending || s.reviewStatus === 'pending'}
+            title={blocked ? 'Blocked: the AI said skip this one' : ''}
             onClick={() => void emailSignal(s)}
           >
-            {isSending ? <><span className="spinner" /> Sending…</> : s.status === 'emailed' ? '✓ Emailed · again' : 'Email'}
+            {isSending ? <><span className="spinner" /> Sending…</> : s.status === 'emailed' ? '✓ Emailed · again' : blocked ? 'Email blocked' : 'Email me'}
           </button>
           <button className="btn" onClick={() => void copySignal(s)}>{s.status === 'copied' ? '✓ Copied' : 'Copy'}</button>
-          {settings.useAiReview && <button className="btn" disabled={s.reviewStatus === 'pending'} onClick={() => void reviewSignal(s)}>{s.review ? 'Re-review' : 'AI review'}</button>}
+          {settings.useAiReview && (
+            <button className="btn" disabled={s.reviewStatus === 'pending'} onClick={() => void reviewSignal(s)}>{s.review || s.reviewStatus === 'error' ? 'Re-check' : 'AI check'}</button>
+          )}
           <button className="btn" onClick={() => dismissSignal(s)}>Dismiss</button>
         </div>
       )}
-    </div>
+
+      <button className="btn-ghost mt-2 !px-0 text-xs" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? 'Hide details' : 'Details'}</button>
+      {open && (
+        <div className="panel mt-1 space-y-1.5 text-sm text-slate-300">
+          <p><span className="label">Why it fired</span><br />{s.reason}{s.headlineUrl && <> · <a className="text-cyan-300 underline" href={s.headlineUrl} target="_blank" rel="noopener noreferrer">source</a></>}</p>
+          {s.review?.holdingNote && <p><span className="label">Your holdings</span><br />{s.review.holdingNote}</p>}
+          {s.review && s.review.risks.length > 0 && <p><span className="label">Watch out</span><br />{s.review.risks.join(' · ')}</p>}
+          <p className="text-xs text-slate-500">
+            Signal score {(s.confidence * 100).toFixed(0)}% · {new Date(s.createdAt).toLocaleString()}
+            {s.review?.price !== undefined && ` · price $${s.review.price}`}
+            {s.review?.model && ` · ${s.review.model}`}
+            {s.stopPrice && ` · stop ${settings.stopLossPct}% below`}
+          </p>
+        </div>
+      )}
+    </article>
   );
 }

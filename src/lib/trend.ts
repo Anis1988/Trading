@@ -21,7 +21,7 @@ export interface Analysis {
   label: TrendLabel;
   idea: string; // plain-words takeaway
   ideaKind: 'buy' | 'wait' | 'hold' | 'sell' | 'avoid';
-  action?: 'SELL' | 'HOLD' | 'BUY MORE'; // only for stocks you own
+  action?: 'SELL' | 'HOLD' | 'BUY'; // only for stocks you own (BUY = add more)
   closes: number[];
 }
 
@@ -72,7 +72,7 @@ export function analyze(symbol: string, closes: number[], owned?: Holding): Anal
     if (score <= 1) {
       action = 'SELL'; ideaKind = 'sell'; idea = 'Trend is weak. Think about selling some or all.';
     } else if (score >= 5 && r <= 65) {
-      action = 'BUY MORE'; ideaKind = 'buy'; idea = 'Strong, steady climb. Adding more is reasonable.';
+      action = 'BUY'; ideaKind = 'buy'; idea = 'Strong, steady climb. Adding more is reasonable.';
     } else if (score >= 4 && r > 70) {
       action = 'HOLD'; ideaKind = 'hold'; idea = 'Rising fast and looks stretched. Keep holding, but do not add now.';
     } else {
@@ -118,8 +118,3 @@ export function mockSeries(symbol: string, days = 126): Series {
 
 export const POPULAR = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'AVGO', 'JPM', 'V', 'UNH', 'XOM', 'LLY', 'COST', 'WMT', 'NFLX', 'AMD', 'ORCL', 'KO', 'PEP', 'HD', 'PG', 'MA', 'BAC'];
 
-export const ACTION_STYLE = {
-  SELL: 'bg-red-700 text-white',
-  HOLD: 'bg-slate-600 text-white',
-  'BUY MORE': 'bg-emerald-700 text-white',
-} as const;

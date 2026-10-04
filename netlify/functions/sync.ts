@@ -9,6 +9,7 @@ const Data = z.object({
   settings: z.record(z.string(), z.unknown()),
   watchlist: z.array(z.string().max(8)).max(100),
   history: z.array(z.record(z.string(), z.unknown())).max(2000),
+  scoreLog: z.array(z.record(z.string(), z.unknown())).max(1000).default([]),
 });
 const Put = z.object({ baseUpdatedAt: z.string().nullable(), data: Data });
 

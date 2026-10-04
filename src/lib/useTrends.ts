@@ -9,6 +9,7 @@ export function useTrends(symbols: string[], settings: Settings) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [updated, setUpdated] = useState('');
+  const [dates, setDates] = useState<Record<string, string[]>>({});
   const key = symbols.join(',');
 
   const load = useCallback(async () => {
@@ -19,7 +20,7 @@ export function useTrends(symbols: string[], settings: Settings) {
     setLoading(true);
     setErr('');
     try {
-      const series: Record<string, { closes: number[] }> = {};
+      const series: Record<string, { closes: number[]; dates?: string[] }> = {};
       let errors: string[] = [];
       if (settings.mockMode) symbols.forEach((s) => (series[s] = mockSeries(s)));
       else {
@@ -32,6 +33,7 @@ export function useTrends(symbols: string[], settings: Settings) {
         .filter((a): a is Analysis => !!a)
         .sort((a, b) => b.score - a.score || b.ret3m - a.ret3m);
       setRows(out);
+      setDates(Object.fromEntries(Object.entries(series).map(([k, v]) => [k, v.dates ?? []])));
       setUpdated(new Date().toLocaleTimeString());
       if (errors.length) setErr(`No data for: ${errors.map((e) => e.split(':')[0]).join(', ')}.`);
       else if (!out.length) setErr('No price history came back.');
@@ -44,5 +46,5 @@ export function useTrends(symbols: string[], settings: Settings) {
   }, [key, settings.mockMode, settings.holdings]);
 
   useEffect(() => void load(), [load]);
-  return { rows, loading, err, updated, reload: load };
+  return { rows, dates, loading, err, updated, reload: load };
 }

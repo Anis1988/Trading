@@ -44,7 +44,7 @@ export function assessHolding(side: Side, qty: number, symbol: string, holdings:
 
 /** The last line the user acts on. */
 export function confirmLine(verdict: Verdict, side: Side, qty: number, symbol: string): string {
-  if (verdict === 'APPROVE') return `CONFIRM: ${side} ${qty} ${symbol}`;
-  if (verdict === 'CAUTION') return `WAIT: not clear enough to ${side} ${symbol}`;
-  return `DO NOT ${side} ${symbol}`;
+  if (verdict === 'APPROVE') return `${side} ${qty} ${symbol}`;
+  if (verdict === 'CAUTION') return `WAIT: not clear enough to ${side.toLowerCase()} ${symbol} yet`;
+  return `SKIP: do not ${side.toLowerCase()} ${symbol}`;
 }

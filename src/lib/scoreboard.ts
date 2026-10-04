@@ -1,4 +1,4 @@
-import type { Signal } from '../types';
+import type { ScoreEntry, Signal } from '../types';
 
 export const HORIZON_TRADING_DAYS = 5;
 
@@ -52,3 +52,20 @@ export function scoreSignals(signals: Signal[], series: Record<string, Series>):
     avgEdge: scored.length ? scored.reduce((a, x) => a + x.edge, 0) / scored.length : null,
   };
 }
+
+/** Turn synced score entries into the minimal Signal shape the scorer needs; one call per symbol/side/day. */
+export function entriesToSignals(log: ScoreEntry[]): Signal[] {
+  const seen = new Set<string>();
+  const out: Signal[] = [];
+  for (const e of log) {
+    const k = `${e.symbol}|${e.side}|${e.createdAt.slice(0, 10)}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push({
+      id: e.id, symbol: e.symbol, side: e.side, confidence: 0, reason: '', qty: 0, createdAt: e.createdAt, status: 'new', source: 'local', entryPrice: e.entryPrice,
+      review: e.verdict ? { verdict: e.verdict, confidence: 0, rationale: '', risks: [] } : undefined,
+    });
+  }
+  return out;
+}
+

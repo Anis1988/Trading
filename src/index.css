@@ -2,27 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Futuristic dark theme: deep navy, faint grid + glow, glass panels, cyan->violet accent.
+   Semantic colours are fixed everywhere: green = gain/BUY, red = loss/SELL, amber = WAIT, grey = HOLD/SKIP.
+   Every coloured state also carries a text label and an arrow/icon, never colour alone. */
 @layer base {
-  html { -webkit-tap-highlight-color: transparent; }
-  body { overflow-x: hidden; }
+  html { -webkit-tap-highlight-color: transparent; color-scheme: dark; }
+  body {
+    @apply min-h-screen font-sans text-slate-100 antialiased;
+    overflow-x: hidden;
+    background-color: #05070f;
+    background-image:
+      radial-gradient(60rem 40rem at 10% -10%, rgba(34, 211, 238, 0.10), transparent 60%),
+      radial-gradient(50rem 40rem at 110% 10%, rgba(139, 92, 246, 0.12), transparent 60%),
+      linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+    background-size: auto, auto, 32px 32px, 32px 32px;
+    background-attachment: fixed;
+  }
+  h1, h2, h3 { @apply font-display tracking-tight; }
+  ::selection { background: rgba(34, 211, 238, 0.3); }
 }
 
 @layer components {
+  .card { @apply rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.35)] backdrop-blur-md; }
+  .panel { @apply rounded-xl border border-white/10 bg-black/25 p-3; }
+  .num { @apply font-mono tabular-nums; }
+  .label { @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400; }
+  .muted { @apply text-slate-400; }
+
   /* >=44px tap targets and 16px inputs on phones (16px stops iOS zooming into fields) */
-  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded border border-slate-600 bg-slate-800 px-4 py-2 text-sm transition active:scale-95 hover:bg-slate-700 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5; }
-  .btn-primary { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition active:scale-95 hover:bg-emerald-500 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5; }
-  .btn-danger { @apply inline-flex min-h-[40px] items-center justify-center rounded bg-red-600 px-3 py-1.5 text-sm font-bold text-white transition active:scale-95 hover:bg-red-500 disabled:opacity-60; }
-  .input { @apply min-h-[44px] max-w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-base sm:min-h-0 sm:px-2 sm:py-1.5 sm:text-sm; }
-  .card { @apply rounded-lg border border-slate-800 bg-slate-900 p-3 sm:p-4; }
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-cyan-300/40 hover:bg-white/10 active:scale-95 disabled:pointer-events-none disabled:opacity-40 sm:min-h-[38px] sm:px-3 sm:py-1.5; }
+  .btn-primary { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-violet-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.25)] transition hover:brightness-110 active:scale-95 disabled:pointer-events-none disabled:opacity-40 sm:min-h-[38px] sm:px-3 sm:py-1.5; }
+  .btn-ghost { @apply inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-cyan-300 hover:bg-white/5 active:scale-95; }
+  .btn-danger { @apply inline-flex min-h-[38px] items-center justify-center gap-1.5 rounded-xl border border-red-400/40 bg-red-500/15 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-red-200 transition hover:bg-red-500/25 active:scale-95 disabled:opacity-50; }
+  .input { @apply min-h-[44px] min-w-0 max-w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:border-cyan-300/60 focus:outline-none focus:ring-2 focus:ring-cyan-300/20 sm:min-h-[38px] sm:py-1.5 sm:text-sm; }
+  .toggle { @apply relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border border-white/15 bg-white/10 transition; }
+  .toggle[aria-checked='true'] { @apply border-cyan-300/50 bg-gradient-to-r from-cyan-400/80 to-violet-500/80; }
+  .toggle > span { @apply inline-block h-5 w-5 translate-x-1 rounded-full bg-white shadow transition; }
+  .toggle[aria-checked='true'] > span { @apply translate-x-6; }
 }
 
-@keyframes toast-in {
-  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
-  to { opacity: 1; transform: none; }
-}
+.glow-up { text-shadow: 0 0 24px rgba(52, 211, 153, 0.45); }
+.glow-down { text-shadow: 0 0 24px rgba(248, 113, 113, 0.45); }
+
+@keyframes toast-in { from { opacity: 0; transform: translateY(-12px) scale(0.97); } to { opacity: 1; transform: none; } }
 .toast-in { animation: toast-in 0.18s ease-out; }
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+.skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0.04) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite linear; border-radius: 0.75rem; }
 .spinner { width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .skeleton, .spinner, .toast-in { animation: none; } }
 
 /* Hide third-party hosting widgets/badges (e.g. Netlify drawer) that could overlap the UI */
 #netlify-drawer, netlify-drawer, [id^="netlify-"], iframe[src*="netlify"][style*="fixed"] { display: none !important; }

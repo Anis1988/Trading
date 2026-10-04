@@ -1,24 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { fetchIdeaPicks, fetchScan, mockIdeaPicks, mockScan, type Recommendation } from '../lib/api';
-import { ideaToAnalysis, isBuyIdea, reasonsFor, strength, type Idea } from '../lib/picks';
-import { computeRisk, money } from '../lib/risk';
-
-const STRENGTH_STYLE = { Strong: 'bg-emerald-600', Good: 'bg-emerald-800', Fair: 'bg-slate-600', Weak: 'bg-slate-700' } as const;
-const ACTION_STYLE = { BUY: 'bg-emerald-700', SELL: 'bg-red-700', WATCH: 'bg-slate-600' } as const;
+import { ideaToAnalysis, isBuyIdea, reasonsFor, type Idea } from '../lib/picks';
+import { computeRisk } from '../lib/risk';
+import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
 
 let cached: { at: number; live: boolean; data: { ideas: Idea[]; scanned: number; errors: string[] } } | null = null;
 
-function Spark({ closes }: { closes: number[] }) {
-  const w = 300;
-  const h = 48;
-  const min = Math.min(...closes);
-  const max = Math.max(...closes);
-  const pts = closes.map((c, i) => `${((i / (closes.length - 1)) * w).toFixed(1)},${(h - 4 - ((c - min) / (max - min || 1)) * (h - 8)).toFixed(1)}`).join(' ');
+function ScoreBar({ score }: { score: number }) {
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-12 w-full" preserveAspectRatio="none" role="img" aria-label="Price over the last three months">
-      <polyline points={pts} fill="none" stroke="#34d399" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-    </svg>
+    <div className="flex items-center gap-2" aria-label={`Score ${score} out of 100`}>
+      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/10">
+        <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" style={{ width: `${score}%` }} />
+      </div>
+      <span className="num text-xs text-slate-300">{score}/100</span>
+    </div>
   );
 }
 
@@ -67,80 +63,90 @@ export function Ideas() {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="mr-auto font-semibold">What to buy now</h2>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="mr-auto">
+          <h2 className="text-2xl font-semibold">What to buy now</h2>
+          <p className="text-sm text-slate-400">
+            {data ? `${data.scanned} large US stocks and ETFs scanned` : 'Scanning large US stocks and ETFs'} · ranked by trend, momentum and news{settings.mockMode ? ' · demo prices' : ''}
+          </p>
+        </div>
         <button className="btn" disabled={loading} onClick={() => void scan(true)}>{loading ? <><span className="spinner" /> Scanning…</> : 'Scan again'}</button>
       </div>
-      <p className="text-xs text-slate-500">
-        Scans {data ? `${data.scanned} ` : ''}large US stocks and ETFs (not just your list), ranks them by trend, momentum and recent news, and shows only the ones that look healthy and not overheated.
-        {settings.mockMode ? ' Demo mode: prices are made up.' : ''} It ranks, it cannot predict: any stock can fall.
-      </p>
-      {err && <p className="rounded border border-amber-800 bg-amber-950 p-2 text-sm text-amber-200">{err}</p>}
+
+      {err && <p className="card !border-amber-300/40 text-sm text-amber-100">{err}</p>}
 
       {data && data.scanned > 0 && (
-        <div className="card space-y-2">
-          <button className="btn-primary w-full sm:w-auto" disabled={recLoading} onClick={() => void askAi()}>
-            {recLoading ? <><span className="spinner" /> Asking the AI…</> : '✨ Ask the AI for its top picks'}
-          </button>
+        <section className="card space-y-3 !border-violet-300/30">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-display font-semibold">AI shortlist</p>
+            <button className="btn-primary" disabled={recLoading} onClick={() => void askAi()}>
+              {recLoading ? <><span className="spinner" /> Thinking…</> : rec ? 'Ask again' : '✨ Ask the AI'}
+            </button>
+          </div>
+          {!rec && !recLoading && <p className="text-sm text-slate-400">The AI looks at the whole scan and your holdings and names its best few, in plain words. A few cents per tap.</p>}
           {rec && (
             <div className="space-y-2 text-sm">
               <p className="text-slate-300">{rec.summary}{rec.simulated ? ' (demo)' : ''}</p>
-              {rec.picks.length === 0 && <p className="text-slate-400">The AI sees nothing worth buying right now.</p>}
+              {rec.picks.length === 0 && <p className="text-slate-400">Nothing worth buying right now, according to the AI.</p>}
               {rec.picks.map((p) => (
-                <div key={p.symbol + p.action} className="flex items-start gap-2">
-                  <span className={`mt-0.5 rounded px-2 py-0.5 text-xs font-bold ${ACTION_STYLE[p.action]}`}>{p.action}</span>
-                  <span><b>{p.symbol}</b> <span className="text-slate-300">{p.reason}</span></span>
+                <div key={p.symbol + p.action} className="panel flex items-start gap-3 !p-2.5">
+                  <ActionChip action={p.action} size="sm" />
+                  <p><b className="font-display">{p.symbol}</b> <span className="text-slate-300">{p.reason}</span></p>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
       )}
+
+      {loading && !data && <div className="space-y-3"><Skeleton className="h-44" /><Skeleton className="h-44" /></div>}
 
       {data && data.scanned > 0 && buys.length === 0 && (
-        <p className="card text-sm text-slate-300">Nothing looks good enough to buy right now. That is a real answer: waiting is also a position.</p>
+        <Empty title="Nothing looks good enough right now">Waiting is also a position. Check back later or tap Scan again.</Empty>
       )}
 
-      <div className="space-y-3">
+      <div className="grid gap-3 lg:grid-cols-2">
         {buys.map((i, rank) => {
           const a = ideaToAnalysis(i);
           const reasons = reasonsFor(a, i.newsNet, i.headline);
           const risk = computeRisk('BUY', i.price, settings.riskPerTrade, settings.stopLossPct);
           const own = settings.holdings.find((h) => h.symbol === i.symbol);
-          const st = strength(i.score);
           return (
-            <div key={i.symbol} className="card">
+            <article key={i.symbol} className="card">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-slate-500">#{rank + 1}</span>
-                <span className="text-xl font-semibold">{i.symbol}</span>
-                <span className={`rounded px-2 py-0.5 text-xs font-bold text-white ${STRENGTH_STYLE[st]}`}>{st} · {i.score}/100</span>
-                {own && <span className="rounded bg-sky-900 px-2 py-0.5 text-xs">You own {own.shares}</span>}
-                <span className="ml-auto text-lg">${i.price}</span>
+                <span className="num text-sm text-slate-500">#{rank + 1}</span>
+                <span className="font-display text-2xl font-semibold">{i.symbol}</span>
+                <ActionChip action="BUY" size="sm" />
+                {own && <span className="rounded-md bg-sky-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-sky-200">You own {own.shares}</span>}
+                <span className="num ml-auto text-lg">${i.price}</span>
               </div>
-              <Spark closes={i.closes} />
-              <p className="mb-1 mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Why</p>
-              <ul className="list-disc space-y-0.5 pl-5 text-sm text-slate-300">
-                {reasons.map((r) => <li key={r}>{r}</li>)}
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <ScoreBar score={i.score} />
+                <span className="text-xs"><Change pct={i.ret3m} /> <span className="muted">3 mo</span></span>
+              </div>
+              <div className="mt-2"><Sparkline values={i.closes} height={52} label={`${i.symbol} price, last 3 months`} /></div>
+              <ul className="mt-2 space-y-1 text-sm text-slate-300">
+                {reasons.map((r) => <li key={r} className="flex gap-2"><span aria-hidden="true" className="text-cyan-300">›</span><span>{r}</span></li>)}
               </ul>
               {risk && (
-                <div className="mt-2 rounded border border-slate-700 bg-slate-950 p-2 text-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan</p>
-                  <p>Buy near <b>{money(risk.entry)}</b> · Stop-loss <b className="text-red-300">{money(risk.stop)}</b> ({settings.stopLossPct}% below)</p>
-                  <p>To risk about {money(settings.riskPerTrade)}: <b>{risk.suggestedQty} share{risk.suggestedQty === 1 ? '' : 's'}</b> (cost ≈ {money(risk.suggestedQty * risk.entry)})</p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <Stat label="Buy near" value={fmtMoney(risk.entry)} />
+                  <Stat label="Stop-loss" value={fmtMoney(risk.stop)} tone="down" />
+                  <Stat label="Shares to buy" value={risk.suggestedQty} />
                 </div>
               )}
               <button
-                className="btn-primary mt-3 w-full sm:w-auto"
+                className="btn-primary mt-3 w-full"
                 onClick={() => addIdeaSignal(i.symbol, i.price, `Market scan pick (score ${i.score}/100): ${reasons[0]}`, Math.min(0.95, i.score / 100), i.headline ? { title: i.headline, url: i.headlineUrl ?? '' } : undefined)}
               >
                 Check with AI &amp; send to Today
               </button>
-            </div>
+            </article>
           );
         })}
       </div>
-      <p className="pt-1 text-center text-[11px] text-slate-600">Ideas only. You decide and place any order yourself in Fidelity. Not financial advice.</p>
+      <p className="pt-1 text-center text-[11px] text-slate-600">It ranks, it cannot predict: any stock can fall. You decide and place any order yourself in Fidelity.</p>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { Headline, HistoryItem, LogEntry, Review, Settings, Signal } from './types';
+import type { Headline, HistoryItem, LogEntry, Review, ScoreEntry, Settings, Signal } from './types';
 import { fetchReview, mockReview } from './lib/api';
 import { canGoLive, config, emailConfigured, mcpConfigured } from './lib/config';
 import { KEYS, load, loadSettings, save } from './lib/storage';
@@ -12,11 +12,12 @@ import { formatInstruction, planOrder } from './lib/instructions';
 import { Poller } from './lib/poller';
 import { computeRisk } from './lib/risk';
 import { hashPassphrase, newSalt, nowIso, uid, timingSafeEqual } from './lib/util';
-import { mergeHistory, pullRemote, pushRemote, snapshot, type SyncData } from './lib/sync';
+import { mergeHistory, mergeScoreLog, pullRemote, pushRemote, snapshot, type SyncData } from './lib/sync';
 import { getAccessToken } from './lib/api';
 import { PassphraseModal } from './components/PassphraseModal';
 
-const UNLOCK_MS = 30 * 60_000;
+const UNLOCK_MS = 24 * 3600_000; // passphrase once a day per device
+const MAX_NEWS_AGE_MS = 24 * 3600_000; // older headlines never create signals
 const MAX_AUTO_EMAILS_PER_HOUR = 10;
 
 interface Store {
@@ -26,6 +27,7 @@ interface Store {
   setWatchlist: (w: string[]) => void;
   signals: Signal[];
   history: HistoryItem[];
+  scoreLog: ScoreEntry[];
   setHistory: (h: HistoryItem[]) => void;
   patchHistory: (id: string, patch: Partial<HistoryItem>) => void;
   logs: LogEntry[];
@@ -81,12 +83,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return { ...s, autoEmail: config.forceMock ? false : s.autoEmail, mockMode: config.forceMock ? true : s.mockMode };
   });
   const [watchlist, setWatchlistState] = useState<string[]>(() => load(KEYS.watchlist, []));
-  const [signals, setSignals] = useState<Signal[]>(() => load(KEYS.signals, []));
+  const [signals, setSignals] = useState<Signal[]>(() =>
+    // A review that was running when the page closed can never finish: mark it so Re-review works.
+    load<Signal[]>(KEYS.signals, []).map((s) => (s.reviewStatus === 'pending' ? { ...s, reviewStatus: 'error', reviewError: 'Interrupted by a page reload. Tap Re-check.' } : s)),
+  );
+  const [scoreLog, setScoreLog] = useState<ScoreEntry[]>(() => load(KEYS.scoreLog, []));
   const [history, setHistory] = useState<HistoryItem[]>(() => load(KEYS.history, []));
   const [logs, setLogs] = useState<LogEntry[]>(() => load(KEYS.logs, []));
   const [headlines, setHeadlines] = useState<Headline[]>([]);
   const [mcpLast, setMcpLast] = useState<string>(() => load(KEYS.mcpLast, ''));
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(() => Number(load(KEYS.unlockUntil, 0)) > Date.now());
   const [lastPoll, setLastPoll] = useState('');
   const [polling, setPolling] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'off' | 'syncing' | 'ok' | 'error'>('off');
@@ -96,9 +102,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [modal, setModal] = useState<{ reason: string; resolve: (ok: boolean) => void } | null>(null);
 
-  const ref = useRef({ settings, watchlist, signals, unlocked, headlines, history });
-  ref.current = { settings, watchlist, signals, unlocked, headlines, history };
-  const seen = useRef(new Set<string>());
+  const ref = useRef({ settings, watchlist, signals, unlocked, headlines, history, scoreLog });
+  ref.current = { settings, watchlist, signals, unlocked, headlines, history, scoreLog };
+  // Headlines already processed survive reloads, so old news cannot fire again.
+  const seen = useRef(new Set<string>(load<string[]>(KEYS.seen, [])));
   const unlockTimer = useRef<ReturnType<typeof setTimeout>>();
   const autoSent = useRef<number[]>([]);
   const lastErr = useRef('');
@@ -109,6 +116,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => save(KEYS.history, history), [history]);
   useEffect(() => save(KEYS.logs, logs), [logs]);
   useEffect(() => save(KEYS.mcpLast, mcpLast), [mcpLast]);
+  useEffect(() => save(KEYS.scoreLog, scoreLog), [scoreLog]);
+  // Re-lock when the day-long unlock expires.
+  useEffect(() => {
+    const left = Number(load(KEYS.unlockUntil, 0)) - Date.now();
+    if (left > 0) unlockTimer.current = setTimeout(() => setUnlocked(false), left);
+    return () => clearTimeout(unlockTimer.current);
+  }, []);
 
   const log = useCallback((level: LogEntry['level'], msg: string) => {
     setLogs((l) => [{ id: uid(), ts: nowIso(), level, msg }, ...l].slice(0, 300));
@@ -130,8 +144,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const lock = useCallback(() => {
     clearTimeout(unlockTimer.current);
+    save(KEYS.unlockUntil, 0);
     setUnlocked(false);
   }, []);
+
+  /** Errors the user caused by tapping something must be visible, not only in the log. */
+  const fail = (msg: string) => {
+    log('error', msg);
+    toast('error', msg);
+  };
 
   const requestUnlock = useCallback(
     (reason: string) => {
@@ -151,12 +172,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const ok = await verify(pass);
     if (ok) {
       setUnlocked(true);
+      save(KEYS.unlockUntil, Date.now() + UNLOCK_MS);
       clearTimeout(unlockTimer.current);
       unlockTimer.current = setTimeout(() => {
         setUnlocked(false);
-        log('info', 'Session re-locked after 30 minutes.');
+        log('info', 'Unlock expired after 24 hours.');
       }, UNLOCK_MS);
-      log('info', 'Passphrase accepted; session unlocked for 30 minutes.');
+      log('info', 'Passphrase accepted; this device stays unlocked for 24 hours.');
       modal?.resolve(true);
       setModal(null);
     } else log('warn', 'Incorrect passphrase attempt.');
@@ -173,36 +195,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const hasPass = () => !!ref.current.settings.passphraseHash;
 
   const goLive = async () => {
-    if (config.forceMock) return log('warn', 'This deployment is locked to mock mode (FORCE_MOCK=true).');
-    if (!canGoLive()) return log('error', 'Live mode needs Netlify env vars (EmailJS and/or MCP and/or NEWSAPI_KEY). See README.');
-    if (!hasPass()) return log('error', 'Set a passphrase in Settings before enabling live mode.');
-    if (!(await requestUnlock('Confirm LIVE mode: real sources will be polled and real emails may be sent.'))) return;
+    if (config.forceMock) return fail('This copy of the app is locked to demo mode (FORCE_MOCK=true).');
+    if (!canGoLive()) return fail('Live mode needs the EmailJS (or MCP / NewsAPI) settings in Netlify. See the README.');
+    if (!hasPass()) return fail('Set a passphrase first (Settings → Alerts & email).');
+    if (!(await requestUnlock('Switch to LIVE: real news and prices, and real emails.'))) return;
     update({ mockMode: false });
     log('warn', 'LIVE mode enabled.');
+    toast('success', 'Live mode is on.');
   };
   const goMock = () => {
     update({ mockMode: true, autoEmail: false });
     log('info', 'Switched to mock/demo mode.');
+    toast('info', 'Demo mode: made-up data, no real emails.');
   };
 
   const setAutoEmail = async (on: boolean) => {
     if (!on) {
       update({ autoEmail: false });
+      toast('info', 'Auto-email is off.');
       return log('info', 'Auto-email disabled.');
     }
     const s = ref.current.settings;
-    if (!hasPass()) return log('error', 'Set a passphrase before enabling auto-email.');
-    if (!s.mockMode && !emailConfigured()) return log('error', 'Auto-email needs EMAILJS_* env vars in live mode.');
-    if (!/^\S+@\S+\.\S+$/.test(s.toEmail)) return log('error', 'Enter a recipient email in Settings first.');
-    if (!(await requestUnlock('Confirm enabling Auto-Email.'))) return;
+    if (!hasPass()) return fail('Set a passphrase first (just above).');
+    if (!s.mockMode && !emailConfigured()) return fail('Auto-email needs the EMAILJS_* settings in Netlify.');
+    if (!/^\S+@\S+\.\S+$/.test(s.toEmail)) return fail('Enter the email address to send to first.');
+    if (!(await requestUnlock('Turn on Auto-Email.'))) return;
     update({ autoEmail: true });
     log('warn', `Auto-email enabled${s.mockMode ? ' (simulated: mock mode)' : ''}.`);
+    toast('success', `Auto-email is on${s.mockMode ? ' (demo: simulated)' : ''}.`);
   };
 
   const setUseMcp = async (on: boolean) => {
     if (!on) return update({ useMcp: false });
-    if (!ref.current.settings.mockMode && !mcpConfigured()) return log('error', 'MCP needs NETLIFY_MCP_ENDPOINT and NETLIFY_MCP_API_KEY.');
-    if (!hasPass()) return log('error', 'Set a passphrase before enabling MCP.');
+    if (!ref.current.settings.mockMode && !mcpConfigured()) return fail('MCP needs NETLIFY_MCP_ENDPOINT and NETLIFY_MCP_API_KEY in Netlify.');
+    if (!hasPass()) return fail('Set a passphrase first.');
     if (!(await requestUnlock('Confirm enabling MCP processing.'))) return;
     update({ useMcp: true });
     log('warn', 'MCP processing enabled.');
@@ -246,6 +272,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const st = ref.current.settings;
       const risk = computeRisk(sig.side, r.price, st.riskPerTrade, st.stopLossPct);
       patchSignal(sig.id, { review: r, reviewStatus: undefined, qty, entryPrice: r.price, stopPrice: risk?.stop, suggestedQty: risk?.suggestedQty });
+      if (!r.simulated && r.price && sig.source !== 'mock') {
+        const entry: ScoreEntry = { id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: r.price, verdict: r.verdict, origin: 'app' };
+        setScoreLog((l) => mergeScoreLog([{ ...entry }], l));
+      }
       log(r.verdict === 'REJECT' ? 'warn' : 'info', `AI review ${sig.symbol}: ${r.verdict}${r.simulated ? ' (simulated)' : ''} - ${r.rationale}`);
       return r;
     } catch (e) {
@@ -373,15 +403,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       let curSettings = ref.current.settings;
       let curWatch = ref.current.watchlist;
       let curHist = ref.current.history;
+      let curScore = ref.current.scoreLog;
       // "dirty" = this device has edits the server has not seen yet. A brand-new device (lastJson === '') is never dirty.
-      let dirty = sc.lastJson !== '' && jsonOf(snapshot(curSettings, curWatch, curHist)) !== sc.lastJson;
+      let dirty = sc.lastJson !== '' && jsonOf(snapshot(curSettings, curWatch, curHist, curScore)) !== sc.lastJson;
       let mergedJson = '';
       for (let attempt = 0; attempt < 2; attempt++) {
         let mSettings = curSettings;
         let mWatch = curWatch;
         let mHist = curHist;
+        let mScore = curScore;
         if (remote.data && remote.updatedAt !== sc.at) {
           mHist = mergeHistory(curHist, remote.data.history); // history is never lost: union of both devices
+          mScore = mergeScoreLog(curScore, remote.data.scoreLog);
           if (!dirty) {
             mSettings = { ...curSettings, ...remote.data.settings } as Settings;
             mWatch = remote.data.watchlist;
@@ -390,20 +423,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           sc.at = remote.updatedAt;
           fromRemote = true;
         }
-        const merged = snapshot(mSettings, mWatch, mHist);
+        const merged = snapshot(mSettings, mWatch, mHist, mScore);
         mergedJson = jsonOf(merged);
-        if (mergedJson !== jsonOf(snapshot(curSettings, curWatch, curHist))) {
+        if (mergedJson !== jsonOf(snapshot(curSettings, curWatch, curHist, curScore))) {
           sc.skipNext = true; // this state change came from the server, not the user
           setSettings(mSettings);
           setWatchlistState(mWatch);
           setHistory(mHist);
+          setScoreLog(mScore);
         }
         curSettings = mSettings;
         curWatch = mWatch;
         curHist = mHist;
-        const remoteJson = remote.data ? jsonOf(snapshot({ ...mSettings, ...remote.data.settings } as Settings, remote.data.watchlist, remote.data.history)) : '';
+        curScore = mScore;
+        const remoteJson = remote.data ? jsonOf(snapshot({ ...mSettings, ...remote.data.settings } as Settings, remote.data.watchlist, remote.data.history, remote.data.scoreLog ?? [])) : '';
         // A setting the server copy has never seen (e.g. one added in a newer version) also needs a push.
-        const serverLacksKeys = !!remote.data && Object.keys(merged.settings).some((k) => !(k in remote.data!.settings));
+        const serverLacksKeys = !!remote.data && (!remote.data.scoreLog || Object.keys(merged.settings).some((k) => !(k in remote.data!.settings)));
         if (remote.data && mergedJson === remoteJson && !serverLacksKeys) break; // server already has everything
         const res = await pushRemote(remote.updatedAt, merged);
         if ('updatedAt' in res) {
@@ -451,7 +486,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const sc = sync.current;
     if (!getAccessToken()) return;
-    const json = jsonOf(snapshot(settings, watchlist, history));
+    const json = jsonOf(snapshot(settings, watchlist, history, scoreLog));
     if (sc.skipNext) {
       sc.skipNext = false;
       sc.lastJson = json;
@@ -461,7 +496,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     clearTimeout(sc.timer);
     sc.timer = setTimeout(() => void syncRef.current(), 1500);
     return () => clearTimeout(sc.timer);
-  }, [settings, watchlist, history]);
+  }, [settings, watchlist, history, scoreLog]);
 
   // ---- polling ----
   const tick = useCallback(async () => {
@@ -478,9 +513,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       for (const e of r.errors) if (e !== lastErr.current) { log('warn', e); lastErr.current = e; }
       all = r.headlines;
     }
-    const fresh = all.filter((h) => !seen.current.has(h.id));
-    fresh.forEach((h) => seen.current.add(h.id));
+    const cutoff = Date.now() - MAX_NEWS_AGE_MS;
+    const fresh = all.filter((h) => !seen.current.has(h.id) && new Date(h.publishedAt).getTime() >= cutoff);
+    all.forEach((h) => seen.current.add(h.id));
     if (seen.current.size > 2000) seen.current = new Set([...seen.current].slice(-1000));
+    save(KEYS.seen, [...seen.current]);
     if (!fresh.length) return;
     setHeadlines((cur) => [...fresh, ...cur].slice(0, 100));
 
@@ -544,7 +581,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [stopped, intervalSec, tick, log]);
 
   const value: Store = {
-    settings, update, watchlist, setWatchlist, signals, history, setHistory, patchHistory, logs,
+    settings, update, watchlist, setWatchlist, signals, history, scoreLog, setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, goLive, goMock, setAutoEmail, setUseMcp, panic, resume,
     emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s), setSignalQty: (id, qty) => patchSignal(id, { qty }), addIdeaSignal,

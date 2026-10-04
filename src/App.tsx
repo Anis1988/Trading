@@ -1,52 +1,92 @@
 import { useState } from 'react';
 import { useStore } from './store';
 import { Toasts } from './components/Toasts';
+import { Icon } from './components/ui';
 import { Today } from './pages/Today';
-import { Settings } from './pages/Settings';
-import { History } from './pages/History';
-import { Trends } from './pages/Trends';
 import { Ideas } from './pages/Ideas';
+import { History } from './pages/History';
+import { Settings } from './pages/Settings';
 
 const TABS = [
-  ['Today', '🏠'],
-  ['Ideas', '💡'],
-  ['Trends', '📊'],
-  ['History', '🧾'],
-  ['Settings', '⚙️'],
+  ['Today', Icon.today],
+  ['Ideas', Icon.ideas],
+  ['History', Icon.history],
+  ['Settings', Icon.settings],
 ] as const;
 type Tab = (typeof TABS)[number][0];
+
+function Logo() {
+  return (
+    <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+      <defs>
+        <linearGradient id="lg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#22d3ee" /><stop offset="1" stopColor="#8b5cf6" /></linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8" fill="#0d1328" stroke="rgba(255,255,255,0.12)" />
+      <path d="M6 22 12 16 16 19 25 10M21 10h4v4" fill="none" stroke="url(#lg)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('Today');
   const { panic, settings, signals } = useStore();
   const newCount = signals.filter((s) => s.status === 'new' && s.review?.verdict !== 'REJECT').length;
+  const stop = () => {
+    if (window.confirm('Stop alerts?\n\nThis stops checking the news and turns Auto-Email off on this device. Nothing is cancelled in Fidelity and nothing is deleted. You can resume any time.')) panic();
+  };
+
   return (
     <div className="min-h-screen">
       <Toasts />
-      <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2 sm:px-4">
-        <h1 className="mr-1 text-sm font-bold sm:text-base">Trading Assistant</h1>
-        {/* Desktop/tablet tabs; phones use the bottom bar */}
-        <nav className="hidden flex-wrap gap-1 sm:flex">
-          {TABS.map(([t]) => (
-            <button key={t} onClick={() => setTab(t)} className={`rounded px-3 py-1 text-sm ${tab === t ? 'bg-slate-700' : 'hover:bg-slate-800'}`}>{t}</button>
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/75 backdrop-blur-xl" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-3 sm:px-4">
+          <Logo />
+          <span className="font-display text-lg font-semibold tracking-tight">Trading</span>
+          <nav className="ml-4 hidden gap-1 sm:flex" aria-label="Main">
+            {TABS.map(([t]) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                aria-current={tab === t ? 'page' : undefined}
+                className={`relative rounded-lg px-3 py-1.5 text-sm transition ${tab === t ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-100'}`}
+              >
+                {t}
+                {t === 'Today' && newCount > 0 && <span className="num ml-1.5 rounded-full bg-cyan-400 px-1.5 text-[10px] font-bold text-slate-950">{newCount}</span>}
+              </button>
+            ))}
+          </nav>
+          <span
+            className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-wider ${settings.mockMode ? 'border-sky-300/40 bg-sky-400/10 text-sky-200' : 'border-emerald-300/40 bg-emerald-400/10 text-emerald-200'}`}
+            title={settings.mockMode ? 'Demo mode: made-up data, no real emails' : 'Live mode: real news, prices and emails'}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${settings.mockMode ? 'bg-sky-300' : 'animate-pulse bg-emerald-300'}`} />
+            {settings.mockMode ? 'DEMO' : 'LIVE'}
+          </span>
+          <button className="btn-danger" onClick={stop} disabled={settings.stopped} title="Stop checking news and turn off auto-email">
+            {Icon.stop}
+            <span className="hidden sm:inline">{settings.stopped ? 'Stopped' : 'Stop alerts'}</span>
+            <span className="sm:hidden">{settings.stopped ? 'Off' : 'Stop'}</span>
+          </button>
+        </div>
+        <nav className="grid grid-cols-4 border-t border-white/5 sm:hidden" aria-label="Main">
+          {TABS.map(([t, icon]) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              aria-current={tab === t ? 'page' : undefined}
+              className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] transition ${tab === t ? 'text-cyan-200' : 'text-slate-400'}`}
+            >
+              {icon}
+              {t}
+              {tab === t && <span className="absolute inset-x-6 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />}
+              {t === 'Today' && newCount > 0 && <span className="num absolute right-5 top-1 rounded-full bg-cyan-400 px-1.5 text-[10px] font-bold text-slate-950">{newCount}</span>}
+            </button>
           ))}
         </nav>
-        <span className={`ml-auto rounded px-2 py-0.5 text-xs ${settings.mockMode ? 'bg-sky-900' : 'bg-amber-700'}`}>{settings.mockMode ? 'DEMO' : 'LIVE'}</span>
-        <button className="btn-danger" onClick={() => window.confirm('Stop alerts?\n\nThis stops checking the news and turns Auto-Email off. Nothing is cancelled in Fidelity and nothing is deleted. You can resume any time.') && panic()} disabled={settings.stopped}>{settings.stopped ? 'STOPPED' : 'STOP ALERTS'}</button>
       </header>
-      <nav className="sticky top-[52px] z-30 grid grid-cols-5 border-b border-slate-800 bg-slate-950/95 sm:hidden">
-        {TABS.map(([t, icon]) => (
-          <button key={t} onClick={() => setTab(t)} className={`relative flex flex-col items-center gap-0.5 py-1.5 text-[11px] ${tab === t ? 'border-b-2 border-emerald-500 bg-slate-800 text-white' : 'text-slate-400'}`}>
-            <span className="text-base leading-none">{icon}</span>
-            {t}
-            {t === 'Today' && newCount > 0 && <span className="absolute right-2 top-0.5 rounded-full bg-emerald-600 px-1.5 text-[10px] font-bold text-white">{newCount}</span>}
-          </button>
-        ))}
-      </nav>
-      <main className="mx-auto max-w-6xl p-3 pb-10 sm:p-4 sm:pb-6">
+      <main className="mx-auto max-w-6xl px-3 pb-12 pt-4 sm:px-4">
         {tab === 'Today' && <Today goTo={setTab} />}
         {tab === 'Ideas' && <Ideas />}
-        {tab === 'Trends' && <Trends />}
         {tab === 'History' && <History />}
         {tab === 'Settings' && <Settings />}
       </main>

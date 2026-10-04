@@ -7,10 +7,10 @@ import { Scoreboard } from '../components/Scoreboard';
 
 // Distinct colour per status (the text label is always shown too, never colour alone).
 const STATUS: Record<HistoryStatus, { label: string; border: string; badge: string; active: string }> = {
-  pending: { label: 'Pending', border: 'border-l-amber-500', badge: 'bg-amber-600 text-white', active: 'bg-amber-600 border-amber-500 text-white' },
-  executed: { label: 'Executed', border: 'border-l-emerald-500', badge: 'bg-emerald-600 text-white', active: 'bg-emerald-600 border-emerald-500 text-white' },
-  cancelled: { label: 'Cancelled', border: 'border-l-slate-500', badge: 'bg-slate-600 text-white', active: 'bg-slate-600 border-slate-400 text-white' },
-  failed: { label: 'Failed', border: 'border-l-red-500', badge: 'bg-red-600 text-white', active: 'bg-red-600 border-red-500 text-white' },
+  pending: { label: 'Pending', border: 'before:bg-amber-400', badge: 'border-amber-300/50 bg-amber-400/15 text-amber-200', active: 'border-amber-300/60 bg-amber-400/20 text-amber-100' },
+  executed: { label: 'Executed', border: 'before:bg-emerald-400', badge: 'border-emerald-300/50 bg-emerald-400/15 text-emerald-200', active: 'border-emerald-300/60 bg-emerald-400/20 text-emerald-100' },
+  cancelled: { label: 'Cancelled', border: 'before:bg-slate-500', badge: 'border-slate-300/30 bg-slate-400/10 text-slate-300', active: 'border-slate-300/50 bg-slate-400/20 text-slate-100' },
+  failed: { label: 'Failed', border: 'before:bg-red-400', badge: 'border-red-300/50 bg-red-400/15 text-red-200', active: 'border-red-300/60 bg-red-400/20 text-red-100' },
 };
 const FILTERS = ['all', 'pending', 'executed', 'cancelled', 'failed'] as const;
 
@@ -56,18 +56,18 @@ export function History() {
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold">History / audit trail ({items.length})</h2>
+        <h2 className="text-2xl font-semibold">History <span className="num text-base text-slate-400">{items.length}</span></h2>
         <button className="btn" onClick={() => download(`history-${Date.now()}.csv`, historyToCsv(items), 'text/csv')}>Export CSV</button>
       </div>
 
-      <Scoreboard />
+      <div className="mb-4"><Scoreboard /></div>
 
       <div className="mb-3 flex gap-1 overflow-x-auto pb-1">
         {FILTERS.map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${filter === f ? (f === 'all' ? 'border-slate-300 bg-slate-700 text-white' : STATUS[f].active) : 'border-slate-700 text-slate-300'}`}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${filter === f ? (f === 'all' ? 'border-cyan-300/60 bg-cyan-400/15 text-cyan-100' : STATUS[f].active) : 'border-white/15 text-slate-300'}`}
           >
             {f === 'all' ? 'All' : STATUS[f].label} · {count(f)}
           </button>
@@ -78,12 +78,12 @@ export function History() {
         {shown.length ? shown.map((h) => {
           const st = STATUS[h.status];
           return (
-            <div key={h.id} className={`card border-l-4 text-sm ${st.border} ${h.status === 'cancelled' ? 'opacity-75' : ''}`}>
+            <div key={h.id} className={`card relative overflow-hidden text-sm before:absolute before:inset-y-0 before:left-0 before:w-1 ${st.border} ${h.status === 'cancelled' ? 'opacity-75' : ''}`}>
               <div className="flex flex-wrap items-center gap-2">
-                <b className={h.status === 'cancelled' ? 'line-through' : ''}>{h.side} {h.qty} {h.symbol}</b>
+                <b className={`font-display ${h.status === 'cancelled' ? 'line-through' : ''}`}>{h.side} <span className="num">{h.qty}</span> {h.symbol}</b>
                 <span>{h.orderType}{h.limitPrice ? ` @ ${h.limitPrice}` : ''}</span>
-                <span className="rounded bg-slate-800 px-2 text-xs">{h.channel}</span>
-                <span className={`rounded px-2 py-0.5 text-xs font-bold ${st.badge}`}>{st.label}</span>
+                <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-slate-300">{h.channel}</span>
+                <span className={`rounded-lg border px-2 py-0.5 text-xs font-bold ${st.badge}`}>{st.label}</span>
                 <span className="ml-auto text-xs text-slate-500">{new Date(h.createdAt).toLocaleString()}</span>
               </div>
               <p className="mt-1 break-words text-slate-400">{h.reason} ({(h.confidence * 100).toFixed(0)}%)</p>
@@ -106,13 +106,13 @@ export function History() {
                       <button
                         key={s}
                         onClick={() => (h.status === s && s !== 'executed' ? undefined : setStatus(h, s))}
-                        className={`min-h-[40px] rounded border px-2 text-xs font-medium transition active:scale-95 ${h.status === s ? STATUS[s].active : 'border-slate-600 bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                        className={`min-h-[40px] rounded-xl border px-2 text-xs font-medium transition active:scale-95 ${h.status === s ? STATUS[s].active : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'}`}
                       >
                         {h.status === s && s === 'executed' ? '✎ Edit executed' : STATUS[s].label}
                       </button>
                     ))}
                   </div>
-                  <button className="text-xs text-red-400 underline" onClick={() => remove(h)}>Delete this entry</button>
+                  <button className="text-xs text-red-300 underline" onClick={() => remove(h)}>Delete this entry</button>
                 </div>
               )}
             </div>

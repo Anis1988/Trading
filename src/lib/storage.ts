@@ -7,6 +7,9 @@ export const KEYS = {
   history: 'ta.history',
   logs: 'ta.logs',
   mcpLast: 'ta.mcpLast',
+  scoreLog: 'ta.scoreLog',
+  seen: 'ta.seen',
+  unlockUntil: 'ta.unlockUntil',
 } as const;
 
 export const defaultSettings: Settings = {
@@ -29,6 +32,8 @@ export const defaultSettings: Settings = {
   riskPerTrade: 100,
   stopLossPct: 5,
   autoEmailMinConfidence: 0.85,
+  serverAlerts: false,
+  weeklySummary: false,
   passphraseHash: '',
   passphraseSalt: '',
 };

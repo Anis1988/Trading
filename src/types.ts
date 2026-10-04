@@ -74,6 +74,17 @@ export interface HistoryItem {
   deleted?: boolean; // soft delete so the deletion also syncs to other devices
 }
 
+/** One scored call, kept (and synced) so the Scoreboard sees every device's and the server's signals. */
+export interface ScoreEntry {
+  id: string;
+  symbol: string;
+  side: Side;
+  createdAt: string;
+  entryPrice: number;
+  verdict?: Verdict;
+  origin: 'app' | 'server';
+}
+
 export interface LogEntry {
   id: string;
   ts: string;
@@ -100,7 +111,9 @@ export interface Settings {
   minConfidence: number; // 0..1
   riskPerTrade: number; // dollars you are willing to lose on one trade
   stopLossPct: number; // how far below the entry the stop-loss sits, in %
-  autoEmailMinConfidence: number; // auto-email only at or above this signal confidence
+  autoEmailMinConfidence: number;
+  serverAlerts: boolean; // background check on Netlify every 15 min, even with the app closed
+  weeklySummary: boolean; // Friday evening summary email // auto-email only at or above this signal confidence
   passphraseHash: string;
   passphraseSalt: string;
 }
