@@ -11,7 +11,7 @@ import { pushAll } from './push';
 import { appendServerLog, readServer, readState, writeServer, writeState, type ServerLogEntry } from './state';
 
 const MAX_AGE_MS = 24 * 3600_000;
-const MAX_REVIEWS_PER_RUN = 3;
+const MAX_REVIEWS_PER_RUN = 2; // keep AI spend low
 const MAX_EMAILS_PER_DAY = 10;
 
 /** US market-ish hours, Mon-Fri 11:00-24:00 UTC (7am-8pm New York). Outside it, news is saved but nothing runs. */
@@ -60,7 +60,11 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
     const previous = await readServer<Signal[]>('signals', []);
     const signals = generateSignals(fresh, symbols, {
       defaultQty: s.defaultQty ?? 1, minConfidence: s.minConfidence ?? 0.6, existing: previous, source: 'local',
-    }).slice(0, opts.force ? 1 : MAX_REVIEWS_PER_RUN); // a manual run must finish within the request time limit
+    })
+      // Only strong signals are worth paying an AI check for.
+      .filter((x) => x.confidence >= Math.max(s.aiMinConfidence ?? 0.75, s.autoEmailMinConfidence ?? 0.85))
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, opts.force ? 1 : MAX_REVIEWS_PER_RUN); // a manual run must finish within the request time limit
     if (!signals.length) {
       await appendServerLog([{ ts: new Date().toISOString(), level: 'info', msg: `Checked ${symbols.length} stocks, ${fresh.length} new headlines, no signal.` }]);
       await writeServer('lastRun', new Date().toISOString());

@@ -106,17 +106,25 @@ export interface Recommendation {
   simulated?: boolean;
 }
 
-export async function fetchScan(): Promise<{ ideas: Idea[]; scanned: number; errors: string[] }> {
-  return call('/api/scan');
+export interface ScanResult {
+  ideas: Idea[];
+  scanned: number;
+  inRange?: number;
+  errors: string[];
+}
+
+export async function fetchScan(min = 0, max = 0): Promise<ScanResult> {
+  return call(`/api/scan?min=${min}&max=${max}`);
 }
 
 /** Demo mode: same ranking on made-up prices (no news). */
-export function mockScan(): { ideas: Idea[]; scanned: number; errors: string[] } {
+export function mockScan(min = 0, max = 0): ScanResult {
   const ideas = UNIVERSE.map((s) => analyze(s, mockSeries(s).closes))
     .filter((a): a is Analysis => !!a)
     .map((a) => toIdea(a))
     .sort((a, b) => b.score - a.score);
-  return { ideas: ideas.slice(0, 15), scanned: ideas.length, errors: [] };
+  const inRange = ideas.filter((i) => i.price >= min && (!max || i.price <= max));
+  return { ideas: inRange.slice(0, 15), scanned: ideas.length, inRange: inRange.length, errors: [] };
 }
 
 /** Ask the AI to rank the scan results (clear BUY / WAIT picks, aware of what you own). */

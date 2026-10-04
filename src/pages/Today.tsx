@@ -1,11 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { SignalCard } from '../components/SignalCard';
 import { useTrends } from '../lib/useTrends';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, fmtMoney } from '../components/ui';
+import { getAlertStatus, type AlertStatus } from '../lib/alerts';
+import { getAccessToken } from '../lib/api';
+
+const ago = (iso: string) => {
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  return m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`;
+};
 
 export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
-  const { settings, signals, headlines, resume } = useStore();
+  const { settings, signals, headlines, resume, watchlist } = useStore();
+  const [status, setStatus] = useState<AlertStatus | null>(null);
+  useEffect(() => {
+    if (getAccessToken() && !settings.mockMode) getAlertStatus().then(setStatus).catch(() => undefined);
+  }, [settings.mockMode]);
   const [openSym, setOpenSym] = useState<string | null>(null);
   const [showEarlier, setShowEarlier] = useState(false);
   const held = settings.holdings;
@@ -23,6 +34,12 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   // Portfolio value over time = sum of shares x close, aligned on the most recent days.
   const n = priced.length ? Math.min(...priced.map(({ r }) => r!.closes.length)) : 0;
   const portfolio = n > 1 ? Array.from({ length: n }, (_, i) => priced.reduce((t, { h, r }) => t + h.shares * r!.closes[r!.closes.length - n + i], 0)) : [];
+
+  const alloc = priced
+    .map(({ h, r }) => ({ sym: h.symbol, value: h.shares * r!.price }))
+    .sort((a, b) => b.value - a.value);
+  const mine = new Set([...held.map((h) => h.symbol), ...watchlist]);
+  const news = headlines.filter((x) => x.symbol && mine.has(x.symbol)).slice(0, 10);
 
   const attention = signals.filter((s) => s.status === 'new' && s.review?.verdict !== 'REJECT');
   const earlier = signals.filter((s) => !attention.includes(s)).slice(0, 30);
@@ -44,10 +61,13 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
         </div>
       )}
 
+      <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_320px] xl:items-start">
+      {/* left rail: money */}
+      <aside className="space-y-4 xl:sticky xl:top-20">
       {held.length > 0 && (
         <section className="card overflow-hidden">
           {priced.length ? (
-            <div className="grid gap-3 sm:grid-cols-[1fr_1.2fr] sm:items-end">
+            <div className="grid gap-3 sm:grid-cols-[1fr_1.2fr] sm:items-end xl:grid-cols-1">
               <div>
                 <p className="label">Total profit / loss</p>
                 <p className={`num mt-1 text-4xl font-semibold sm:text-5xl ${pl >= 0 ? 'text-emerald-300 glow-up' : 'text-red-300 glow-down'}`}>
@@ -69,6 +89,24 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
           )}
         </section>
       )}
+      {alloc.length > 1 && (
+        <section className="card hidden space-y-2 md:block">
+          <p className="label">Where your money is</p>
+          {alloc.map((a) => {
+            const pct = (a.value / tot.value) * 100;
+            return (
+              <div key={a.sym}>
+                <div className="flex justify-between text-sm"><span className="font-display font-semibold">{a.sym}</span><span className="num text-slate-300">{pct.toFixed(0)}% · {fmtMoney(a.value)}</span></div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" style={{ width: `${pct}%` }} /></div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+      </aside>
+
+      {/* centre: what to do */}
+      <div className="min-w-0 space-y-5">
 
       <section>
         <div className="mb-2 flex items-baseline justify-between">
@@ -137,6 +175,41 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
       ) : (
         <button className="btn mx-auto flex" onClick={() => goTo('Settings')}>Add my holdings for personal advice</button>
       )}
+
+      </div>
+
+      {/* right rail: context */}
+      <aside className="space-y-4 xl:sticky xl:top-20">
+        {status && (
+          <section className="card space-y-1.5 text-sm">
+            <p className="label">Background alerts</p>
+            <p className="text-slate-300">{settings.serverAlerts ? (status.lastRun ? `On · last check ${ago(status.lastRun)} ago` : 'On · waiting for the first check') : 'Off (Settings → Alerts)'}</p>
+            {status.ai && (
+              <div>
+                <div className="flex justify-between text-xs text-slate-400"><span>AI checks today</span><span className="num">{status.ai.used} / {status.ai.limit}</span></div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><div className={`h-full rounded-full ${status.ai.used >= status.ai.limit ? 'bg-red-400' : 'bg-cyan-400'}`} style={{ width: `${Math.min(100, (status.ai.used / Math.max(1, status.ai.limit)) * 100)}%` }} /></div>
+              </div>
+            )}
+          </section>
+        )}
+        <section className="card space-y-2">
+          <p className="label">News on your stocks</p>
+          {news.length ? (
+            <ul className="space-y-2.5">
+              {news.map((n) => (
+                <li key={n.id} className="text-sm leading-snug">
+                  <span className="mr-1.5 rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-200">{n.symbol}</span>
+                  <a className="text-slate-300 hover:text-cyan-200 hover:underline" href={n.url} target="_blank" rel="noopener noreferrer">{n.title}</a>
+                  <span className="ml-1 text-xs text-slate-500">{ago(n.publishedAt)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-slate-500">Headlines show up here after the next news check.</p>
+          )}
+        </section>
+      </aside>
+      </div>
 
       {earlier.length > 0 && (
         <section>

@@ -1,11 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../store';
-import { fetchIdeaPicks, fetchScan, mockIdeaPicks, mockScan, type Recommendation } from '../lib/api';
+import { fetchIdeaPicks, fetchScan, mockIdeaPicks, mockScan, type Recommendation, type ScanResult } from '../lib/api';
 import { ideaToAnalysis, isBuyIdea, reasonsFor, type Idea } from '../lib/picks';
 import { computeRisk } from '../lib/risk';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
 
-let cached: { at: number; live: boolean; data: { ideas: Idea[]; scanned: number; errors: string[] } } | null = null;
+const cache = new Map<string, { at: number; data: ScanResult }>();
+
+const PRESETS: [string, number, number][] = [
+  ['Any price', 0, 0],
+  ['Under $50', 0, 50],
+  ['$50–150', 50, 150],
+  ['$150–400', 150, 400],
+  ['$400+', 400, 0],
+];
+const RANGE_KEY = 'ta.priceRange';
+const loadRange = (): [number, number] => {
+  try {
+    const r = JSON.parse(localStorage.getItem(RANGE_KEY) ?? '[0,0]');
+    return [Number(r[0]) || 0, Number(r[1]) || 0];
+  } catch {
+    return [0, 0];
+  }
+};
 
 function ScoreBar({ score }: { score: number }) {
   return (
@@ -20,21 +37,38 @@ function ScoreBar({ score }: { score: number }) {
 
 export function Ideas() {
   const { settings, addIdeaSignal, toast, log } = useStore();
-  const [data, setData] = useState<{ ideas: Idea[]; scanned: number; errors: string[] } | null>(null);
+  const [data, setData] = useState<ScanResult | null>(null);
+  const [range, setRange] = useState<[number, number]>(loadRange);
+  const [minIn, setMinIn] = useState(range[0] ? String(range[0]) : '');
+  const [maxIn, setMaxIn] = useState(range[1] ? String(range[1]) : '');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [rec, setRec] = useState<Recommendation | null>(null);
   const [recLoading, setRecLoading] = useState(false);
 
+  const applyRange = (min: number, max: number) => {
+    if (max && min > max) [min, max] = [max, min];
+    setRange([min, max]);
+    setMinIn(min ? String(min) : '');
+    setMaxIn(max ? String(max) : '');
+    try {
+      localStorage.setItem(RANGE_KEY, JSON.stringify([min, max]));
+    } catch {
+      /* ignore */
+    }
+  };
+
   const scan = useCallback(async (force = false) => {
     const live = !settings.mockMode;
-    if (!force && cached && cached.live === live && Date.now() - cached.at < 10 * 60_000) return setData(cached.data);
+    const key = `${live}-${range[0]}-${range[1]}`;
+    const hit = cache.get(key);
+    if (!force && hit && Date.now() - hit.at < 10 * 60_000) return setData(hit.data);
     setLoading(true);
     setErr('');
     setRec(null);
     try {
-      const d = live ? await fetchScan() : mockScan();
-      cached = { at: Date.now(), live, data: d };
+      const d = live ? await fetchScan(range[0], range[1]) : mockScan(range[0], range[1]);
+      cache.set(key, { at: Date.now(), data: d });
       setData(d);
       if (live && !d.scanned) setErr(d.errors.length ? `Could not load prices: ${d.errors.join('; ')}` : 'No prices came back.');
     } catch (e) {
@@ -42,11 +76,13 @@ export function Ideas() {
     } finally {
       setLoading(false);
     }
-  }, [settings.mockMode]);
+  }, [settings.mockMode, range]);
 
   useEffect(() => void scan(), [scan]);
 
-  const buys = (data?.ideas ?? []).filter((i) => isBuyIdea(ideaToAnalysis(i), i.score)).slice(0, 8);
+  const inPrice = (i: Idea) => i.price >= range[0] && (!range[1] || i.price <= range[1]);
+  const buys = (data?.ideas ?? []).filter((i) => inPrice(i) && isBuyIdea(ideaToAnalysis(i), i.score)).slice(0, 9);
+  const rangeLabel = range[0] || range[1] ? `${range[0] ? `$${range[0]}` : '$0'}–${range[1] ? `$${range[1]}` : 'any'}` : 'any price';
 
   const askAi = async () => {
     if (!data) return;
@@ -62,6 +98,29 @@ export function Ideas() {
     }
   };
 
+  const filters = (
+    <section className="card space-y-3">
+      <p className="font-display font-semibold">Price per share</p>
+      <div className="flex flex-wrap gap-1.5">
+        {PRESETS.map(([label, lo, hi]) => {
+          const on = range[0] === lo && range[1] === hi;
+          return (
+            <button key={label} onClick={() => applyRange(lo, hi)} aria-pressed={on}
+              className={`rounded-full border px-3 py-1.5 text-xs transition active:scale-95 ${on ? 'border-cyan-300/60 bg-cyan-400/15 text-cyan-100' : 'border-white/15 text-slate-300 hover:bg-white/5'}`}>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <form className="grid grid-cols-[1fr_1fr_auto] items-center gap-2" onSubmit={(e) => { e.preventDefault(); applyRange(Math.max(0, Number(minIn) || 0), Math.max(0, Number(maxIn) || 0)); }}>
+        <input className="input w-full" inputMode="decimal" placeholder="Min $" value={minIn} onChange={(e) => setMinIn(e.target.value)} aria-label="Minimum price" />
+        <input className="input w-full" inputMode="decimal" placeholder="Max $" value={maxIn} onChange={(e) => setMaxIn(e.target.value)} aria-label="Maximum price" />
+        <button className="btn">Apply</button>
+      </form>
+      <p className="text-xs text-slate-500">Showing {rangeLabel}{data?.inRange !== undefined ? ` · ${data.inRange} of ${data.scanned} stocks in range` : ''}.</p>
+    </section>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -76,6 +135,9 @@ export function Ideas() {
 
       {err && <p className="card !border-amber-300/40 text-sm text-amber-100">{err}</p>}
 
+      <div className="grid gap-4 xl:grid-cols-[340px_1fr] xl:items-start">
+      <aside className="space-y-4 xl:sticky xl:top-20">
+      {filters}
       {data && data.scanned > 0 && (
         <section className="card space-y-3 !border-violet-300/30">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -100,13 +162,18 @@ export function Ideas() {
         </section>
       )}
 
-      {loading && !data && <div className="space-y-3"><Skeleton className="h-44" /><Skeleton className="h-44" /></div>}
+      </aside>
+
+      <div className="space-y-4">
+      {loading && <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3"><Skeleton className="h-72" /><Skeleton className="h-72" /><Skeleton className="h-72" /></div>}
 
       {data && data.scanned > 0 && buys.length === 0 && (
-        <Empty title="Nothing looks good enough right now">Waiting is also a position. Check back later or tap Scan again.</Empty>
+        <Empty title={range[0] || range[1] ? `Nothing good in ${rangeLabel} right now` : 'Nothing looks good enough right now'}>
+          {range[0] || range[1] ? 'Try a wider price range, or check back later.' : 'Waiting is also a position. Check back later or tap Scan again.'}
+        </Empty>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      {!loading && <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         {buys.map((i, rank) => {
           const a = ideaToAnalysis(i);
           const reasons = reasonsFor(a, i.newsNet, i.headline);
@@ -145,6 +212,8 @@ export function Ideas() {
             </article>
           );
         })}
+      </div>}
+      </div>
       </div>
       <p className="pt-1 text-center text-[11px] text-slate-600">It ranks, it cannot predict: any stock can fall. You decide and place any order yourself in Fidelity.</p>
     </div>

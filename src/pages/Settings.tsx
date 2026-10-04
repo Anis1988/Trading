@@ -134,9 +134,11 @@ export function Settings() {
   const limitSymbols = [...new Set([...s.holdings.map((h) => h.symbol), ...st.watchlist])];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-3">
+    <div className="mx-auto max-w-[1400px] space-y-3">
       <h2 className="text-2xl font-semibold">Settings</h2>
 
+      <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+        <div className="space-y-3">
       {/* ---------------- holdings ---------------- */}
       <Section title="My holdings" subtitle={`${s.holdings.length} stock${s.holdings.length === 1 ? '' : 's'} · what you own in Fidelity`} icon={Icon.wallet} defaultOpen>
         <div className="grid grid-cols-[1fr_1fr_1.2fr] gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
@@ -192,6 +194,38 @@ export function Settings() {
         </div>
       </Section>
 
+      {/* ---------------- risk ---------------- */}
+      <Section title="Risk & orders" subtitle={`Risk ${'$' + s.riskPerTrade} per trade · stop-loss ${s.stopLossPct}%`} icon={Icon.shield}>
+        <Field label="Most I want to lose on one trade ($)" hint="Used to suggest how many shares to buy.">
+          <input className="input w-28" type="number" min={1} value={s.riskPerTrade} onChange={(e) => update({ riskPerTrade: Math.max(1, Number(e.target.value) || 100) })} />
+        </Field>
+        <Field label="Stop-loss (% below the buy price)">
+          <input className="input w-28" type="number" min={1} max={50} value={s.stopLossPct} onChange={(e) => update({ stopLossPct: Math.min(50, Math.max(1, Number(e.target.value) || 5)) })} />
+        </Field>
+        <Field label="Default number of shares">
+          <input className="input w-28" type="number" min={1} value={s.defaultQty} onChange={(e) => update({ defaultQty: Math.max(1, Math.floor(Number(e.target.value)) || 1) })} />
+        </Field>
+        <Field label={`Ignore signals below ${(s.minConfidence * 100).toFixed(0)}%`}>
+          <input type="range" className="accent-cyan-400" min={0.3} max={0.95} step={0.05} value={s.minConfidence} onChange={(e) => update({ minConfidence: Number(e.target.value) })} />
+        </Field>
+        {limitSymbols.length > 0 && (
+          <div>
+            <p className="text-sm text-slate-200">Limit prices <span className="text-slate-500">(optional; empty = market order)</span></p>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {limitSymbols.map((w) => (
+                <label key={w} className="flex items-center gap-2 text-xs">
+                  <span className="w-12 font-semibold">{w}</span>
+                  <input className="input w-full" inputMode="decimal" placeholder="MKT" value={s.limits[w] ?? ''}
+                    onChange={(e) => { const next = { ...s.limits }; const n = Number(e.target.value); if (n > 0) next[w] = n; else delete next[w]; update({ limits: next }); }} />
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </Section>
+
+        </div>
+        <div className="space-y-3">
       {/* ---------------- alerts ---------------- */}
       <Section
         title="Alerts & email"
@@ -218,6 +252,19 @@ export function Settings() {
         <Field label="AI check on every signal" hint="Claude reviews each signal against your holdings. SKIP blocks the email.">
           <Toggle on={s.useAiReview} onChange={(v) => update({ useAiReview: v })} label="AI check" />
         </Field>
+        <div className="panel space-y-2">
+          <p className="label">Save AI credits</p>
+          <Field label={`Only auto-check signals scoring ${(s.aiMinConfidence * 100).toFixed(0)}% or more`} hint="Weaker signals get an AI check button instead of a paid automatic check.">
+            <input type="range" className="accent-cyan-400" min={0.5} max={0.95} step={0.05} value={s.aiMinConfidence} onChange={(e) => update({ aiMinConfidence: Number(e.target.value) })} />
+          </Field>
+          <Field label="Most AI checks per day" hint="All devices, Ideas and background alerts together. Resets at midnight UTC.">
+            <input className="input w-24" type="number" min={0} max={500} value={s.aiDailyLimit} onChange={(e) => update({ aiDailyLimit: Math.min(500, Math.max(0, Math.floor(Number(e.target.value)) || 0)) })} />
+          </Field>
+          <p className="text-xs text-slate-500">
+            {status?.ai ? `Today: ${status.ai.used} of ${status.ai.limit} used · model ${status.ai.model}. ` : ''}
+            Repeated questions are answered from a 2-hour cache for free, and "sell what you don't own" is caught by a free rule. Roughly 1 cent per check.
+          </p>
+        </div>
         <Field label="Check the news every" hint="While the app is open.">
           <select className="input" value={s.pollIntervalSec} onChange={(e) => update({ pollIntervalSec: Number(e.target.value) })}>
             {[...new Set([60, 120, 300, 600, 900, 1800, s.pollIntervalSec])].sort((a, b) => a - b).map((v) => <option key={v} value={v}>{fmtInterval(v)}</option>)}
@@ -270,36 +317,6 @@ export function Settings() {
             </Field>
           )}
         </div>
-      </Section>
-
-      {/* ---------------- risk ---------------- */}
-      <Section title="Risk & orders" subtitle={`Risk ${'$' + s.riskPerTrade} per trade · stop-loss ${s.stopLossPct}%`} icon={Icon.shield}>
-        <Field label="Most I want to lose on one trade ($)" hint="Used to suggest how many shares to buy.">
-          <input className="input w-28" type="number" min={1} value={s.riskPerTrade} onChange={(e) => update({ riskPerTrade: Math.max(1, Number(e.target.value) || 100) })} />
-        </Field>
-        <Field label="Stop-loss (% below the buy price)">
-          <input className="input w-28" type="number" min={1} max={50} value={s.stopLossPct} onChange={(e) => update({ stopLossPct: Math.min(50, Math.max(1, Number(e.target.value) || 5)) })} />
-        </Field>
-        <Field label="Default number of shares">
-          <input className="input w-28" type="number" min={1} value={s.defaultQty} onChange={(e) => update({ defaultQty: Math.max(1, Math.floor(Number(e.target.value)) || 1) })} />
-        </Field>
-        <Field label={`Ignore signals below ${(s.minConfidence * 100).toFixed(0)}%`}>
-          <input type="range" className="accent-cyan-400" min={0.3} max={0.95} step={0.05} value={s.minConfidence} onChange={(e) => update({ minConfidence: Number(e.target.value) })} />
-        </Field>
-        {limitSymbols.length > 0 && (
-          <div>
-            <p className="text-sm text-slate-200">Limit prices <span className="text-slate-500">(optional; empty = market order)</span></p>
-            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {limitSymbols.map((w) => (
-                <label key={w} className="flex items-center gap-2 text-xs">
-                  <span className="w-12 font-semibold">{w}</span>
-                  <input className="input w-full" inputMode="decimal" placeholder="MKT" value={s.limits[w] ?? ''}
-                    onChange={(e) => { const next = { ...s.limits }; const n = Number(e.target.value); if (n > 0) next[w] = n; else delete next[w]; update({ limits: next }); }} />
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
       </Section>
 
       {/* ---------------- sync ---------------- */}
@@ -365,6 +382,8 @@ export function Settings() {
         <p className="label pt-2">Activity log</p>
         <Logs />
       </Section>
+        </div>
+      </div>
     </div>
   );
 }

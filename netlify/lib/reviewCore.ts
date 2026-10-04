@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { yahooQuote, type Quote } from './feeds';
 import { assessHolding, type Holding } from '../../src/lib/holdings';
 import type { Side } from '../../src/types';
+import { BudgetError, cached, hashKey, refundAiCredit, reviewModel, takeAiCredit } from './aiBudget';
 
 const Review = z.object({
   verdict: z.enum(['APPROVE', 'CAUTION', 'REJECT']),
@@ -78,12 +79,30 @@ export async function reviewTrade({ signal, headlines, holdings }: ReviewInput):
     ...headlines.map((h, i) => `${i + 1}. [${h.publishedAt}] (${h.source}) ${h.title}`),
   ].join('\n');
 
-  const model = process.env.REVIEW_MODEL || 'claude-opus-5-5';
+  const model = reviewModel();
+  // Same trade + same headlines within 2 hours = same answer, so it is never paid for twice.
+  const key = hashKey([signal.symbol, signal.side, signal.qty, hold.note, ...headlines.map((h) => h.title)].join('|'));
+  return cached('review-cache', key, 2 * 3600_000, async () => {
+    try {
+      await takeAiCredit();
+    } catch (e) {
+      throw new ReviewError(e instanceof Error ? e.message : String(e), e instanceof BudgetError ? 429 : 502);
+    }
+    try {
+      return await askClaude(model, prompt, hold, priceInfo);
+    } catch (e) {
+      await refundAiCredit();
+      throw e;
+    }
+  });
+}
+
+async function askClaude(model: string, prompt: string, hold: { note: string; qty: number }, priceInfo: ReviewResult['quote']): Promise<ReviewResult> {
   const client = new Anthropic({ timeout: 22_000, maxRetries: 1 });
   try {
     const res = await client.messages.parse({
       model,
-      max_tokens: 4000,
+      max_tokens: 2000,
       system: SYSTEM,
       messages: [{ role: 'user', content: prompt }],
       output_config: { effort: 'low', format: zodOutputFormat(Review) },

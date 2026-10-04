@@ -73,6 +73,12 @@ The server-only variables are read only by the Netlify functions at runtime and 
 - **History -> Scoreboard** compares each real signal's price with the close 5 trading days later, with win rate and average move, split by what the AI said. Needs 20+ signals before it means anything and only counts this device's signals.
 - **Stop Alerts** (top right) stops news checking and turns Auto-Email off. It does not touch anything in Fidelity and deletes nothing. Auto-Email itself now persists across refreshes; it needs your passphrase to switch on.
 
+### Saving AI credits
+- Default review model is `claude-sonnet-5-5` (about half the cost of Opus); set `REVIEW_MODEL` to change it.
+- Only signals scoring at or above *Only auto-check signals scoring X%* (default 75%) get an automatic AI check; weaker ones show an *AI check* button.
+- A daily limit (default 20 checks, Settings -> Alerts & email) covers every device, Ideas and background alerts together; usage shows on Today and in Settings. Failed calls are not counted.
+- Identical questions are answered from a server cache (reviews 2 h, AI shortlist 1 h) for free; "sell what you don't own" is caught by a free rule; background alerts check at most 2 strong signals per run.
+
 ### Background alerts, weekly summary, notifications
 - **Background alerts** (Settings -> Alerts & email): `netlify/functions/watch.ts` runs every 15 minutes, Mon-Fri 7am-8pm New York. It reads your synced holdings/watchlist, takes headlines from the last 24 h it has not seen, generates signals, asks Claude, and only for **APPROVE** at or above your auto-email score threshold sends the email (and a notification). Max 3 AI checks per run and 10 emails per day. Each alert is added to History and the Scoreboard on all devices. Needs sync, `ANTHROPIC_API_KEY`, `EMAILJS_PRIVATE_KEY` (and/or VAPID keys), live mode, and the toggle on. *Run a check now* runs one immediately (1 AI check, to fit the request time limit); *Test email* checks the server email setup.
 - **Weekly summary** (`weekly.ts`, Fridays 21:00 UTC): profit/loss for the week and overall, this week's instructions, and the scoreboard. *Send summary now* to try it.

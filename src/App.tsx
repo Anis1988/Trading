@@ -39,7 +39,7 @@ export default function App() {
     <div className="min-h-screen">
       <Toasts />
       <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/75 backdrop-blur-xl" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-3 sm:px-4">
+        <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-3 px-3 sm:px-4">
           <Logo />
           <span className="font-display text-lg font-semibold tracking-tight">Trading</span>
           <nav className="ml-4 hidden gap-1 sm:flex" aria-label="Main">
@@ -84,7 +84,7 @@ export default function App() {
           ))}
         </nav>
       </header>
-      <main className="mx-auto max-w-6xl px-3 pb-12 pt-4 sm:px-4">
+      <main className="mx-auto max-w-[1600px] px-3 pb-12 pt-4 sm:px-4 lg:px-6">
         {tab === 'Today' && <Today goTo={setTab} />}
         {tab === 'Ideas' && <Ideas />}
         {tab === 'History' && <History />}

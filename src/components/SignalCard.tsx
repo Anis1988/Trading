@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { ActionChip, Stat, fmtMoney, type Action } from './ui';
 
 /** The single word the user acts on. */
-export function finalAction(s: Signal, aiOn: boolean): { action: Action; note: string } {
+export function finalAction(s: Signal, aiOn: boolean, aiMin = 0): { action: Action; note: string } {
   if (s.reviewStatus === 'pending') return { action: 'CHECKING', note: 'The AI is checking this…' };
   if (s.review) {
     if (s.review.verdict === 'APPROVE') return { action: s.side, note: s.review.rationale };
@@ -12,6 +12,7 @@ export function finalAction(s: Signal, aiOn: boolean): { action: Action; note: s
     return { action: 'SKIP', note: s.review.rationale };
   }
   if (s.reviewStatus === 'error') return { action: 'WAIT', note: `The AI check failed: ${s.reviewError ?? 'unknown error'}` };
+  if (aiOn && s.confidence < aiMin) return { action: 'WAIT', note: 'A weaker signal, so it was not sent to the AI (to save credits). Tap AI check if you want an opinion.' };
   return { action: aiOn ? 'WAIT' : s.side, note: aiOn ? 'Not checked by the AI yet.' : s.reason };
 }
 
@@ -21,7 +22,7 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
   const hold = settings.holdings.find((h) => h.symbol === s.symbol);
   const isSending = sending.includes(s.id);
   const done = s.status === 'dismissed';
-  const { action, note } = finalAction(s, settings.useAiReview);
+  const { action, note } = finalAction(s, settings.useAiReview, settings.mockMode ? 0 : settings.aiMinConfidence);
   const blocked = settings.useAiReview && s.review?.verdict === 'REJECT';
   const accent = action === 'BUY' ? 'before:bg-emerald-400' : action === 'SELL' ? 'before:bg-red-400' : action === 'WAIT' ? 'before:bg-amber-400' : 'before:bg-slate-500';
 

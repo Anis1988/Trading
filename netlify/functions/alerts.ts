@@ -4,6 +4,7 @@ import { readServer, type ServerLogEntry } from '../lib/state';
 import { serverEmailReady, sendServerEmail } from '../lib/mailer';
 import { getSubscriptions, pushAll, pushReady, removeSubscription, saveSubscription } from '../lib/push';
 import { runWatch } from '../lib/watchCore';
+import { aiUsage, reviewModel } from '../lib/aiBudget';
 import { runWeekly } from '../lib/weeklyCore';
 import { textEmailParams } from '../../src/lib/emailParams';
 
@@ -32,6 +33,7 @@ export default async (req: Request): Promise<Response> => {
         ready: { ai: !!process.env.ANTHROPIC_API_KEY, email: serverEmailReady(), push: pushReady() },
         vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null,
         devices: (await getSubscriptions()).length,
+        ai: { ...(await aiUsage()), model: reviewModel() },
       });
     }
     if (req.method !== 'POST') return json({ error: 'GET or POST only' }, 405);

@@ -542,9 +542,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     if (newSignals.length) {
       const aiOn = s.useAiReview;
-      setSignals((l) => [...newSignals.map((n) => (aiOn ? { ...n, reviewStatus: 'pending' as const } : n)), ...l]);
+      setSignals((l) => [...newSignals.map((n) => (aiOn && (s.mockMode || n.confidence >= s.aiMinConfidence) ? { ...n, reviewStatus: 'pending' as const } : n)), ...l]);
       newSignals.forEach((n) => log('info', `Signal: ${n.side} ${n.symbol} @ ${(n.confidence * 100).toFixed(0)}% (${n.source})`));
-      if (aiOn) await Promise.all(newSignals.map((n) => reviewSignal(n, fresh)));
+      // Paid AI checks only for strong signals; weaker ones keep an "AI check" button for a manual check.
+      if (aiOn) await Promise.all(newSignals.filter((n) => s.mockMode || n.confidence >= s.aiMinConfidence).map((n) => reviewSignal(n, fresh)));
       for (const n of newSignals) {
         if (ref.current.settings.autoEmail) await emailSignal(n, true);
         else if (n.autoEmail) log('warn', `MCP requested auto-email for ${n.symbol}, ignored because Auto-Email is OFF.`);

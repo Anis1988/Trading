@@ -32,6 +32,8 @@ export const defaultSettings: Settings = {
   riskPerTrade: 100,
   stopLossPct: 5,
   autoEmailMinConfidence: 0.85,
+  aiDailyLimit: 20,
+  aiMinConfidence: 0.75,
   serverAlerts: false,
   weeklySummary: false,
   passphraseHash: '',

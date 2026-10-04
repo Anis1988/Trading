@@ -10,6 +10,8 @@ export const UNIVERSE = [
   'WMT', 'COST', 'HD', 'MCD', 'NKE', 'SBUX', 'KO', 'PEP', 'PG', 'DIS',
   // energy / industrial
   'XOM', 'CVX', 'CAT', 'BA', 'GE', 'HON', 'UPS',
+  // well-known lower-priced names
+  'F', 'GM', 'T', 'VZ', 'C', 'SCHW', 'PYPL', 'UBER', 'PLTR', 'CMCSA', 'DAL', 'KHC',
   // broad & sector ETFs
   'VTI', 'VOO', 'QQQ', 'SCHD', 'VGT', 'XLK', 'XLF', 'XLV', 'XLE', 'IWM', 'VXUS',
 ];

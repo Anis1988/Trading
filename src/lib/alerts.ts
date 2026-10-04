@@ -6,6 +6,7 @@ export interface AlertStatus {
   ready: { ai: boolean; email: boolean; push: boolean };
   vapidPublicKey: string | null;
   devices: number;
+  ai?: { used: number; limit: number; model: string };
 }
 
 export const getAlertStatus = () => call<AlertStatus>('/api/alerts');

@@ -7,7 +7,8 @@ import { keywordScore, sentimentScore } from '../../src/lib/signals';
 
 export const config = { path: '/api/scan' };
 
-let cache: { at: number; body: { ideas: Idea[]; scanned: number; errors: string[] } } | null = null;
+type Body = { ideas: Idea[]; scanned: number; inRange: number; errors: string[] };
+const cache = new Map<string, { at: number; body: Body }>();
 
 async function pool<T, R>(items: T[], size: number, deadline: number, fn: (x: T) => Promise<R>): Promise<Array<R | undefined>> {
   const out: Array<R | undefined> = new Array(items.length).fill(undefined);
@@ -34,7 +35,12 @@ const newsNet = (hs: ServerHeadline[]) => hs.slice(0, 12).reduce((t, h) => t + k
 export default async (req: Request): Promise<Response> => {
   const blocked = guard(req, 'scan', 6);
   if (blocked) return blocked;
-  if (cache && Date.now() - cache.at < 10 * 60_000) return json(cache.body, 200, { 'Cache-Control': 'private, max-age=300' });
+  const q = new URL(req.url).searchParams;
+  const min = Math.max(0, Number(q.get('min')) || 0);
+  const max = Number(q.get('max')) > 0 ? Number(q.get('max')) : Infinity;
+  const ck = `${min}-${max}`;
+  const hit = cache.get(ck);
+  if (hit && Date.now() - hit.at < 10 * 60_000) return json(hit.body, 200, { 'Cache-Control': 'private, max-age=300' });
 
   const start = Date.now();
   const errors: string[] = [];
@@ -46,7 +52,9 @@ export default async (req: Request): Promise<Response> => {
     .filter((a): a is NonNullable<typeof a> => !!a);
 
   // 2. rank by trend, then read the news for the best candidates only
-  const prelim = analyzed.map((a) => toIdea(a)).sort((a, b) => b.score - a.score).slice(0, 14);
+  // Price range first, so the news check (the slow part) is spent on stocks you can actually afford.
+  const inRange = analyzed.filter((a) => a.price >= min && a.price <= max);
+  const prelim = inRange.map((a) => toIdea(a)).sort((a, b) => b.score - a.score).slice(0, 14);
   const news = await pool(prelim, 7, start + 8000, async (i) => {
     const [g, y] = await Promise.allSettled([googleNews(i.symbol), yahooNews(i.symbol)]);
     const hs = [...(g.status === 'fulfilled' ? g.value : []), ...(y.status === 'fulfilled' ? y.value : [])].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
@@ -61,7 +69,7 @@ export default async (req: Request): Promise<Response> => {
     })
     .sort((a, b) => b.score - a.score);
 
-  const body = { ideas, scanned: analyzed.length, errors: [...new Set(errors)].slice(0, 3) };
-  if (analyzed.length) cache = { at: Date.now(), body };
+  const body: Body = { ideas, scanned: analyzed.length, inRange: inRange.length, errors: [...new Set(errors)].slice(0, 3) };
+  if (analyzed.length) cache.set(ck, { at: Date.now(), body });
   return json(body, 200, { 'Cache-Control': 'private, max-age=300' });
 };

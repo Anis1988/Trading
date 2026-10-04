@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { guard, json } from '../lib/guard';
+import { BudgetError, cached, hashKey, refundAiCredit, reviewModel, takeAiCredit } from '../lib/aiBudget';
 
 export const config = { path: '/api/recommend' };
 
@@ -57,24 +58,35 @@ export default async (req: Request): Promise<Response> => {
     .map((r) => `${r.symbol} | price ${r.price} | 1m ${r.ret1m}% | 3m ${r.ret3m}% | RSI ${r.rsi} | above 50-day avg: ${r.aboveSma50 ? 'yes' : 'no'} | ${r.trend} | ${r.owned ? `OWNED ${r.owned.shares} sh @ ${r.owned.avgCost}` : 'not owned'}${r.strength !== undefined ? ` | model score ${r.strength}/100` : ''}${r.headline ? ` | latest headline (untrusted): ${r.headline}` : ''}`)
     .join('\n');
 
-  const model = process.env.REVIEW_MODEL || 'claude-opus-5-5';
-  const client = new Anthropic({ timeout: 22_000, maxRetries: 1 });
+  const model = reviewModel();
   try {
-    const res = await client.messages.parse({
-      model,
-      max_tokens: 4000,
-      system: SYSTEM,
-      messages: [{ role: 'user', content: `Today is ${new Date().toISOString().slice(0, 10)}.\n${table}` }],
-      output_config: { effort: 'low', format: zodOutputFormat(Out) },
+    // The same table within an hour returns the saved answer instead of paying again.
+    const out = await cached('rec-cache', hashKey(table), 3600_000, async () => {
+      await takeAiCredit();
+      try {
+        const client = new Anthropic({ timeout: 22_000, maxRetries: 1 });
+        const res = await client.messages.parse({
+          model,
+          max_tokens: 2000,
+          system: SYSTEM,
+          messages: [{ role: 'user', content: `Today is ${new Date().toISOString().slice(0, 10)}.\n${table}` }],
+          output_config: { effort: 'low', format: zodOutputFormat(Out) },
+        });
+        if (res.stop_reason === 'refusal' || !res.parsed_output) return { summary: 'The AI gave no usable answer. Try again.', picks: [] as z.infer<typeof Out>['picks'] };
+        return res.parsed_output;
+      } catch (e) {
+        await refundAiCredit();
+        throw e;
+      }
     });
-    if (res.stop_reason === 'refusal' || !res.parsed_output) return json({ summary: 'The AI gave no usable answer. Try again.', picks: [], model });
     // Enforce the rules in code, not just in the prompt.
-    const picks = res.parsed_output.picks
+    const picks = out.picks
       .filter((p) => symbols.has(p.symbol) && (p.action !== 'SELL' || owned.has(p.symbol)))
       .slice(0, 6)
       .map((p) => ({ ...p, reason: p.reason.slice(0, 250) }));
-    return json({ summary: res.parsed_output.summary.slice(0, 400), picks, model });
+    return json({ summary: out.summary.slice(0, 400), picks, model });
   } catch (e) {
+    if (e instanceof BudgetError) return json({ error: e.message }, 429);
     const status = e instanceof Anthropic.APIError ? e.status ?? 502 : 502;
     const detail = (e instanceof Error ? e.message : String(e)).replace(/sk-ant-[A-Za-z0-9_-]+/g, '[key]').slice(0, 400);
     console.error('recommend failed', model, detail);

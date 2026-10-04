@@ -112,6 +112,8 @@ export interface Settings {
   riskPerTrade: number; // dollars you are willing to lose on one trade
   stopLossPct: number; // how far below the entry the stop-loss sits, in %
   autoEmailMinConfidence: number;
+  aiDailyLimit: number; // paid AI checks per day, all devices + background together
+  aiMinConfidence: number; // only signals scoring at least this get an automatic AI check
   serverAlerts: boolean; // background check on Netlify every 15 min, even with the app closed
   weeklySummary: boolean; // Friday evening summary email // auto-email only at or above this signal confidence
   passphraseHash: string;
