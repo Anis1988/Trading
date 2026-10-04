@@ -1,0 +1,292 @@
+import type { ReactNode } from 'react';
+import { ActionChip, Change, Section, Sparkline, Stat, Icon } from '../components/ui';
+import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
+
+/* ------- made-up example data, only for pictures in this guide ------- */
+const wave = (start: number, drift: number, n = 60) => Array.from({ length: n }, (_, i) => Math.round((start + drift * i + Math.sin(i / 3) * start * 0.02) * 100) / 100);
+const UP = wave(180, 0.6);
+const DOWN = wave(520, -0.9);
+
+function Example({ children, caption }: { children: ReactNode; caption?: string }) {
+  return (
+    <figure className="space-y-2">
+      <div className="relative rounded-2xl border border-dashed border-cyan-300/30 bg-black/20 p-3 pt-6">
+        <span className="absolute left-3 top-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-300/80">Example</span>
+        {children}
+      </div>
+      {caption && <figcaption className="text-xs text-slate-400">{caption}</figcaption>}
+    </figure>
+  );
+}
+
+const P = ({ children }: { children: ReactNode }) => <p className="text-[15px] leading-relaxed text-slate-300">{children}</p>;
+const Steps = ({ items }: { items: ReactNode[] }) => (
+  <ol className="space-y-2">
+    {items.map((x, i) => (
+      <li key={i} className="flex gap-3 text-[15px] text-slate-300">
+        <span className="num flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400/30 to-violet-500/30 text-xs font-bold text-cyan-100">{i + 1}</span>
+        <span>{x}</span>
+      </li>
+    ))}
+  </ol>
+);
+const Tip = ({ children }: { children: ReactNode }) => (
+  <p className="rounded-xl border border-cyan-300/25 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-50">💡 {children}</p>
+);
+const Warn = ({ children }: { children: ReactNode }) => (
+  <p className="rounded-xl border border-amber-300/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">⚠ {children}</p>
+);
+
+/** Plain-language manual with live examples built from the same pieces the app uses. */
+export function Guide() {
+  return (
+    <div className="mx-auto max-w-[1400px] space-y-4">
+      <div>
+        <h2 className="text-2xl font-semibold">Guide</h2>
+        <p className="text-sm text-slate-400">Everything in this app, in plain words. Tap a topic to open it. The examples use made-up numbers.</p>
+      </div>
+
+      <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+        <div className="space-y-3">
+          <Section title="How the app works" subtitle="From news to your Fidelity order" icon={Icon.guide} defaultOpen>
+            <Steps
+              items={[
+                'Every few minutes the app reads the news about the stocks you own (and any you are watching).',
+                'If the news is clearly good or bad, it creates a signal: a suggestion to BUY or SELL.',
+                'Free safety rules check it first: you cannot sell what you do not own, no buying right before earnings, no buying while the whole market is falling.',
+                'If it passes, Claude (the AI) reads the news, the price and your holdings, and gives its opinion in simple words.',
+                'You see the result on Today. You decide. You can email yourself the instruction or copy it.',
+                'You place the order yourself in Fidelity. The app never trades for you.',
+                'In History, mark the instruction as Executed with the order number and price, so the app keeps an honest record.',
+              ]}
+            />
+            <Warn>This app is not a broker and not financial advice. Every decision and every order is yours.</Warn>
+          </Section>
+
+          <Section title="The 5 words" subtitle="BUY · SELL · HOLD · WAIT · SKIP" icon={Icon.today}>
+            <P>The app only ever uses these five words, each always with the same colour and symbol.</P>
+            <div className="space-y-2.5">
+              {(
+                [
+                  ['BUY', 'Good time to buy (or add more). Green, arrow up.'],
+                  ['SELL', 'Good time to sell some or all. Red, arrow down.'],
+                  ['HOLD', 'You own it and nothing needs to change. Keep it.'],
+                  ['WAIT', 'Maybe, but not now: unclear news, earnings soon, or a falling market.'],
+                  ['SKIP', 'Do not do it. The AI or a safety rule said no; emailing is blocked.'],
+                ] as const
+              ).map(([a, t]) => (
+                <div key={a} className="flex items-center gap-3">
+                  <span className="w-20 shrink-0"><ActionChip action={a} /></span>
+                  <span className="text-sm text-slate-300">{t}</span>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Reading a signal card" subtitle="The cards under Action needed" icon={Icon.today}>
+            <Example caption="Read it from top to bottom: the word, one sentence why, then the money numbers, then the buttons.">
+              <article className="card relative overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-emerald-400">
+                <div className="flex flex-wrap items-center gap-2">
+                  <ActionChip action="BUY" size="lg" />
+                  <span className="font-display text-xl font-semibold">COST</span>
+                  <span className="num text-sm text-slate-400">× 5</span>
+                </div>
+                <p className="mt-2 text-[15px] text-slate-200">Strong sales report and a steady price climb. Not overheated.</p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <Stat label="Buy near" value="$900.00" />
+                  <Stat label="Stop-loss −4%" value="$864.00" tone="down" />
+                  <Stat label="Max loss" value="−$180.00" tone="down" />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="btn-primary pointer-events-none">Email me</span>
+                  <span className="btn pointer-events-none">Copy</span>
+                  <span className="btn pointer-events-none">Re-check</span>
+                  <span className="btn pointer-events-none">Dismiss</span>
+                </div>
+              </article>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Buy near</b>: the price when it was checked.</li>
+              <li><b>Stop-loss</b>: if the price falls to this, sell to limit the damage. You set this order yourself in Fidelity.</li>
+              <li><b>Max loss</b>: about how much you lose if the stop-loss is hit.</li>
+              <li><b>Email me</b> sends the instruction to your inbox. <b>Copy</b> puts it on the clipboard. <b>Re-check</b> asks the AI again (uses a credit). <b>Dismiss</b> hides it.</li>
+              <li><b>Details</b> shows the headline that caused it, the AI's warnings, the market, earnings and analysts.</li>
+            </ul>
+            <Tip>A "Use 7" link means: buying 7 shares keeps your possible loss within your risk limit (Settings → Risk).</Tip>
+          </Section>
+
+          <Section title="The Today screen" subtitle="Your money, what to do, your stocks" icon={Icon.wallet}>
+            <Example caption="Total profit / loss: what your stocks are worth now compared with what you paid.">
+              <div>
+                <p className="label">Total profit / loss</p>
+                <p className="num mt-1 text-4xl font-semibold text-emerald-300 glow-up">+$1,240</p>
+                <p className="text-sm"><Change pct={12.4} /> <span className="muted">on what you paid</span> · <span className="muted">Today </span><Change value={-35.2} pct={-0.4} /></p>
+                <div className="mt-2"><Sparkline values={UP} height={60} label="Example portfolio value" /></div>
+              </div>
+            </Example>
+            <Example caption="One tile per stock you own: the advice word, the price, and your gain or loss. Tap it for a chart, earnings and analyst info.">
+              <div className="card !p-4">
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-xl font-semibold">AAPL</span>
+                  <ActionChip action="HOLD" size="sm" />
+                  <EarningsBadge e={{ date: '2026-10-30', inDays: 9 }} />
+                  <span className="num ml-auto text-lg">$233.48</span>
+                </div>
+                <div className="mt-1 flex justify-between text-sm"><span className="muted num">2 sh · paid $173.15</span><Change value={120.66} pct={34.8} /></div>
+                <p className="mt-2 text-sm text-slate-300">No clear reason to act. Keep holding.</p>
+              </div>
+            </Example>
+            <P><b>Where your money is</b> shows how your money is split. <b>News on your stocks</b> lists the latest headlines. <b>Background alerts</b> shows the last server check and how many AI checks you used today.</P>
+          </Section>
+
+          <Section title="Ideas: what to buy" subtitle="Scanning about 70 big stocks and funds" icon={Icon.ideas}>
+            <P>The app looks at about 70 large US stocks and funds, gives each a score out of 100, and shows only the healthy ones that are not overheated.</P>
+            <Example caption="The bar is the score. Higher = steadier climb, better news, not overheated.">
+              <div className="flex items-center gap-3">
+                <span className="font-display text-xl font-semibold">XLK</span>
+                <ActionChip action="BUY" size="sm" />
+                <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/10"><div className="h-full w-[79%] rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" /></div>
+                <span className="num text-xs">79/100</span>
+              </div>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Price per share</b>: pick a range such as "Under $50" to see only stocks you can afford.</li>
+              <li><b>Ask the AI</b>: Claude picks its best few from the list (one credit, saved for an hour).</li>
+              <li><b>Check with AI &amp; send to Today</b>: turns an idea into a signal card on Today, checked against what you own.</li>
+              <li><b>Shares to buy</b>: how many shares keep your possible loss within your risk limit.</li>
+            </ul>
+            <Warn>A high score means the stock has been doing well. It cannot promise the future; any stock can fall.</Warn>
+          </Section>
+
+          <Section title="History & Scoreboard" subtitle="Your record of every instruction" icon={Icon.history}>
+            <Example caption="Tap a status on the right to change it. Executed asks for the order number and the price you paid.">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <b className="font-display">BUY 4 NVDA</b>
+                  <p className="text-xs text-slate-500">10/4/2026 · MARKET · email</p>
+                </div>
+                <div className="flex w-[92px] flex-col gap-1.5">
+                  <span className="flex h-8 items-center gap-1.5 rounded-lg border border-amber-300/60 bg-amber-400/20 px-2 text-[11px] font-semibold text-amber-100"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />Pending</span>
+                  <span className="flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-2 text-[11px] font-semibold text-emerald-200/70"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Executed</span>
+                  <span className="flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-2 text-[11px] font-semibold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />Cancelled</span>
+                </div>
+              </div>
+            </Example>
+            <P><b>Pending</b> = not done yet. <b>Executed</b> = you placed it in Fidelity. <b>Cancelled</b> = you decided not to.</P>
+            <P><b>Scoreboard</b> checks old calls: was the price higher (for a BUY) or lower (for a SELL) five trading days later? It shows the percentage that were right, split by what the AI said.</P>
+            <Tip>Do not trust the scoreboard until it has 20 or more calls. If "AI said skip" does as well as "AI said go", the AI is not helping.</Tip>
+          </Section>
+        </div>
+
+        <div className="space-y-3">
+          <Section title="Market check" subtitle="Is the whole market going up or down?" icon={Icon.today}>
+            <P>The app watches the S&amp;P 500, the 500 biggest US companies together. When the whole market falls, most single-stock buys lose money too.</P>
+            <Example>
+              <MarketCard m={{ trend: 'down', price: 500, ret1m: -4.2, ret3m: -6.1, closes: DOWN }} />
+            </Example>
+            <P><b>Rising</b>: normal. <b>Sideways</b>: no clear direction. <b>Falling</b>: every BUY becomes <ActionChip action="WAIT" size="sm" /> automatically, for free (no AI credit used).</P>
+          </Section>
+
+          <Section title="Earnings warning" subtitle="Why buying right before earnings is risky" icon={Icon.today}>
+            <P>Four times a year, each company reports its results ("earnings"). On that day the price can jump or drop 5–15% in minutes, which can blow through your stop-loss.</P>
+            <Example caption="Grey = earnings within 2 weeks. Amber = within 5 days.">
+              <div className="flex flex-wrap gap-2">
+                <EarningsBadge e={{ date: '2026-10-20', inDays: 12 }} />
+                <EarningsBadge e={{ date: '2026-10-11', inDays: 3 }} />
+                <EarningsBadge e={{ date: '2026-10-09', inDays: 1 }} />
+              </div>
+            </Example>
+            <P>A BUY within 5 days of earnings becomes <ActionChip action="WAIT" size="sm" />: "wait until after". Free rule, no AI credit used.</P>
+          </Section>
+
+          <Section title="Analysts & company basics" subtitle="Analysts, P/E, dividend, 52-week range" icon={Icon.ideas}>
+            <Example>
+              <InsightLines i={{ analysts: { buy: 25, hold: 5, sell: 1, period: '2026-10-01' }, basics: { pe: 28.4, divYield: 0.5, low52: 150, high52: 260 } }} />
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Analysts</b>: how many Wall Street analysts say buy, hold or sell. The bar shows the mix (green / grey / red). Useful, but they are often too optimistic.</li>
+              <li><b>P/E</b>: price compared with yearly profit. Around 15–25 is typical; much higher means people expect fast growth (more risk if it disappoints).</li>
+              <li><b>Dividend</b>: cash the company pays you each year, as a % of the price.</li>
+              <li><b>52-week</b>: the lowest and highest price in the last year.</li>
+            </ul>
+          </Section>
+
+          <Section title="Smart stop-loss" subtitle="A safety exit sized to each stock" icon={Icon.shield}>
+            <P>A stop-loss is a price where you sell to stop a loss from growing. The app sizes it to how much each stock normally moves in a day (about 2.5 normal days, between 3% and 15%).</P>
+            <Example caption="Calm stock vs jumpy stock, both bought at $100.">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="panel space-y-1 text-sm">
+                  <p className="font-semibold">Coca-Cola style</p>
+                  <p className="text-xs text-slate-400">Moves ~1% a day</p>
+                  <Stat label="Stop-loss −3%" value="$97.00" tone="down" />
+                </div>
+                <div className="panel space-y-1 text-sm">
+                  <p className="font-semibold">Tesla style</p>
+                  <p className="text-xs text-slate-400">Moves ~3.5% a day</p>
+                  <Stat label="Stop-loss −8.8%" value="$91.25" tone="down" />
+                </div>
+              </div>
+            </Example>
+            <P>Your risk limit (Settings → Risk, default $100) then sets the number of shares: the jumpier the stock, the fewer shares, so the possible loss stays the same.</P>
+            <Tip>The app does not place the stop-loss for you. After buying, add a "stop" sell order in Fidelity at that price.</Tip>
+          </Section>
+
+          <Section title="Too much in one stock" subtitle="Spreading your money" icon={Icon.wallet}>
+            <P>If one single company is more than a quarter (25%) of your money, one bad day there hurts a lot. Funds like VTI or VOO are not counted, because they already hold hundreds of companies.</P>
+            <Example>
+              <p className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-sm text-amber-100">This would make AAPL about 41% of your money. Consider fewer shares.</p>
+            </Example>
+          </Section>
+
+          <Section title="Alerts, emails & notifications" subtitle="How the app reaches you" icon={Icon.bell}>
+            <ul className="space-y-2 text-sm text-slate-300">
+              <li><b>Email me</b> (button): sends one instruction now.</li>
+              <li><b>Auto-email (app open)</b>: emails BUY/SELL calls the AI approved, but only while the app is open on that device.</li>
+              <li><b>Background alerts (app closed)</b>: the server checks every 15 minutes on weekdays (7am–8pm New York) and emails you approved calls even when your phone is locked.</li>
+              <li><b>Notifications</b>: a phone alert for background alerts. On iPhone, first add the app to your Home Screen (Safari → Share → Add to Home Screen) and open it from there.</li>
+              <li><b>Weekly summary</b>: every Friday after the market closes: your profit/loss, the week's instructions and the scoreboard.</li>
+              <li><b>Stop alerts</b> (top right): stops checking the news and turns auto-email off on that device. It does not touch Fidelity and deletes nothing. Press Resume to start again.</li>
+            </ul>
+          </Section>
+
+          <Section title="Saving AI credits" subtitle="What costs money and what is free" icon={Icon.shield}>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Costs about 1 cent</b>: an AI check of a signal, Ask the AI on Ideas, Re-check.</li>
+              <li><b>Free</b>: news, prices, charts, scores, earnings, analysts, the market check, and the safety rules (sell what you do not own, earnings soon, falling market).</li>
+              <li>Only strong signals (75%+ by default) get an automatic AI check; weaker ones show an "AI check" button.</li>
+              <li>The same question within 2 hours is answered from memory for free.</li>
+              <li>A daily limit (default 20) covers all your devices together. Change both in Settings → Alerts &amp; email.</li>
+            </ul>
+          </Section>
+
+          <Section title="Words you will see" subtitle="Quick glossary" icon={Icon.guide}>
+            <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[140px_1fr]">
+              {(
+                [
+                  ['Signal', 'A suggestion created from the news. It is checked before you see a BUY or SELL.'],
+                  ['Score / confidence', 'How strong the news signal is, from 0 to 100%. Not a promise of profit.'],
+                  ['Trend', 'Which way the price has been going over the last months.'],
+                  ['50-day average', 'The average price of the last 50 trading days. Above it usually means a healthy trend.'],
+                  ['RSI / overheated', 'A 0–100 measure of how fast it rose. Above 70 = rose too fast, often pulls back.'],
+                  ['Stop-loss', 'A price where you sell to stop a loss from getting bigger.'],
+                  ['Market order', 'Buy or sell now at the current price.'],
+                  ['Limit order', 'Buy or sell only at your price or better (set it in Settings → Risk).'],
+                  ['ETF / fund', 'One share that holds many companies (like VTI). Safer than one stock.'],
+                  ['Earnings', 'The quarterly results report. Prices move a lot that day.'],
+                  ['S&P 500', 'The 500 biggest US companies together: "the market".'],
+                ] as const
+              ).map(([k, v]) => (
+                <div key={k} className="contents">
+                  <dt className="font-semibold text-slate-100">{k}</dt>
+                  <dd className="text-slate-400">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </Section>
+        </div>
+      </div>
+
+      <p className="pt-2 text-center text-[11px] text-slate-600">Not a broker: this app never places trades. You place every order yourself in Fidelity. Not financial advice.</p>
+    </div>
+  );
+}

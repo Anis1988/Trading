@@ -6,12 +6,14 @@ import { Today } from './pages/Today';
 import { Ideas } from './pages/Ideas';
 import { History } from './pages/History';
 import { Settings } from './pages/Settings';
+import { Guide } from './pages/Guide';
 
 const TABS = [
   ['Today', Icon.today],
   ['Ideas', Icon.ideas],
   ['History', Icon.history],
   ['Settings', Icon.settings],
+  ['Guide', Icon.guide],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
@@ -68,7 +70,7 @@ export default function App() {
             <span className="sm:hidden">{settings.stopped ? 'Off' : 'Stop'}</span>
           </button>
         </div>
-        <nav className="grid grid-cols-4 border-t border-white/5 sm:hidden" aria-label="Main">
+        <nav className="grid grid-cols-5 border-t border-white/5 sm:hidden" aria-label="Main">
           {TABS.map(([t, icon]) => (
             <button
               key={t}
@@ -78,8 +80,8 @@ export default function App() {
             >
               {icon}
               {t}
-              {tab === t && <span className="absolute inset-x-6 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />}
-              {t === 'Today' && newCount > 0 && <span className="num absolute right-5 top-1 rounded-full bg-cyan-400 px-1.5 text-[10px] font-bold text-slate-950">{newCount}</span>}
+              {tab === t && <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />}
+              {t === 'Today' && newCount > 0 && <span className="num absolute right-3 top-1 rounded-full bg-cyan-400 px-1.5 text-[10px] font-bold text-slate-950">{newCount}</span>}
             </button>
           ))}
         </nav>
@@ -89,6 +91,7 @@ export default function App() {
         {tab === 'Ideas' && <Ideas />}
         {tab === 'History' && <History />}
         {tab === 'Settings' && <Settings />}
+        {tab === 'Guide' && <Guide />}
       </main>
     </div>
   );
