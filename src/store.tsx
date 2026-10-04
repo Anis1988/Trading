@@ -380,6 +380,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             mSettings = { ...curSettings, ...remote.data.settings } as Settings;
             mWatch = remote.data.watchlist;
           }
+          if (config.forceMock) mSettings = { ...mSettings, mockMode: true }; // a demo-locked deploy never goes live
           sc.at = remote.updatedAt;
           fromRemote = true;
         }

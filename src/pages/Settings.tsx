@@ -246,7 +246,7 @@ export function Settings() {
         <h2 className="mb-2 font-semibold">Sync &amp; access</h2>
         <p className="mb-2 text-xs text-slate-500">
           Enter the same access token (Netlify variable <code>APP_ACCESS_TOKEN</code>) on every device. Your holdings, watchlist, history and settings are then
-          saved to your private Netlify storage and appear on all devices. Safety switches (demo/live, Stop Alerts, auto-email, MCP) stay per device.
+          saved to your private Netlify storage and appear on all devices. Demo/live mode follows you between devices. Stop Alerts, auto-email and MCP stay per device.
         </p>
         <div className="flex flex-wrap gap-2">
           <input className="input w-full sm:w-56" type="password" placeholder="Access token" value={tok} onChange={(e) => setTok(e.target.value)} />
