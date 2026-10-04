@@ -349,6 +349,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const dismissSignal = (sig: Signal) => setSignalStatus(sig.id, 'dismissed');
 
   // ---- cross-device sync (settings, watchlist, holdings, history) via /api/sync ----
+  // Leaving demo mode: forget the made-up signals so nothing simulated is shown as real.
+  useEffect(() => {
+    if (settings.mockMode) return;
+    setSignals((l) => (l.some((x) => x.source === 'mock' || x.review?.simulated) ? l.filter((x) => x.source !== 'mock' && !x.review?.simulated) : l));
+  }, [settings.mockMode]);
+
   const sync = useRef({ at: load<string | null>('ta.syncAt', null), lastJson: '', skipNext: false, busy: false, timer: undefined as ReturnType<typeof setTimeout> | undefined });
   const jsonOf = (d: SyncData) => JSON.stringify(d);
 
@@ -396,7 +402,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         curWatch = mWatch;
         curHist = mHist;
         const remoteJson = remote.data ? jsonOf(snapshot({ ...mSettings, ...remote.data.settings } as Settings, remote.data.watchlist, remote.data.history)) : '';
-        if (remote.data && mergedJson === remoteJson) break; // server already has everything
+        // A setting the server copy has never seen (e.g. one added in a newer version) also needs a push.
+        const serverLacksKeys = !!remote.data && Object.keys(merged.settings).some((k) => !(k in remote.data!.settings));
+        if (remote.data && mergedJson === remoteJson && !serverLacksKeys) break; // server already has everything
         const res = await pushRemote(remote.updatedAt, merged);
         if ('updatedAt' in res) {
           sc.at = res.updatedAt;
@@ -413,7 +421,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       setLastSync(nowIso());
       setSyncStatus('ok');
-      setSyncMessage(fromRemote ? 'Updated from your other device.' : 'Up to date.');
+      setSyncMessage(`${fromRemote ? 'Updated from your other device.' : 'Up to date.'} Mode on this device: ${curSettings.mockMode ? 'DEMO' : 'LIVE'}.`);
       if (manual) toast('success', fromRemote ? 'Synced: loaded data from your other device.' : 'Synced: this device is up to date.');
     } catch (e) {
       setSyncStatus('error');
