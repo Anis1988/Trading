@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Settings } from '../types';
 import { fetchTrendSeries } from './api';
-import { analyze, mockSeries, type Analysis } from './trend';
+import { analyze, type Analysis } from './trend';
 
 /** Loads ~6 months of prices for `symbols` and turns them into plain trend readings. */
 export function useTrends(symbols: string[], settings: Settings) {
@@ -22,12 +22,9 @@ export function useTrends(symbols: string[], settings: Settings) {
     try {
       const series: Record<string, { closes: number[]; dates?: string[] }> = {};
       let errors: string[] = [];
-      if (settings.mockMode) symbols.forEach((s) => (series[s] = mockSeries(s)));
-      else {
-        const r = await fetchTrendSeries(symbols);
-        Object.assign(series, r.series);
-        errors = r.errors;
-      }
+      const r = await fetchTrendSeries(symbols);
+      Object.assign(series, r.series);
+      errors = r.errors;
       const out = symbols
         .map((s) => analyze(s, series[s]?.closes ?? [], settings.holdings.find((h) => h.symbol === s)))
         .filter((a): a is Analysis => !!a)
@@ -43,7 +40,7 @@ export function useTrends(symbols: string[], settings: Settings) {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, settings.mockMode, settings.holdings]);
+  }, [key, settings.holdings]);
 
   useEffect(() => void load(), [load]);
   return { rows, dates, loading, err, updated, reload: load };

@@ -24,7 +24,7 @@ export function formatInstruction(sig: Signal, plan: OrderPlan): string {
     ...(sig.stopPrice ? [`Suggested stop-loss: $${sig.stopPrice.toFixed(2)} (about $${((sig.entryPrice! - sig.stopPrice) * sig.qty).toFixed(0)} maximum loss at ${sig.qty} shares)`] : []),
     ...(sig.review
       ? [
-          `AI review: ${sig.review.rationale}${sig.review.simulated ? ' (simulated)' : ''}`,
+          `AI review: ${sig.review.rationale}`,
           ...(sig.review.holdingNote ? [`Your holdings: ${sig.review.holdingNote}`] : []),
           ...(sig.review.risks.length ? [`Watch out: ${sig.review.risks.join('; ')}`] : []),
           confirmLine(sig.review.verdict, sig.side, sig.qty, sig.symbol),

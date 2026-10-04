@@ -13,7 +13,6 @@ export const config: AppConfig = {
   emailTemplateId: e.EMAILJS_TEMPLATE_ID ?? '',
   emailUserId: e.EMAILJS_USER_ID ?? '',
   newsApiKey: e.NEWSAPI_KEY ?? '',
-  forceMock: (e.FORCE_MOCK ?? '').toLowerCase() === 'true',
   siteName: e.SITE_NAME ?? '',
   siteId: e.SITE_ID ?? '',
   context: e.CONTEXT ?? '',
@@ -23,6 +22,3 @@ export const config: AppConfig = {
 export const mcpConfigured = () => !!(config.mcpEndpoint && config.mcpApiKey);
 export const emailConfigured = () =>
   !!(config.emailServiceId && config.emailTemplateId && config.emailUserId);
-// Live mode needs at least one live channel configured via Netlify env vars and an unlocked build.
-export const canGoLive = () =>
-  !config.forceMock && (mcpConfigured() || emailConfigured() || !!config.newsApiKey);

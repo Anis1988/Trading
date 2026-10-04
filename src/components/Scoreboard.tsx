@@ -22,7 +22,7 @@ function Block({ title, sc }: { title: string; sc: Score }) {
 
 /** Did past calls work? Price when the call was made vs the close five trading days later. Synced across devices. */
 export function Scoreboard() {
-  const { scoreLog, settings } = useStore();
+  const { scoreLog } = useStore();
   const [open, setOpen] = useState(false);
   const [series, setSeries] = useState<Record<string, { dates: string[]; closes: number[] }>>({});
   const [err, setErr] = useState('');
@@ -30,10 +30,10 @@ export function Scoreboard() {
   const symbols = useMemo(() => [...new Set(candidates.map((s) => s.symbol))].slice(0, 30), [candidates]);
 
   useEffect(() => {
-    if (!open || settings.mockMode || !symbols.length) return;
+    if (!open || !symbols.length) return;
     setErr('');
     fetchTrendSeries(symbols).then((r) => setSeries(r.series)).catch((e) => setErr(e instanceof Error ? e.message : String(e)));
-  }, [open, settings.mockMode, symbols.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, symbols.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const all = useMemo(() => scoreSignals(candidates, series), [candidates, series]);
   const go = useMemo(() => scoreSignals(candidates.filter((s) => s.review?.verdict === 'APPROVE'), series), [candidates, series]);
@@ -50,7 +50,6 @@ export function Scoreboard() {
       </button>
       {open && (
         <div className="space-y-3 border-t border-white/10 px-4 pb-4 pt-3 text-sm">
-          {settings.mockMode && <p className="panel text-xs text-sky-200">Demo mode has no real price history. Switch to live to see results.</p>}
           {err && <p className="text-xs text-red-300">{err}</p>}
           <div className="grid gap-2 sm:grid-cols-3">
             <Block title="All calls" sc={all} />

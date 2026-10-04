@@ -14,7 +14,7 @@ React + TypeScript + Tailwind SPA, deployed to Netlify from GitHub. It watches n
 - **AI trade review** (`/api/review`, Claude): every signal gets APPROVE / CAUTION / REJECT with rationale, risks and live price context. **REJECT blocks emails**; auto-email requires APPROVE; a failed review never counts as approval
 - Local engine: keyword weights + small sentiment lexicon -> side + confidence (`src/lib/signals.ts`)
 - Optional MCP: POST headlines, receive `{ signals: [{symbol, side, confidence, reason, qty, autoEmail?}] }`
-- EmailJS; **Stop alerts** button; **demo mode is the default**
+- EmailJS; **Stop alerts** button; always live (there is no demo mode); never places orders
 - State in `localStorage` (settings, watchlist, signals, history, logs); JSON import/export, history CSV
 
 ## Run locally
@@ -22,17 +22,16 @@ Requires Node 20+.
 ```bash
 npm install
 cp .env.example .env     # optional: fill in EMAILJS_SERVICE_ID / EMAILJS_TEMPLATE_ID / EMAILJS_USER_ID
-npm run dev              # UI only, http://localhost:5173 (mock mode works fully)
+npm run dev              # UI only, http://localhost:5173 (no prices/news: those come from the functions)
 npm run dev:full         # UI + Netlify functions, http://localhost:8888 (needed for live news + AI review)
 ```
-It starts in mock mode, so no keys are needed (AI review is simulated there). `.env` is git-ignored; restart `npm run dev` after editing it.
+Use `npm run dev:full` for real data locally. `.env` is git-ignored; restart `npm run dev` after editing it.
 Production check: `npm run build && npm run preview`.
 
 ## 1. GitHub setup
 ```bash
 git remote add origin https://github.com/<you>/<repo>.git
 git push -u origin main
-git checkout -b demo && git push -u origin demo   # optional demo branch
 ```
 `.env` files are git-ignored. Never commit keys.
 
@@ -40,7 +39,6 @@ git checkout -b demo && git push -u origin demo   # optional demo branch
 1. https://app.netlify.com/start -> *Import an existing project* -> pick the repo.
 2. Build settings are read from `netlify.toml` (`npm run build`, publish `build`).
 3. Site configuration -> Environment variables -> add the variables below, then trigger a redeploy.
-4. **Demo branch:** `netlify.toml` sets `FORCE_MOCK=true` for the `demo` branch deploy. Enable branch deploys for `demo` in Netlify (Build & deploy -> Branches). That deploy cannot leave mock mode.
 
 ## 3. Netlify environment variables
 | Name | Required | Purpose |
@@ -51,7 +49,6 @@ git checkout -b demo && git push -u origin demo   # optional demo branch
 | `NETLIFY_MCP_ENDPOINT` | optional | https MCP endpoint |
 | `NETLIFY_MCP_API_KEY` | optional | MCP key (also the HMAC key) |
 | `NEWSAPI_KEY` | optional | NewsAPI |
-| `FORCE_MOCK` | optional | `true` locks the build to mock mode |
 | `ANTHROPIC_API_KEY` | for AI review | **Server-only** (functions). Never reaches the browser |
 | `REVIEW_MODEL` | optional | Default `claude-opus-5-5`; set `claude-sonnet-5-5` for faster/cheaper reviews |
 | `FINNHUB_KEY` | optional | **Server-only**. Adds Finnhub company news |
@@ -73,6 +70,14 @@ The server-only variables are read only by the Netlify functions at runtime and 
 - **History -> Scoreboard** compares each real signal's price with the close 5 trading days later, with win rate and average move, split by what the AI said. Needs 20+ signals before it means anything and only counts this device's signals.
 - **Stop Alerts** (top right) stops news checking and turns Auto-Email off. It does not touch anything in Fidelity and deletes nothing. Auto-Email itself now persists across refreshes; it needs your passphrase to switch on.
 
+### Market, earnings, analysts, stop-loss, concentration (free data)
+`/api/insights` (Yahoo + Finnhub free tier, `FINNHUB_KEY`) adds context without any AI cost:
+- **Market check:** S&P 500 (SPY) trend is shown on Today. While it is falling, every BUY is answered **WAIT** by a free rule (no AI call).
+- **Earnings warning:** earnings dates for the next 3 weeks show as a badge; a BUY within 5 days of earnings is answered **WAIT** by a free rule.
+- **Analysts & basics:** buy/hold/sell counts, P/E, dividend yield and 52-week range on stock cards and Ideas, and passed to the AI check.
+- **Smart stop-loss:** about 2.5x the stock's typical daily move (3-15%), so calm stocks get tight stops and jumpy ones looser stops. Turn off in Settings -> Risk to use a fixed %.
+- **Concentration:** warns when one single stock (funds like VTI excluded) is over 25% of your money, or would be after a suggested buy.
+
 ### Saving AI credits
 - Default review model is `claude-sonnet-5-5` (about half the cost of Opus); set `REVIEW_MODEL` to change it.
 - Only signals scoring at or above *Only auto-check signals scoring X%* (default 75%) get an automatic AI check; weaker ones show an *AI check* button.
@@ -86,7 +91,7 @@ The server-only variables are read only by the Netlify functions at runtime and 
 - The service worker (`public/sw.js`) only handles notifications; it caches nothing, so you never see an old version.
 
 ### Syncing between your phone and computer
-Browser storage is per device, so the app saves your holdings, watchlist, history and settings to a private Netlify Blobs document through `/api/sync`. Requirements: set `APP_ACCESS_TOKEN` in Netlify (sync refuses to run without it), redeploy, then on **each device** open Settings -> Sync & access, enter the same token and press *Save & sync now*. After that it syncs on open, when you switch back to the tab, and ~1.5 s after each change. History from both devices is merged; for settings, holdings and watchlist the latest save wins. Demo/live mode and the scoreboard sync; Stop Alerts, auto-email, MCP and notifications are deliberately **not** synced. Signals and logs stay per device. The access token itself is stored only in that device's browser.
+Browser storage is per device, so the app saves your holdings, watchlist, history and settings to a private Netlify Blobs document through `/api/sync`. Requirements: set `APP_ACCESS_TOKEN` in Netlify (sync refuses to run without it), redeploy, then on **each device** open Settings -> Sync & access, enter the same token and press *Save & sync now*. After that it syncs on open, when you switch back to the tab, and ~1.5 s after each change. History from both devices is merged; for settings, holdings and watchlist the latest save wins. The scoreboard syncs; Stop Alerts, auto-email, MCP and notifications are deliberately **not** synced. Signals and logs stay per device. The access token itself is stored only in that device's browser.
 
 Enter what you own (symbol, shares, average cost) under Settings -> My holdings. Each review is written in plain words, compares the signal with your holdings (profit/loss, 'you do not own this', sell amount capped to your shares) and ends with one line: `CONFIRM: SELL 4 AAPL`, `WAIT: ...` or `DO NOT BUY ...`. Selling something you don't own is rejected by a rule before the AI is called (free). Holdings are typed by hand and stored only in your browser; keep them up to date after each trade.
 
@@ -110,7 +115,7 @@ The response must include header `X-MCP-Signature: hex(HMAC-SHA256(body, apiKey)
 - [ ] Set a passphrase in Settings (>= 8 chars)
 - [ ] Env vars set in Netlify; EmailJS restricted to your domain; keys rotated/limited
 - [ ] Site protected if MCP/NewsAPI keys are embedded
-- [ ] Test the full flow in mock mode first
+- [ ] Send yourself one manual email from a signal before turning on auto-email
 - [ ] Settings -> *Enable live mode…* and confirm with the passphrase
 - [ ] Enable Auto-Email only after sending one manual test email; it resets to OFF on every page load
 - [ ] Know where **PANIC STOP** is (header): stops polling, disables auto-email, re-locks the session

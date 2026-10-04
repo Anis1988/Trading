@@ -11,10 +11,6 @@
   targetPort = 5173
   framework = "#custom"
 
-# Branch deploy for the `demo` branch: locked to mock mode (no live sources, no real emails).
-[context.demo.environment]
-  FORCE_MOCK = "true"
-
 # SPA fallback + security headers
 [[redirects]]
   from = "/*"

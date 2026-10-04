@@ -1,8 +1,7 @@
 import type { Headline, Review, Signal } from '../types';
-import { assessHolding, type Holding } from './holdings';
-import { analyze, mockSeries, type Analysis, type Series } from './trend';
-import { toIdea, type Idea } from './picks';
-import { UNIVERSE } from './universe';
+import type { Holding } from './holdings';
+import type { Series } from './trend';
+import type { Idea } from './picks';
 import { SourceError } from './rss';
 
 const TOKEN_KEY = 'ta.accessToken';
@@ -51,7 +50,7 @@ export async function fetchServerHeadlines(symbols: string[]): Promise<{ headlin
 
 export async function fetchReview(sig: Signal, headlines: Headline[], holdings: Holding[]): Promise<Review> {
   const rel = headlines.filter((h) => h.symbol === sig.symbol || h.title.includes(sig.symbol)).slice(0, 15);
-  const r = await call<Review & { quote?: { price: number; changePct: number } | null }>('/api/review', {
+  const r = await call<Review & { quote?: { price: number; changePct: number; volPct?: number } | null }>('/api/review', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -71,22 +70,10 @@ export async function fetchReview(sig: Signal, headlines: Headline[], holdings: 
     model: r.model,
     holdingNote: r.holdingNote,
     suggestedQty: r.suggestedQty,
-  };
-}
-
-/** Offline stand-in for demo mode: no API call, no cost. Still checks holdings. */
-export function mockReview(sig: Signal, holdings: Holding[]): Review {
-  const hold = assessHolding(sig.side, sig.qty, sig.symbol, holdings);
-  const verdict = hold.block ? 'REJECT' : sig.confidence >= 0.85 ? 'APPROVE' : sig.confidence >= 0.7 ? 'CAUTION' : 'REJECT';
-  return {
-    verdict,
-    confidence: sig.confidence,
-    rationale: hold.block ?? 'Demo mode: this answer is made up from the signal score only.',
-    risks: ['Demo mode: no real checking was done.'],
-    simulated: true,
-    price: mockSeries(sig.symbol).closes.slice(-1)[0],
-    holdingNote: hold.note,
-    suggestedQty: hold.qty,
+    volPct: r.quote?.volPct,
+    market: r.market,
+    earnings: r.earnings,
+    analysts: r.analysts,
   };
 }
 
@@ -103,7 +90,6 @@ export interface Recommendation {
   summary: string;
   picks: Pick[];
   model?: string;
-  simulated?: boolean;
 }
 
 export interface ScanResult {
@@ -115,16 +101,6 @@ export interface ScanResult {
 
 export async function fetchScan(min = 0, max = 0): Promise<ScanResult> {
   return call(`/api/scan?min=${min}&max=${max}`);
-}
-
-/** Demo mode: same ranking on made-up prices (no news). */
-export function mockScan(min = 0, max = 0): ScanResult {
-  const ideas = UNIVERSE.map((s) => analyze(s, mockSeries(s).closes))
-    .filter((a): a is Analysis => !!a)
-    .map((a) => toIdea(a))
-    .sort((a, b) => b.score - a.score);
-  const inRange = ideas.filter((i) => i.price >= min && (!max || i.price <= max));
-  return { ideas: inRange.slice(0, 15), scanned: ideas.length, inRange: inRange.length, errors: [] };
 }
 
 /** Ask the AI to rank the scan results (clear BUY / WAIT picks, aware of what you own). */
@@ -144,10 +120,10 @@ export async function fetchIdeaPicks(ideas: Idea[], holdings: Holding[]): Promis
   });
 }
 
-export function mockIdeaPicks(ideas: Idea[]): Recommendation {
-  return {
-    summary: 'Demo mode: these picks come straight from the model score, not from the AI.',
-    picks: ideas.filter((i) => i.score >= 60).slice(0, 3).map((i) => ({ symbol: i.symbol, action: 'BUY' as const, reason: `Model score ${i.score}/100 with a ${i.label.toLowerCase()}.` })),
-    simulated: true,
-  };
+export interface InsightsResult {
+  market: import('./insightTypes').Market | null;
+  stocks: Record<string, import('./insightTypes').Insight>;
+  finnhub: boolean;
 }
+
+export const fetchInsights = (symbols: string[]) => call<InsightsResult>(`/api/insights?symbols=${encodeURIComponent(symbols.join(','))}`);

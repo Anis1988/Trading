@@ -195,11 +195,14 @@ export function Settings() {
       </Section>
 
       {/* ---------------- risk ---------------- */}
-      <Section title="Risk & orders" subtitle={`Risk ${'$' + s.riskPerTrade} per trade · stop-loss ${s.stopLossPct}%`} icon={Icon.shield}>
+      <Section title="Risk & orders" subtitle={`Risk ${'$' + s.riskPerTrade} per trade · stop-loss ${s.smartStop ? 'smart' : s.stopLossPct + '%'}`} icon={Icon.shield}>
         <Field label="Most I want to lose on one trade ($)" hint="Used to suggest how many shares to buy.">
           <input className="input w-28" type="number" min={1} value={s.riskPerTrade} onChange={(e) => update({ riskPerTrade: Math.max(1, Number(e.target.value) || 100) })} />
         </Field>
-        <Field label="Stop-loss (% below the buy price)">
+        <Field label="Smart stop-loss" hint="Sized to each stock's normal daily moves (2.5× a typical day, 3–15%). Off = the fixed % below.">
+          <Toggle on={s.smartStop} onChange={(v) => update({ smartStop: v })} label="Smart stop-loss" />
+        </Field>
+        <Field label={s.smartStop ? 'Fixed stop-loss (used when a stock has no price history)' : 'Stop-loss (% below the buy price)'}>
           <input className="input w-28" type="number" min={1} max={50} value={s.stopLossPct} onChange={(e) => update({ stopLossPct: Math.min(50, Math.max(1, Number(e.target.value) || 5)) })} />
         </Field>
         <Field label="Default number of shares">
@@ -229,16 +232,9 @@ export function Settings() {
       {/* ---------------- alerts ---------------- */}
       <Section
         title="Alerts & email"
-        subtitle={`${s.mockMode ? 'Demo' : 'Live'} · auto-email ${s.autoEmail ? 'on' : 'off'} · background ${s.serverAlerts ? 'on' : 'off'}`}
+        subtitle={`Auto-email ${s.autoEmail ? 'on' : 'off'} · background ${s.serverAlerts ? 'on' : 'off'}`}
         icon={Icon.bell}
       >
-        <Field label={s.mockMode ? 'Demo mode (made-up data)' : 'Live mode'} hint={s.mockMode ? 'Switch to live for real news, prices and emails.' : 'Real news, prices and emails. Syncs to your other devices.'}>
-          {s.mockMode ? (
-            <button className="btn-primary" disabled={config.forceMock} onClick={() => void st.goLive()}>{config.forceMock ? 'Locked to demo' : 'Go live'}</button>
-          ) : (
-            <button className="btn" onClick={st.goMock}>Back to demo</button>
-          )}
-        </Field>
         <Field label="Passphrase" hint={`${s.passphraseHash ? 'Set' : 'Not set yet'} · this device is ${st.unlocked ? 'unlocked (24 h)' : 'locked'}`}>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <input className="input flex-1 sm:w-36" type="password" placeholder="New passphrase" value={pass} onChange={(e) => setPass(e.target.value)} />
@@ -327,7 +323,7 @@ export function Settings() {
         right={<span className={`h-2 w-2 rounded-full ${st.syncStatus === 'ok' ? 'bg-emerald-400' : st.syncStatus === 'error' ? 'bg-red-400' : 'bg-slate-500'}`} />}
       >
         <p className="text-xs text-slate-400">
-          Enter the same access token (Netlify <code>APP_ACCESS_TOKEN</code>) on each device. Holdings, history, settings, demo/live mode and the scoreboard then sync.
+          Enter the same access token (Netlify <code>APP_ACCESS_TOKEN</code>) on each device. Holdings, history, settings and the scoreboard then sync.
           Stop Alerts, auto-email, MCP and notifications stay per device.
         </p>
         <div className="flex flex-wrap gap-2">
@@ -347,7 +343,7 @@ export function Settings() {
           <p className="label">Status</p>
           <p>News checks: {s.stopped ? <b className="text-red-300">stopped</b> : st.polling ? `every ${fmtInterval(s.pollIntervalSec)}` : 'idle'}{st.lastPoll ? ` · last ${new Date(st.lastPoll).toLocaleTimeString()}` : ''}</p>
           <p className="text-xs text-slate-500">
-            Build settings: EmailJS {emailConfigured() ? '✓' : '—'} · MCP {mcpConfigured() ? '✓' : '—'} · NewsAPI {config.newsApiKey ? '✓' : '—'} · FORCE_MOCK {config.forceMock ? 'on' : 'off'}
+            Build settings: EmailJS {emailConfigured() ? '✓' : '—'} · MCP {mcpConfigured() ? '✓' : '—'} · NewsAPI {config.newsApiKey ? '✓' : '—'}
             {config.siteName && <> · <a className="text-cyan-300 underline" href={`https://app.netlify.com/sites/${config.siteName}/deploys`} target="_blank" rel="noopener noreferrer">Netlify deploys</a></>}
           </p>
         </div>

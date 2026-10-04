@@ -9,7 +9,6 @@ const KEYS = [
   'EMAILJS_TEMPLATE_ID',
   'EMAILJS_USER_ID',
   'NEWSAPI_KEY',
-  'FORCE_MOCK',
   // Provided automatically by Netlify at build time (used for the deploy status link)
   'SITE_NAME',
   'SITE_ID',

@@ -1,3 +1,5 @@
+import { dailyVolPct } from '../../src/lib/risk';
+
 export interface ServerHeadline {
   id: string;
   title: string;
@@ -79,23 +81,26 @@ export interface Quote {
   prevClose: number;
   changePct: number;
   closes: number[]; // last ~5 daily closes, oldest first
+  volPct?: number; // typical daily move in %, for the stop-loss
   currency?: string;
 }
 
 /** Yahoo chart endpoint (no key). Returns null when the symbol is unknown/unavailable. */
 export async function yahooQuote(symbol: string): Promise<Quote | null> {
-  const res = await get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`);
+  const res = await get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1mo&interval=1d`);
   const j = (await res.json()) as any;
   const r = j?.chart?.result?.[0];
   const price = r?.meta?.regularMarketPrice;
   if (typeof price !== 'number') return null;
   const closes: number[] = (r.indicators?.quote?.[0]?.close ?? []).filter((c: unknown): c is number => typeof c === 'number');
-  const prevClose: number = r.meta.chartPreviousClose ?? closes[closes.length - 2] ?? price;
+  // With a 1-month range, chartPreviousClose is a month old: yesterday is the second-to-last daily close.
+  const prevClose: number = closes[closes.length - 2] ?? r.meta.previousClose ?? price;
   return {
     price,
     prevClose,
     changePct: prevClose ? Math.round(((price - prevClose) / prevClose) * 10000) / 100 : 0,
     closes: closes.slice(-5),
+    volPct: dailyVolPct(closes),
     currency: r.meta.currency,
   };
 }

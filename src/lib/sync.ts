@@ -2,7 +2,6 @@ import type { HistoryItem, ScoreEntry, Settings } from '../types';
 import { getAccessToken } from './api';
 
 // Settings that stay per-device on purpose: the switches that stop or automate emailing must never be flipped by another device.
-// (Demo/live mode does sync, so your phone follows your computer; a demo-locked deploy still refuses live.)
 const LOCAL_ONLY = ['stopped', 'autoEmail', 'useMcp'] as const;
 
 export interface SyncData {

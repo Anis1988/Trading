@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../store';
-import { fetchIdeaPicks, fetchScan, mockIdeaPicks, mockScan, type Recommendation, type ScanResult } from '../lib/api';
+import { fetchIdeaPicks, fetchScan, type Recommendation, type ScanResult } from '../lib/api';
 import { ideaToAnalysis, isBuyIdea, reasonsFor, type Idea } from '../lib/picks';
-import { computeRisk } from '../lib/risk';
+import { computeRisk, dailyVolPct, stopPctFor } from '../lib/risk';
+import { useInsights } from '../lib/useInsights';
+import { EarningsBadge, InsightLines } from '../components/Insight';
+import { EARNINGS_SOON_DAYS, shareAfterBuy } from '../lib/concentration';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
 
 const cache = new Map<string, { at: number; data: ScanResult }>();
@@ -59,36 +62,36 @@ export function Ideas() {
   };
 
   const scan = useCallback(async (force = false) => {
-    const live = !settings.mockMode;
-    const key = `${live}-${range[0]}-${range[1]}`;
+    const key = `${range[0]}-${range[1]}`;
     const hit = cache.get(key);
     if (!force && hit && Date.now() - hit.at < 10 * 60_000) return setData(hit.data);
     setLoading(true);
     setErr('');
     setRec(null);
     try {
-      const d = live ? await fetchScan(range[0], range[1]) : mockScan(range[0], range[1]);
+      const d = await fetchScan(range[0], range[1]);
       cache.set(key, { at: Date.now(), data: d });
       setData(d);
-      if (live && !d.scanned) setErr(d.errors.length ? `Could not load prices: ${d.errors.join('; ')}` : 'No prices came back.');
+      if (!d.scanned) setErr(d.errors.length ? `Could not load prices: ${d.errors.join('; ')}` : 'No prices came back.');
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [settings.mockMode, range]);
+  }, [range]);
 
   useEffect(() => void scan(), [scan]);
 
   const inPrice = (i: Idea) => i.price >= range[0] && (!range[1] || i.price <= range[1]);
   const buys = (data?.ideas ?? []).filter((i) => inPrice(i) && isBuyIdea(ideaToAnalysis(i), i.score)).slice(0, 9);
+  const ins = useInsights(buys.map((i) => i.symbol));
   const rangeLabel = range[0] || range[1] ? `${range[0] ? `$${range[0]}` : '$0'}–${range[1] ? `$${range[1]}` : 'any'}` : 'any price';
 
   const askAi = async () => {
     if (!data) return;
     setRecLoading(true);
     try {
-      const r = settings.mockMode ? mockIdeaPicks(data.ideas) : await fetchIdeaPicks(data.ideas, settings.holdings);
+      const r = await fetchIdeaPicks(data.ideas, settings.holdings);
       setRec(r);
       log('info', `Idea picks: ${r.picks.map((p) => `${p.action} ${p.symbol}`).join(', ') || 'none'}`);
     } catch (e) {
@@ -127,13 +130,19 @@ export function Ideas() {
         <div className="mr-auto">
           <h2 className="text-2xl font-semibold">What to buy now</h2>
           <p className="text-sm text-slate-400">
-            {data ? `${data.scanned} large US stocks and ETFs scanned` : 'Scanning large US stocks and ETFs'} · ranked by trend, momentum and news{settings.mockMode ? ' · demo prices' : ''}
+            {data ? `${data.scanned} large US stocks and ETFs scanned` : 'Scanning large US stocks and ETFs'} · ranked by trend, momentum and news
           </p>
         </div>
         <button className="btn" disabled={loading} onClick={() => void scan(true)}>{loading ? <><span className="spinner" /> Scanning…</> : 'Scan again'}</button>
       </div>
 
       {err && <p className="card !border-amber-300/40 text-sm text-amber-100">{err}</p>}
+
+      {ins?.market?.trend === 'down' && (
+        <p className="card !border-red-300/40 !bg-red-500/10 text-sm text-red-100">
+          ▼ The overall market is falling. Buying now is riskier: most buys fail in a falling market, so the AI check will say WAIT until it turns.
+        </p>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-[340px_1fr] xl:items-start">
       <aside className="space-y-4 xl:sticky xl:top-20">
@@ -149,7 +158,7 @@ export function Ideas() {
           {!rec && !recLoading && <p className="text-sm text-slate-400">The AI looks at the whole scan and your holdings and names its best few, in plain words. A few cents per tap.</p>}
           {rec && (
             <div className="space-y-2 text-sm">
-              <p className="text-slate-300">{rec.summary}{rec.simulated ? ' (demo)' : ''}</p>
+              <p className="text-slate-300">{rec.summary}</p>
               {rec.picks.length === 0 && <p className="text-slate-400">Nothing worth buying right now, according to the AI.</p>}
               {rec.picks.map((p) => (
                 <div key={p.symbol + p.action} className="panel flex items-start gap-3 !p-2.5">
@@ -177,7 +186,11 @@ export function Ideas() {
         {buys.map((i, rank) => {
           const a = ideaToAnalysis(i);
           const reasons = reasonsFor(a, i.newsNet, i.headline);
-          const risk = computeRisk('BUY', i.price, settings.riskPerTrade, settings.stopLossPct);
+          const stopPct = stopPctFor(dailyVolPct(i.closes), settings.stopLossPct, settings.smartStop);
+          const risk = computeRisk('BUY', i.price, settings.riskPerTrade, stopPct);
+          const info = ins?.stocks[i.symbol];
+          const soon = !!info?.earnings && info.earnings.inDays >= 0 && info.earnings.inDays <= EARNINGS_SOON_DAYS;
+          const share = risk ? shareAfterBuy(i.symbol, risk.suggestedQty, i.price, settings.holdings) : null;
           const own = settings.holdings.find((h) => h.symbol === i.symbol);
           return (
             <article key={i.symbol} className="card">
@@ -186,6 +199,7 @@ export function Ideas() {
                 <span className="font-display text-2xl font-semibold">{i.symbol}</span>
                 <ActionChip action="BUY" size="sm" />
                 {own && <span className="rounded-md bg-sky-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-sky-200">You own {own.shares}</span>}
+                <EarningsBadge e={info?.earnings} />
                 <span className="num ml-auto text-lg">${i.price}</span>
               </div>
               <div className="mt-1 flex items-center justify-between gap-2">
@@ -196,10 +210,13 @@ export function Ideas() {
               <ul className="mt-2 space-y-1 text-sm text-slate-300">
                 {reasons.map((r) => <li key={r} className="flex gap-2"><span aria-hidden="true" className="text-cyan-300">›</span><span>{r}</span></li>)}
               </ul>
+              <div className="mt-2"><InsightLines i={info} /></div>
+              {soon && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Earnings in {info!.earnings!.inDays} day(s): prices can jump or drop a lot. Better to wait until after.</p>}
+              {share !== null && share > 25 && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Buying {risk!.suggestedQty} would make it about {share.toFixed(0)}% of your money. Consider fewer shares.</p>}
               {risk && (
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   <Stat label="Buy near" value={fmtMoney(risk.entry)} />
-                  <Stat label="Stop-loss" value={fmtMoney(risk.stop)} tone="down" />
+                  <Stat label={`Stop-loss −${stopPct}%`} value={fmtMoney(risk.stop)} tone="down" />
                   <Stat label="Shares to buy" value={risk.suggestedQty} />
                 </div>
               )}

@@ -21,3 +21,21 @@ export const money = (n: number) => {
   const a = Math.abs(n);
   return `$${a >= 100 ? Math.round(a).toLocaleString() : a.toFixed(2)}`;
 };
+
+/** Typical daily move in % (average absolute day-to-day change over the last 14 days). */
+export function dailyVolPct(closes: number[], days = 14): number | undefined {
+  const c = closes.slice(-(days + 1));
+  if (c.length < 6) return undefined;
+  let sum = 0;
+  for (let i = 1; i < c.length; i++) sum += Math.abs((c[i] - c[i - 1]) / c[i - 1]);
+  return Math.round((sum / (c.length - 1)) * 10000) / 100;
+}
+
+/**
+ * Stop-loss distance that fits the stock: about 2.5 normal daily moves, between 3% and 15%.
+ * Calm stocks get a tighter stop, jumpy ones a looser stop so normal noise does not trigger it.
+ */
+export function stopPctFor(volPct: number | undefined, fixedPct: number, smart: boolean): number {
+  if (!smart || !volPct) return fixedPct;
+  return Math.round(Math.min(15, Math.max(3, volPct * 2.5)) * 10) / 10;
+}

@@ -25,9 +25,13 @@ export interface Review {
   simulated?: boolean;
   holdingNote?: string; // plain-words comparison with what the user owns
   suggestedQty?: number; // quantity after checking holdings
+  volPct?: number; // typical daily move in %
+  market?: 'up' | 'down' | 'mixed';
+  earnings?: string;
+  analysts?: string;
 }
 
-export type SignalSource = 'local' | 'mcp' | 'mock';
+export type SignalSource = 'local' | 'mcp';
 export type SignalStatus = 'new' | 'emailed' | 'copied' | 'dismissed';
 
 export interface Signal {
@@ -93,7 +97,6 @@ export interface LogEntry {
 }
 
 export interface Settings {
-  mockMode: boolean;
   stopped: boolean; // Panic Stop engaged
   pollIntervalSec: number;
   useNewsApi: boolean;
@@ -110,7 +113,8 @@ export interface Settings {
   limits: Record<string, number>; // optional per-symbol limit price; present => LIMIT order, else MARKET
   minConfidence: number; // 0..1
   riskPerTrade: number; // dollars you are willing to lose on one trade
-  stopLossPct: number; // how far below the entry the stop-loss sits, in %
+  stopLossPct: number; // fixed stop-loss distance in % (used when smartStop is off)
+  smartStop: boolean; // stop-loss sized to each stock's normal daily moves
   autoEmailMinConfidence: number;
   aiDailyLimit: number; // paid AI checks per day, all devices + background together
   aiMinConfidence: number; // only signals scoring at least this get an automatic AI check
@@ -127,7 +131,6 @@ export interface AppConfig {
   emailTemplateId: string;
   emailUserId: string;
   newsApiKey: string;
-  forceMock: boolean;
   siteName: string;
   siteId: string;
   context: string;

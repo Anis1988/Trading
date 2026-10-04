@@ -56,11 +56,11 @@ export default function App() {
             ))}
           </nav>
           <span
-            className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-wider ${settings.mockMode ? 'border-sky-300/40 bg-sky-400/10 text-sky-200' : 'border-emerald-300/40 bg-emerald-400/10 text-emerald-200'}`}
-            title={settings.mockMode ? 'Demo mode: made-up data, no real emails' : 'Live mode: real news, prices and emails'}
+            className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-wider ${settings.stopped ? 'border-red-300/40 bg-red-400/10 text-red-200' : 'border-emerald-300/40 bg-emerald-400/10 text-emerald-200'}`}
+            title={settings.stopped ? 'Alerts are stopped' : 'Watching the news for your stocks'}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${settings.mockMode ? 'bg-sky-300' : 'animate-pulse bg-emerald-300'}`} />
-            {settings.mockMode ? 'DEMO' : 'LIVE'}
+            <span className={`h-1.5 w-1.5 rounded-full ${settings.stopped ? 'bg-red-300' : 'animate-pulse bg-emerald-300'}`} />
+            {settings.stopped ? 'PAUSED' : 'WATCHING'}
           </span>
           <button className="btn-danger" onClick={stop} disabled={settings.stopped} title="Stop checking news and turn off auto-email">
             {Icon.stop}

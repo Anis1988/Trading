@@ -1,16 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Headline, HistoryItem, LogEntry, Review, ScoreEntry, Settings, Signal } from './types';
-import { fetchReview, mockReview } from './lib/api';
-import { canGoLive, config, emailConfigured, mcpConfigured } from './lib/config';
+import { fetchReview } from './lib/api';
+import { emailConfigured, mcpConfigured } from './lib/config';
 import { KEYS, load, loadSettings, save } from './lib/storage';
 import { fetchAllNews } from './lib/news';
-import { mockHeadlines } from './lib/mock';
 import { generateSignals, isDuplicate } from './lib/signals';
 import { callMcp } from './lib/mcp';
 import { sendTradeEmail } from './lib/email';
 import { formatInstruction, planOrder } from './lib/instructions';
 import { Poller } from './lib/poller';
-import { computeRisk } from './lib/risk';
+import { computeRisk, stopPctFor } from './lib/risk';
 import { hashPassphrase, newSalt, nowIso, uid, timingSafeEqual } from './lib/util';
 import { mergeHistory, mergeScoreLog, pullRemote, pushRemote, snapshot, type SyncData } from './lib/sync';
 import { getAccessToken } from './lib/api';
@@ -40,8 +39,6 @@ interface Store {
   log: (level: LogEntry['level'], msg: string) => void;
   setPassphrase: (p: string) => Promise<void>;
   requestUnlock: (reason: string) => Promise<boolean>;
-  goLive: () => Promise<void>;
-  goMock: () => void;
   setAutoEmail: (on: boolean) => Promise<void>;
   setUseMcp: (on: boolean) => Promise<void>;
   panic: () => void;
@@ -78,14 +75,14 @@ export const useStore = (): Store => {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings();
-    // Safety: never auto-email or stay in live mode on a locked build; session starts locked.
-    // Auto-email stays as you left it (it needed your passphrase to enable). Panic Stop / demo mode turn it off.
-    return { ...s, autoEmail: config.forceMock ? false : s.autoEmail, mockMode: config.forceMock ? true : s.mockMode };
+    return s;
   });
   const [watchlist, setWatchlistState] = useState<string[]>(() => load(KEYS.watchlist, []));
   const [signals, setSignals] = useState<Signal[]>(() =>
     // A review that was running when the page closed can never finish: mark it so Re-review works.
-    load<Signal[]>(KEYS.signals, []).map((s) => (s.reviewStatus === 'pending' ? { ...s, reviewStatus: 'error', reviewError: 'Interrupted by a page reload. Tap Re-check.' } : s)),
+    load<Signal[]>(KEYS.signals, [])
+      .filter((s) => (s.source as string) !== 'mock' && !s.review?.simulated) // leftovers from the removed demo mode
+      .map((s) => (s.reviewStatus === 'pending' ? { ...s, reviewStatus: 'error', reviewError: 'Interrupted by a page reload. Tap Re-check.' } : s)),
   );
   const [scoreLog, setScoreLog] = useState<ScoreEntry[]>(() => load(KEYS.scoreLog, []));
   const [history, setHistory] = useState<HistoryItem[]>(() => load(KEYS.history, []));
@@ -194,21 +191,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const hasPass = () => !!ref.current.settings.passphraseHash;
 
-  const goLive = async () => {
-    if (config.forceMock) return fail('This copy of the app is locked to demo mode (FORCE_MOCK=true).');
-    if (!canGoLive()) return fail('Live mode needs the EmailJS (or MCP / NewsAPI) settings in Netlify. See the README.');
-    if (!hasPass()) return fail('Set a passphrase first (Settings → Alerts & email).');
-    if (!(await requestUnlock('Switch to LIVE: real news and prices, and real emails.'))) return;
-    update({ mockMode: false });
-    log('warn', 'LIVE mode enabled.');
-    toast('success', 'Live mode is on.');
-  };
-  const goMock = () => {
-    update({ mockMode: true, autoEmail: false });
-    log('info', 'Switched to mock/demo mode.');
-    toast('info', 'Demo mode: made-up data, no real emails.');
-  };
-
   const setAutoEmail = async (on: boolean) => {
     if (!on) {
       update({ autoEmail: false });
@@ -217,17 +199,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     const s = ref.current.settings;
     if (!hasPass()) return fail('Set a passphrase first (just above).');
-    if (!s.mockMode && !emailConfigured()) return fail('Auto-email needs the EMAILJS_* settings in Netlify.');
+    if (!emailConfigured()) return fail('Auto-email needs the EMAILJS_* settings in Netlify.');
     if (!/^\S+@\S+\.\S+$/.test(s.toEmail)) return fail('Enter the email address to send to first.');
     if (!(await requestUnlock('Turn on Auto-Email.'))) return;
     update({ autoEmail: true });
-    log('warn', `Auto-email enabled${s.mockMode ? ' (simulated: mock mode)' : ''}.`);
-    toast('success', `Auto-email is on${s.mockMode ? ' (demo: simulated)' : ''}.`);
+    log('warn', 'Auto-email enabled.');
+    toast('success', 'Auto-email is on.');
   };
 
   const setUseMcp = async (on: boolean) => {
     if (!on) return update({ useMcp: false });
-    if (!ref.current.settings.mockMode && !mcpConfigured()) return fail('MCP needs NETLIFY_MCP_ENDPOINT and NETLIFY_MCP_API_KEY in Netlify.');
+    if (!mcpConfigured()) return fail('MCP needs NETLIFY_MCP_ENDPOINT and NETLIFY_MCP_API_KEY in Netlify.');
     if (!hasPass()) return fail('Set a passphrase first.');
     if (!(await requestUnlock('Confirm enabling MCP processing.'))) return;
     update({ useMcp: true });
@@ -266,17 +248,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const reviewSignal = useCallback(async (sig: Signal, context?: Headline[]): Promise<Review | null> => {
     patchSignal(sig.id, { reviewStatus: 'pending', reviewError: undefined });
     try {
-      const r = ref.current.settings.mockMode ? mockReview(sig, ref.current.settings.holdings) : await fetchReview(sig, context ?? ref.current.headlines, ref.current.settings.holdings);
+      const r = await fetchReview(sig, context ?? ref.current.headlines, ref.current.settings.holdings);
       const qty = r.suggestedQty && r.suggestedQty > 0 ? r.suggestedQty : sig.qty;
       if (qty !== sig.qty) log('info', `${sig.symbol}: quantity changed ${sig.qty} -> ${qty} to match what you own.`);
       const st = ref.current.settings;
-      const risk = computeRisk(sig.side, r.price, st.riskPerTrade, st.stopLossPct);
+      const risk = computeRisk(sig.side, r.price, st.riskPerTrade, stopPctFor(r.volPct, st.stopLossPct, st.smartStop));
       patchSignal(sig.id, { review: r, reviewStatus: undefined, qty, entryPrice: r.price, stopPrice: risk?.stop, suggestedQty: risk?.suggestedQty });
-      if (!r.simulated && r.price && sig.source !== 'mock') {
+      if (r.price) {
         const entry: ScoreEntry = { id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: r.price, verdict: r.verdict, origin: 'app' };
         setScoreLog((l) => mergeScoreLog([{ ...entry }], l));
       }
-      log(r.verdict === 'REJECT' ? 'warn' : 'info', `AI review ${sig.symbol}: ${r.verdict}${r.simulated ? ' (simulated)' : ''} - ${r.rationale}`);
+      log(r.verdict === 'REJECT' ? 'warn' : 'info', `AI review ${sig.symbol}: ${r.verdict} - ${r.rationale}`);
       return r;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -293,7 +275,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (ref.current.signals.some((x) => x.symbol === symbol && x.side === 'BUY' && x.status === 'new')) return toast('info', `${symbol} is already waiting on Today.`);
     const sig: Signal = {
       id: uid(), symbol, side: 'BUY', confidence, reason, qty: st.defaultQty, createdAt: nowIso(), status: 'new',
-      source: st.mockMode ? 'mock' : 'local', headlineUrl: news?.url, entryPrice: price,
+      source: 'local', headlineUrl: news?.url, entryPrice: price,
     };
     setSignals((l) => [{ ...sig, reviewStatus: st.useAiReview ? 'pending' : undefined }, ...l]);
     log('info', `Idea sent to Today: BUY ${symbol}`);
@@ -338,14 +320,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const label = `${sig.side} ${current.qty} ${sig.symbol}`;
     setSending((l) => [...l, sig.id]);
     try {
-      if (s.mockMode) {
-        await new Promise((r) => setTimeout(r, 600)); // let the "Sending…" state be visible in demo mode
-        log('info', `[MOCK] Email would be sent to ${s.toEmail || '(no recipient)'}:\n${formatInstruction(current, plan)}`);
-        addHistory(sig, 'email-simulated', 'pending', 'Simulated in mock mode');
-        setSignalStatus(sig.id, 'emailed');
-        if (!auto) toast('success', `Demo: email simulated for ${label}`);
-        return;
-      }
       await sendTradeEmail(current, plan, s.toEmail);
       log('info', `Email sent: ${label}`);
       addHistory(sig, 'email', 'pending');
@@ -379,12 +353,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const dismissSignal = (sig: Signal) => setSignalStatus(sig.id, 'dismissed');
 
   // ---- cross-device sync (settings, watchlist, holdings, history) via /api/sync ----
-  // Leaving demo mode: forget the made-up signals so nothing simulated is shown as real.
-  useEffect(() => {
-    if (settings.mockMode) return;
-    setSignals((l) => (l.some((x) => x.source === 'mock' || x.review?.simulated) ? l.filter((x) => x.source !== 'mock' && !x.review?.simulated) : l));
-  }, [settings.mockMode]);
-
   const sync = useRef({ at: load<string | null>('ta.syncAt', null), lastJson: '', skipNext: false, busy: false, timer: undefined as ReturnType<typeof setTimeout> | undefined });
   const jsonOf = (d: SyncData) => JSON.stringify(d);
 
@@ -419,7 +387,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             mSettings = { ...curSettings, ...remote.data.settings } as Settings;
             mWatch = remote.data.watchlist;
           }
-          if (config.forceMock) mSettings = { ...mSettings, mockMode: true }; // a demo-locked deploy never goes live
           sc.at = remote.updatedAt;
           fromRemote = true;
         }
@@ -456,7 +423,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       setLastSync(nowIso());
       setSyncStatus('ok');
-      setSyncMessage(`${fromRemote ? 'Updated from your other device.' : 'Up to date.'} Mode on this device: ${curSettings.mockMode ? 'DEMO' : 'LIVE'}.`);
+      setSyncMessage(fromRemote ? 'Updated from your other device.' : 'Up to date.');
       if (manual) toast('success', fromRemote ? 'Synced: loaded data from your other device.' : 'Synced: this device is up to date.');
     } catch (e) {
       setSyncStatus('error');
@@ -506,13 +473,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (s.stopped || !wl.length) return;
     setLastPoll(nowIso());
 
-    let all: Headline[];
-    if (s.mockMode) all = mockHeadlines(wl);
-    else {
-      const r = await fetchAllNews(wl, s);
-      for (const e of r.errors) if (e !== lastErr.current) { log('warn', e); lastErr.current = e; }
-      all = r.headlines;
-    }
+    const r0 = await fetchAllNews(wl, s);
+    for (const e of r0.errors) if (e !== lastErr.current) { log('warn', e); lastErr.current = e; }
+    const all: Headline[] = r0.headlines;
     const cutoff = Date.now() - MAX_NEWS_AGE_MS;
     const fresh = all.filter((h) => !seen.current.has(h.id) && new Date(h.publishedAt).getTime() >= cutoff);
     all.forEach((h) => seen.current.add(h.id));
@@ -523,7 +486,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     let newSignals: Signal[] = [];
     let mcpFailed: Error | null = null;
-    const usingMcp = !s.mockMode && s.useMcp && mcpConfigured();
+    const usingMcp = s.useMcp && mcpConfigured();
     if (usingMcp) {
       try {
         const r = await callMcp(fresh, wl, s.defaultQty);
@@ -537,15 +500,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     if (!usingMcp || mcpFailed) {
       newSignals = generateSignals(fresh, wl, {
-        defaultQty: s.defaultQty, minConfidence: s.minConfidence, existing, source: s.mockMode ? 'mock' : 'local',
+        defaultQty: s.defaultQty, minConfidence: s.minConfidence, existing, source: 'local',
       });
     }
     if (newSignals.length) {
       const aiOn = s.useAiReview;
-      setSignals((l) => [...newSignals.map((n) => (aiOn && (s.mockMode || n.confidence >= s.aiMinConfidence) ? { ...n, reviewStatus: 'pending' as const } : n)), ...l]);
+      setSignals((l) => [...newSignals.map((n) => (aiOn && n.confidence >= s.aiMinConfidence ? { ...n, reviewStatus: 'pending' as const } : n)), ...l]);
       newSignals.forEach((n) => log('info', `Signal: ${n.side} ${n.symbol} @ ${(n.confidence * 100).toFixed(0)}% (${n.source})`));
       // Paid AI checks only for strong signals; weaker ones keep an "AI check" button for a manual check.
-      if (aiOn) await Promise.all(newSignals.filter((n) => s.mockMode || n.confidence >= s.aiMinConfidence).map((n) => reviewSignal(n, fresh)));
+      if (aiOn) await Promise.all(newSignals.filter((n) => n.confidence >= s.aiMinConfidence).map((n) => reviewSignal(n, fresh)));
       for (const n of newSignals) {
         if (ref.current.settings.autoEmail) await emailSignal(n, true);
         else if (n.autoEmail) log('warn', `MCP requested auto-email for ${n.symbol}, ignored because Auto-Email is OFF.`);
@@ -584,7 +547,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value: Store = {
     settings, update, watchlist, setWatchlist, signals, history, scoreLog, setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
-    requestUnlock, goLive, goMock, setAutoEmail, setUseMcp, panic, resume,
+    requestUnlock, setAutoEmail, setUseMcp, panic, resume,
     emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s), setSignalQty: (id, qty) => patchSignal(id, { qty }), addIdeaSignal,
   };
   return (

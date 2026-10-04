@@ -1,7 +1,7 @@
 import type { Headline, HistoryItem, ScoreEntry, Settings, Signal } from '../../src/types';
 import { generateSignals } from '../../src/lib/signals';
 import { planOrder, formatInstruction } from '../../src/lib/instructions';
-import { computeRisk } from '../../src/lib/risk';
+import { computeRisk, stopPctFor } from '../../src/lib/risk';
 import { tradeEmailParams } from '../../src/lib/emailParams';
 import { uid } from '../../src/lib/util';
 import { finnhubNews, googleNews, yahooNews, type ServerHeadline } from './feeds';
@@ -39,7 +39,6 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
     const s = (state?.data.settings ?? {}) as Partial<Settings>;
     if (!state) return { ran: false, reason: 'No synced data yet. Turn on sync in the app.' };
     if (!s.serverAlerts) return { ran: false, reason: 'Background alerts are off.' };
-    if (s.mockMode !== false) return { ran: false, reason: 'The app is in demo mode.' };
     if (!opts.force && !inActiveHours()) return { ran: false, reason: 'Outside market hours.' };
 
     const holdings = s.holdings ?? [];
@@ -99,10 +98,10 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
         say('info', `${sig.side} ${sig.symbol}: AI ${r.verdict}. ${r.rationale}`);
         if (r.verdict !== 'APPROVE' || sig.confidence < (s.autoEmailMinConfidence ?? 0.85)) continue;
 
-        const risk = computeRisk(sig.side, price, s.riskPerTrade ?? 100, s.stopLossPct ?? 5);
+        const risk = computeRisk(sig.side, price, s.riskPerTrade ?? 100, stopPctFor(r.quote?.volPct, s.stopLossPct ?? 5, s.smartStop ?? true));
         const ready: Signal = {
           ...sig, qty: r.suggestedQty > 0 ? r.suggestedQty : sig.qty, entryPrice: price, stopPrice: risk?.stop, suggestedQty: risk?.suggestedQty,
-          review: { verdict: r.verdict, confidence: r.confidence, rationale: r.rationale, risks: r.risks, holdingNote: r.holdingNote, price },
+          review: { verdict: r.verdict, confidence: r.confidence, rationale: r.rationale, risks: r.risks, holdingNote: r.holdingNote, price, earnings: r.earnings, analysts: r.analysts, market: r.market },
         };
         const plan = planOrder(s.limits?.[sig.symbol]);
         let channelNote = '';

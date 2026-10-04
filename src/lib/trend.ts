@@ -99,22 +99,5 @@ export function analyze(symbol: string, closes: number[], owned?: Holding): Anal
   };
 }
 
-/** Stable pseudo-random walk for demo mode (same symbol -> same shape). */
-export function mockSeries(symbol: string, days = 126): Series {
-  let h = 2166136261;
-  for (const ch of symbol) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
-  const rnd = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 10000) / 10000;
-  const drift = (rnd() - 0.45) * 0.004;
-  let p = 50 + rnd() * 300;
-  const dates: string[] = [];
-  const closes: number[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    p *= 1 + drift + (rnd() - 0.5) * 0.03;
-    dates.push(new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10));
-    closes.push(Math.round(p * 100) / 100);
-  }
-  return { dates, closes };
-}
-
 export const POPULAR = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'AVGO', 'JPM', 'V', 'UNH', 'XOM', 'LLY', 'COST', 'WMT', 'NFLX', 'AMD', 'ORCL', 'KO', 'PEP', 'HD', 'PG', 'MA', 'BAC'];
 

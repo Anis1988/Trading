@@ -4,6 +4,9 @@ import { SignalCard } from '../components/SignalCard';
 import { useTrends } from '../lib/useTrends';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, fmtMoney } from '../components/ui';
 import { getAlertStatus, type AlertStatus } from '../lib/alerts';
+import { useInsights } from '../lib/useInsights';
+import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
+import { concentrated } from '../lib/concentration';
 import { getAccessToken } from '../lib/api';
 
 const ago = (iso: string) => {
@@ -15,12 +18,13 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   const { settings, signals, headlines, resume, watchlist } = useStore();
   const [status, setStatus] = useState<AlertStatus | null>(null);
   useEffect(() => {
-    if (getAccessToken() && !settings.mockMode) getAlertStatus().then(setStatus).catch(() => undefined);
-  }, [settings.mockMode]);
+    if (getAccessToken()) getAlertStatus().then(setStatus).catch(() => undefined);
+  }, []);
   const [openSym, setOpenSym] = useState<string | null>(null);
   const [showEarlier, setShowEarlier] = useState(false);
   const held = settings.holdings;
   const { rows, dates, loading, err } = useTrends(held.map((h) => h.symbol), settings);
+  const ins = useInsights(held.map((h) => h.symbol));
 
   // Portfolio totals in dollars (only holdings that have a price).
   const priced = held.map((h) => ({ h, r: rows.find((x) => x.symbol === h.symbol) })).filter((x) => x.r);
@@ -38,6 +42,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   const alloc = priced
     .map(({ h, r }) => ({ sym: h.symbol, value: h.shares * r!.price }))
     .sort((a, b) => b.value - a.value);
+  const heavy = concentrated(alloc);
   const mine = new Set([...held.map((h) => h.symbol), ...watchlist]);
   const news = headlines.filter((x) => x.symbol && mine.has(x.symbol)).slice(0, 10);
 
@@ -64,6 +69,14 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_320px] xl:items-start">
       {/* left rail: money */}
       <aside className="space-y-4 xl:sticky xl:top-20">
+      {heavy.length > 0 && (
+        <section className="card space-y-1 !border-amber-300/40 !bg-amber-400/10 text-sm">
+          <p className="label !text-amber-200">Too much in one stock</p>
+          {heavy.map((h) => (
+            <p key={h.sym}><b className="font-display">{h.sym}</b> is <span className="num">{h.pct.toFixed(0)}%</span> of your money. Avoid adding more; a single bad day there hurts a lot.</p>
+          ))}
+        </section>
+      )}
       {held.length > 0 && (
         <section className="card overflow-hidden">
           {priced.length ? (
@@ -103,6 +116,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
           })}
         </section>
       )}
+      {ins?.market && <MarketCard m={ins.market} />}
       </aside>
 
       {/* centre: what to do */}
@@ -141,6 +155,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                     <div className="flex items-center gap-2">
                       <span className="font-display text-xl font-semibold">{h.symbol}</span>
                       {a.action && <ActionChip action={a.action} size="sm" />}
+                      <EarningsBadge e={ins?.stocks[h.symbol]?.earnings} />
                       <span className="num ml-auto text-lg">${a.price}</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -159,6 +174,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                         <div className="panel !p-2"><p className="label !text-[10px]">1 month</p><Change pct={a.ret1m} className="text-xs" /></div>
                         <div className="panel !p-2"><p className="label !text-[10px]">3 months</p><Change pct={a.ret3m} className="text-xs" /></div>
                       </div>
+                      <InsightLines i={ins?.stocks[h.symbol]} />
                       <p className="text-xs text-slate-500">Trend: {a.label.toLowerCase()} · {Math.abs(a.fromHigh)}% below its 6-month high · score {a.score}/5</p>
                       {news.length > 0 && (
                         <ul className="space-y-1 text-sm">
