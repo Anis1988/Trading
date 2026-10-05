@@ -162,9 +162,9 @@ export interface History {
   currency?: string;
 }
 
-/** ~6 months of daily closes from Yahoo's chart endpoint (no key). */
-export async function yahooHistory(symbol: string): Promise<History | null> {
-  const res = await get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=6mo&interval=1d`);
+/** Daily closes from Yahoo's chart endpoint (no key): ~6 months by default, 2 years for the rules test. */
+export async function yahooHistory(symbol: string, range: '6mo' | '2y' = '6mo'): Promise<History | null> {
+  const res = await get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=1d`);
   const j = (await res.json()) as any;
   const r = j?.chart?.result?.[0];
   const ts: number[] = r?.timestamp ?? [];

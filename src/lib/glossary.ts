@@ -63,6 +63,8 @@ export const GROUPS: { name: string; emoji: string; terms: Term[] }[] = [
       { word: 'Moving average', also: 'SMA, 20-day, 50-day average', means: 'The average price over the last X days. It smooths out the noise. Price above its average = generally healthy.', app: 'The app compares the 20-day and 50-day averages.' },
       { word: 'Momentum', means: 'How strongly the price has been moving one way. Stocks with momentum often keep going for a while, until they don\'t.' },
       { word: 'RSI', also: 'overbought, oversold', means: 'A 0–100 gauge of how fast the price rose or fell lately. Above 70 = "overbought" (rose too fast, may cool off). Below 30 = "oversold" (fell too fast, may bounce).', app: 'RSI above 70 plus Reddit hype turns a BUY into WAIT.' },
+      { word: 'Relative strength', also: 'beating the market, outperform, underperform', means: 'How a stock did compared with the whole market. "Outperform" = did better, "underperform" = did worse.', app: 'Shown as "Stronger / Weaker than the market".' },
+      { word: 'Backtest', means: 'Trying a set of rules on past prices to see if they would have worked. Useful, but the past is no promise for the future.', app: 'History → Test the rules on the past.' },
       { word: 'Support / resistance', means: 'Support: a price where a falling stock tends to stop falling. Resistance: a price where a rising stock tends to stall.' },
       { word: 'Breakout', means: 'When the price pushes above a level it couldn\'t pass before, often with high volume.' },
       { word: 'Pullback', also: 'dip', means: 'A short drop inside a bigger uptrend.' },

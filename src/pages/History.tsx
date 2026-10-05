@@ -4,6 +4,7 @@ import { historyToCsv } from '../lib/csv';
 import { download } from '../lib/storage';
 import type { HistoryItem, HistoryStatus } from '../types';
 import { Scoreboard } from '../components/Scoreboard';
+import { Backtest } from '../components/Backtest';
 
 // Distinct colour per status (the text label is always shown too, never colour alone).
 const STATUS: Record<HistoryStatus, { label: string; border: string; badge: string; active: string; idle: string; dot: string }> = {
@@ -130,6 +131,7 @@ export function History() {
       </div>
       <aside className="order-1 space-y-4 xl:sticky xl:top-20 xl:order-2">
         <Scoreboard />
+        <Backtest />
         <section className="card grid grid-cols-3 gap-2 text-center">
           {(['pending', 'executed', 'cancelled'] as const).map((k) => (
             <div key={k} className="panel !p-2">

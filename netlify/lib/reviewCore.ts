@@ -6,6 +6,7 @@ import { analyze } from '../../src/lib/trend';
 import { computeRisk, dailyVolPct, stopPctFor } from '../../src/lib/risk';
 import { shareAfterBuy } from '../../src/lib/concentration';
 import type { WaitRule } from '../../src/lib/waitRules';
+import { vsMarket } from '../../src/lib/relative';
 import { assessHolding, type Holding } from '../../src/lib/holdings';
 import type { Side } from '../../src/types';
 import { EARNINGS_WAIT_DAYS, getInsights, getMarket } from './insights';
@@ -31,6 +32,7 @@ Rules:
 - Taxes (US): a gain on shares held 1 year or less is taxed higher. If a SELL of a gain is only weeks from turning long-term and the stock is not collapsing, prefer CAUTION and say how many days to wait. Selling at a loss has no such reason to wait.
 - Cash and horizon: if a BUY costs more than the user's cash, mention it in risks (they may add money), but do not change the verdict for it. A long horizon (5+ years) means short-term noise matters less; a short horizon (under 1 year) means avoid risky, jumpy stocks.
 - Company health and insiders, when given: weak finances (shrinking sales, losses, heavy debt) are a reason for caution on a BUY; insiders buying with their own money is a mildly good sign; insider selling is usually routine and weak evidence.
+- A stock that only rises because the whole market rises is weaker than it looks; one that beats the market is stronger. A stock falling while the market rises is a warning for a BUY and supports a SELL.
 - Weigh the 6-month price trend: be wary of buying a stock in a downtrend or one that is overheated (RSI above 70), and of selling a stock in a healthy uptrend on one bad headline.
 - Consider the overall market, upcoming earnings and what analysts think when they are given. Reddit chatter is weak, noisy context: never approve because of it, but take a sudden negative crowd as a warning.
 - The user is fine holding a large share of their money in one stock: you may mention a big share in risks, but never change the verdict for it.
@@ -159,6 +161,7 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
     portfolioLine,
     riskLine,
     market ? `Overall market: ${MARKET_TEXT[market.trend]} S&P 500 1-month ${market.ret1m}%.` : 'Overall market: unknown.',
+    trend && vsMarket(signal.symbol, trend.ret3m, market) ? `Compared with the market: ${vsMarket(signal.symbol, trend.ret3m, market)!.text}.` : '',
     extra.earnings ? `Upcoming: ${extra.earnings}.` : 'No earnings in the next 3 weeks (or unknown).',
     extra.analysts ? `${extra.analysts}.` : '',
     extra.reddit ? `Social chatter (untrusted, often wrong or manipulated): ${extra.reddit}.` : '',

@@ -6,6 +6,8 @@ import type { Buzz } from '../lib/insightTypes';
 import { TermCard } from './Words';
 import { PriceAlertRow } from '../components/PriceAlerts';
 import { WaitBlock } from '../components/Scoreboard';
+import { BacktestRow } from '../components/Backtest';
+import { VsMarketLine } from '../components/Insight';
 import { taxText } from '../lib/holdings';
 import { fmtMoney } from '../components/ui';
 
@@ -124,6 +126,7 @@ export function Guide() {
                 ['📰', 'The headlines about the stock (titles, up to 15), with official SEC filings marked as reliable facts'],
                 ['💲', 'Today\'s price and the last few days'],
                 ['📈', 'The 6-month trend: 1 and 3-month change, 50-day average, overheated or not'],
+                ['🏁', 'Whether the stock is beating the whole market or just riding it'],
                 ['🌎', 'Whether the whole market is rising or falling'],
                 ['🗓', 'Upcoming earnings date'],
                 ['👥', 'What analysts say, P/E, dividend, 52-week range'],
@@ -374,6 +377,29 @@ export function Guide() {
             <Example>
               <p className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-sm text-amber-100">This would make AAPL about 41% of your money. Consider fewer shares.</p>
             </Example>
+          </Section>
+
+          <Section title="Beating the market?" subtitle="Rising with everything, or really strong" icon={Icon.today}>
+            <P>A stock up 8% sounds good, but if the whole market (S&amp;P 500) is up 10%, it is actually <b>weaker</b> than average. The app compares each stock's last 3 months with the market.</P>
+            <Example caption="On your stock tiles (only when clearly stronger or weaker) and on every Ideas card.">
+              <div className="space-y-1">
+                <VsMarketLine v={{ diff: 8, label: 'stronger', text: "Stronger than the market: +12% vs the S&P 500's +4% over 3 months" }} />
+                <VsMarketLine v={{ diff: -9, label: 'weaker', text: "Weaker than the market: -5% vs the S&P 500's +4% over 3 months" }} />
+              </div>
+            </Example>
+            <P>The AI sees it too: beating the market supports a BUY; falling while the market rises supports a SELL. Free.</P>
+          </Section>
+
+          <Section title="Test the rules on the past" subtitle="Would the BUY / SELL have worked before?" icon={Icon.history}>
+            <P>In <b>History</b>, tap <b>Test the rules on the past</b>. The app replays its price-trend rules day by day over the last 2 years of each of your stocks, as if you owned it. Every time the rules switched to BUY or SELL, it checks the price about a month later and compares with simply holding.</P>
+            <Example caption="Made-up result. Here BUYs beat just holding (+3.1% vs +1.2%) and SELLs came before weaker months, so the rules helped on this stock.">
+              <ul><BacktestRow r={{ symbol: 'AAPL', days: 354, buy: { count: 9, right: 6, avg: 3.1 }, sell: { count: 4, right: 3, avg: -1.8 }, anyDay: 1.2, verdict: 'helped' }} /></ul>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>✓ The rules helped</b>: trust the trend part of the advice more for this stock.</li>
+              <li><b>✕ The rules did not help</b>: for this stock, lean on the news, the AI check and your own judgment instead.</li>
+              <li>It tests the price trend only: old news and the AI can't be replayed. The past is no promise for the future.</li>
+            </ul>
           </Section>
 
           <Section title="Back on BUY" subtitle="Told when a WAIT turns into a BUY" icon={Icon.bell}>

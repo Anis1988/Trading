@@ -84,8 +84,8 @@ export async function fetchReview(sig: Signal, headlines: Headline[], holdings: 
   };
 }
 
-export async function fetchTrendSeries(symbols: string[]): Promise<{ series: Record<string, Series>; errors: string[] }> {
-  return call(`/api/trends?symbols=${encodeURIComponent(symbols.join(','))}`);
+export async function fetchTrendSeries(symbols: string[], range: '6mo' | '2y' = '6mo'): Promise<{ series: Record<string, Series>; errors: string[] }> {
+  return call(`/api/trends?symbols=${encodeURIComponent(symbols.join(','))}${range === '2y' ? '&range=2y' : ''}`);
 }
 
 export interface Pick {

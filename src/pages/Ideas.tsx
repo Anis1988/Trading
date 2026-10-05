@@ -4,7 +4,8 @@ import { fetchIdeaPicks, fetchScan, type Recommendation, type ScanResult } from 
 import { ideaToAnalysis, isBuyIdea, reasonsFor, type Idea } from '../lib/picks';
 import { computeRisk, dailyVolPct, stopPctFor } from '../lib/risk';
 import { useInsights } from '../lib/useInsights';
-import { EarningsBadge, InsightLines } from '../components/Insight';
+import { EarningsBadge, InsightLines, VsMarketLine } from '../components/Insight';
+import { vsMarket } from '../lib/relative';
 import { BuzzBadge } from '../components/Buzz';
 import { buyWait } from '../lib/waitRules';
 import { MOOD_LABEL } from '../lib/insightTypes';
@@ -231,7 +232,7 @@ export function Ideas() {
                   </li>
                 )}
               </ul>
-              <div className="mt-2"><InsightLines i={info} /></div>
+              <div className="mt-2 space-y-0.5"><VsMarketLine v={vsMarket(i.symbol, i.ret3m, ins?.market)} always /><InsightLines i={info} /></div>
               {wait && wait.rule !== 'market' && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{wait.text}</p>}
               {risk && settings.cash !== undefined && risk.suggestedQty * i.price > settings.cash && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{risk.suggestedQty} shares cost about {fmtMoney(risk.suggestedQty * i.price)}, but you have {fmtMoney(settings.cash)} cash. {Math.floor(settings.cash / i.price) > 0 ? `You could buy ${Math.floor(settings.cash / i.price)}.` : 'Not enough cash for one share.'}</p>}
               {share !== null && share > 25 && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Buying {risk!.suggestedQty} would make it about {share.toFixed(0)}% of your money. Consider fewer shares.</p>}

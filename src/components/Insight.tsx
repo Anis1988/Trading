@@ -1,6 +1,7 @@
 import type { Insight, Market } from '../lib/insightTypes';
 import { HEALTH_LABEL, analystText, earningsText, healthText, insiderText } from '../lib/insightTypes';
 import { Change, Sparkline } from './ui';
+import type { VsMarket } from '../lib/relative';
 import { EARNINGS_SOON_DAYS } from '../lib/concentration';
 
 export function EarningsBadge({ e }: { e?: Insight['earnings'] }) {
@@ -11,6 +12,13 @@ export function EarningsBadge({ e }: { e?: Insight['earnings'] }) {
       ◷ Earnings {e.inDays <= 0 ? 'today' : e.inDays === 1 ? 'tomorrow' : `in ${e.inDays}d`}
     </span>
   );
+}
+
+/** "▲ Stronger than the market: +12% vs the S&P 500's +4% over 3 months". Hidden when it moves with the market, unless `always`. */
+export function VsMarketLine({ v, always = false }: { v: VsMarket | null; always?: boolean }) {
+  if (!v || (v.label === 'same' && !always)) return null;
+  const cls = v.label === 'stronger' ? 'text-emerald-300' : v.label === 'weaker' ? 'text-red-300' : 'text-slate-400';
+  return <p className={`text-xs ${cls}`}>{v.label === 'stronger' ? '▲' : v.label === 'weaker' ? '▼' : '◆'} {v.text}</p>;
 }
 
 export function InsightLines({ i }: { i?: Insight }) {
