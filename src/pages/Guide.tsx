@@ -418,7 +418,7 @@ export function Guide() {
           </Section>
 
           <Section title="Price alerts" subtitle="Tell me if a stock hits my price" icon={Icon.bell}>
-            <P>On Today, add a price alert: a symbol, "drops to" or "rises to", and a price. The background check looks every 15 minutes during market hours, even with the app closed, and tells you once.</P>
+            <P>On Today, add a price alert: a symbol, "drops to" or "rises to", and a price. The background check looks once an hour on weekdays (about 7am–7pm New York), even with the app closed, and tells you once.</P>
             <Example caption="One waiting, one already hit.">
               <ul className="space-y-2">
                 <PriceAlertRow a={{ id: 'g1', symbol: 'NVDA', op: 'below', price: 160, createdAt: '' }} price={172.4} />
@@ -435,7 +435,7 @@ export function Guide() {
             <ul className="space-y-2 text-sm text-slate-300">
               <li><b>Email me</b> (button): sends one instruction now.</li>
               <li><b>Auto-email (app open)</b>: emails BUY/SELL calls the AI approved, but only while the app is open on that device.</li>
-              <li><b>Background alerts (app closed)</b>: the server checks every 15 minutes on weekdays (7am–8pm New York) and emails you approved calls even when your phone is locked. It also checks your stocks' trends every hour. When this is on, the app does not send its own auto-email too, so you never get the same email twice.</li>
+              <li><b>Background alerts (app closed)</b>: the server checks once an hour on weekdays (about 7am–7pm New York) and emails you approved calls even when your phone is locked. It also checks your stocks' trends every hour. When this is on, the app does not send its own auto-email too, so you never get the same email twice.</li>
               <li><b>Notifications</b>: a phone alert for background alerts. On iPhone, first add the app to your Home Screen (Safari → Share → Add to Home Screen) and open it from there.</li>
               <li><b>Weekly summary</b>: every Friday after the market closes: your profit/loss, the week's instructions and the scoreboard.</li>
               <li><b>Stop alerts</b> (top right): stops checking the news and turns auto-email off on that device. It does not touch Fidelity and deletes nothing. Press Resume to start again.</li>

@@ -65,7 +65,7 @@ export function PriceAlerts({ status }: { status: AlertStatus | null }) {
       )}
       <p className="text-xs text-slate-500">
         {settings.serverAlerts
-          ? 'Checked every 15 minutes during market hours, even with the app closed. You get an email and/or a phone notification once.'
+          ? 'Checked once an hour on weekdays (about 7am–7pm New York), even with the app closed. You get an email and/or a phone notification once.'
           : '⚠ Background alerts are off, so nothing will be sent. Turn them on in Settings → Alerts & email.'}
       </p>
     </section>

@@ -103,9 +103,9 @@ export function Settings() {
       if (!getAccessToken()) throw new Error('Turn on sync first (Sync & access): background alerts read your synced holdings.');
       if (!s.passphraseHash) throw new Error('Set a passphrase first (just above).');
       if (!/^\S+@\S+\.\S+$/.test(s.toEmail)) throw new Error('Enter the email address to send to first.');
-      if (!(await st.requestUnlock('Turn on background alerts: the server will check every 15 minutes and email you approved trades, even with the app closed.'))) return;
+      if (!(await st.requestUnlock('Turn on background alerts: the server will check once an hour on weekdays and email you approved trades, even with the app closed.'))) return;
       update({ serverAlerts: true });
-      toast('success', 'Background alerts are on. They start within 15 minutes (market hours).');
+      toast('success', 'Background alerts are on. They start within the hour (weekdays, about 7am-7pm New York).');
       void loadStatus();
     });
 
@@ -302,7 +302,7 @@ export function Settings() {
         </div>
 
         <div className="panel space-y-2">
-          <Field label="Background alerts (app closed)" hint="The server checks every 15 min on weekdays (7am-8pm New York) and emails / notifies you only when the AI approves.">
+          <Field label="Background alerts (app closed)" hint="The server checks once an hour on weekdays (about 7am-7pm New York) and emails / notifies you only when the AI approves.">
             <Toggle on={s.serverAlerts} disabled={busy === 'server'} onChange={(v) => void setServerAlerts(v)} label="Background alerts" />
           </Field>
           <Field label="Weekly summary" hint="Friday after the close: profit/loss, this week's alerts and the scoreboard.">

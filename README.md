@@ -7,7 +7,7 @@ React + TypeScript + Tailwind SPA, deployed to Netlify from GitHub. It watches n
 ## Features
 - Four tabs: **Today** (P&L, action needed, your stocks), **Ideas** (what to buy), **History** (audit trail + scoreboard), **Settings** (grouped: Holdings, Alerts & email, Risk, Sync, Advanced)
 - One action vocabulary everywhere: **BUY · SELL · HOLD · WAIT · SKIP**, each with a fixed colour, arrow/icon and text label
-- **Background alerts** (Netlify Scheduled Function every 15 min) email / notify you even when the app is closed; **weekly summary** email on Fridays
+- **Background alerts** (Netlify Scheduled Function, hourly on weekdays) email / notify you even when the app is closed; **weekly summary** email on Fridays
 - **Installable app** (Add to Home Screen) and **phone notifications** (Web Push)
 - Poller with exponential backoff + jitter (default 5 min, configurable)
 - Sources: **Netlify function `/api/news`** (Yahoo Finance + Google News + Nasdaq RSS, official SEC 8-K filings, optional Finnhub - server-side, so no CORS blocks), browser RSS/NewsAPI as a fallback, optional MCP (also the route for X/Twitter, which is never fetched in-browser)
@@ -89,7 +89,7 @@ Headlines, today's price, the **6-month trend** (1/3-month change, 50-day averag
 - Identical questions are answered from a server cache (reviews 2 h, AI shortlist 1 h) for free; "sell what you don't own" is caught by a free rule; background alerts check at most 2 strong signals per run.
 
 ### Background alerts, weekly summary, notifications
-- **Background alerts** (Settings -> Alerts & email): `netlify/functions/watch.ts` runs every 15 minutes, Mon-Fri 7am-8pm New York. It reads your synced holdings/watchlist, takes headlines from the last 24 h it has not seen, generates signals, asks Claude, and only for **APPROVE** at or above your auto-email score threshold sends the email (and a notification). Max 3 AI checks per run and 10 emails per day. Each alert is added to History and the Scoreboard on all devices. Needs sync, `ANTHROPIC_API_KEY`, `EMAILJS_PRIVATE_KEY` (and/or VAPID keys), live mode, and the toggle on. *Run a check now* runs one immediately (1 AI check, to fit the request time limit); *Test email* checks the server email setup.
+- **Background alerts** (Settings -> Alerts & email): `netlify/functions/watch.ts` runs once an hour, Mon-Fri about 7am-7pm New York (hourly to save Netlify credits). It reads your synced holdings/watchlist, takes headlines from the last 24 h it has not seen, generates signals, asks Claude, and only for **APPROVE** at or above your auto-email score threshold sends the email (and a notification). Max 3 AI checks per run and 10 emails per day. Each alert is added to History and the Scoreboard on all devices. Needs sync, `ANTHROPIC_API_KEY`, `EMAILJS_PRIVATE_KEY` (and/or VAPID keys), live mode, and the toggle on. *Run a check now* runs one immediately (1 AI check, to fit the request time limit); *Test email* checks the server email setup.
 - **Weekly summary** (`weekly.ts`, Fridays 21:00 UTC): profit/loss for the week and overall, this week's instructions, and the scoreboard. *Send summary now* to try it.
 - **Notifications**: turn on per device. On iPhone, first add the app to the Home Screen (Safari -> Share -> Add to Home Screen) and open it from there; iOS 16.4+ only allows web notifications for installed apps.
 - The service worker (`public/sw.js`) only handles notifications; it caches nothing, so you never see an old version.

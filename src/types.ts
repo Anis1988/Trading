@@ -102,7 +102,7 @@ export interface LogEntry {
   msg: string;
 }
 
-/** "Tell me if NVDA drops to $160": checked by the background check every 15 minutes. */
+/** "Tell me if NVDA drops to $160": checked by the hourly background check. */
 export interface PriceAlert {
   id: string;
   symbol: string;
@@ -133,7 +133,7 @@ export interface Settings {
   autoEmailMinConfidence: number;
   aiDailyLimit: number; // paid AI checks per day, all devices + background together
   aiMinConfidence: number; // only signals scoring at least this get an automatic AI check
-  serverAlerts: boolean; // background check on Netlify every 15 min, even with the app closed
+  serverAlerts: boolean; // background check on Netlify once an hour on weekdays, even with the app closed
   weeklySummary: boolean; // Friday evening summary email // auto-email only at or above this signal confidence
   priceAlerts?: PriceAlert[];
   cash?: number; // cash in the account, ready to invest (optional)

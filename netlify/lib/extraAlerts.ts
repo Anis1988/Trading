@@ -46,7 +46,7 @@ const CLEARED: Record<WaitRule, string> = {
 };
 const RULES = new Set(Object.keys(CLEARED));
 const WATCH_DAYS = 14;
-export const BACK_ON_EVERY_MS = 3600_000;
+export const BACK_ON_EVERY_MS = 50 * 60_000; // a little under an hour, so the hourly background run never skips it
 
 /**
  * "Tell me when a WAIT turns into a BUY": stocks held back by a free rule in the last 14 days

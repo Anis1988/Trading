@@ -3,7 +3,7 @@ import type { Signal } from '../types';
 import type { Analysis } from './trend';
 import { nowIso, uid } from './util';
 
-export const TREND_CHECK_EVERY_MS = 3600_000; // hourly
+export const TREND_CHECK_EVERY_MS = 50 * 60_000; // about hourly (a little under, so an hourly background run never skips it)
 const COOLDOWN_MS = 24 * 3600_000; // one trend SELL per stock per day at most
 
 /**
