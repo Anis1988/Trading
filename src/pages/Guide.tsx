@@ -4,6 +4,8 @@ import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
 import { BuzzBadge, RedditPanel } from '../components/Buzz';
 import type { Buzz } from '../lib/insightTypes';
 import { TermCard } from './Words';
+import { taxText } from '../lib/holdings';
+import { fmtMoney } from '../components/ui';
 
 /* ------- made-up example data, only for pictures in this guide ------- */
 const wave = (start: number, drift: number, n = 60) => Array.from({ length: n }, (_, i) => Math.round((start + drift * i + Math.sin(i / 3) * start * 0.02) * 100) / 100);
@@ -108,7 +110,10 @@ export function Guide() {
                 ['🗓', 'Upcoming earnings date'],
                 ['👥', 'What analysts say, P/E, dividend, 52-week range'],
                 ['💬', 'What Reddit is saying: only how much talk and whether it is good or bad (never the posts themselves)'],
-                ['💼', 'What you own: shares, price paid, gain or loss'],
+                ['💼', 'What you own: shares, price paid, gain or loss, and how long you have held it (for taxes)'],
+                ['🏢', 'Company health: sales and profit growth, profit margin, debt'],
+                ['👔', 'Whether company insiders bought or sold their own stock lately'],
+                ['💵', 'Your cash ready to invest and how long you plan to stay invested'],
                 ['🥧', 'How big a share of your money this stock would become'],
                 ['🛡', 'Your stop-loss and your risk limit per trade'],
               ].map(([i, t]) => (
@@ -245,6 +250,40 @@ export function Guide() {
               <li><b>P/E</b>: price compared with yearly profit. Around 15–25 is typical; much higher means people expect fast growth (more risk if it disappoints).</li>
               <li><b>Dividend</b>: cash the company pays you each year, as a % of the price.</li>
               <li><b>52-week</b>: the lowest and highest price in the last year.</li>
+            </ul>
+          </Section>
+
+          <Section title="Company health & insiders" subtitle="Is the business doing well? Are the bosses buying?" icon={Icon.ideas}>
+            <Example caption="Shown when you tap a stock on Today, and on Ideas cards.">
+              <InsightLines i={{ health: { label: 'strong', revGrowth: 12, epsGrowth: 18, margin: 24, debtEq: 0.4 }, insiders: { bought: 1_200_000, sold: 300_000, buyers: 2 } }} />
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Company health</b> looks at the last 12 months: are sales growing, is profit per share growing, how many cents of each $1 of sales are kept as profit, and how much debt it has. Mostly good = <span className="text-emerald-300">healthy</span>, mostly bad = <span className="text-red-300">weak</span>, otherwise average.</li>
+              <li><b>Insiders</b> are the company's own bosses and directors. When they buy their own stock with their own money, it's a good sign: they know the business best. When they sell, it's usually routine (taxes, a house, planned sales), so it means much less.</li>
+              <li>Both are free and passed to the AI check. Funds (ETFs) and some banks don't have these numbers, so nothing is shown for them.</li>
+            </ul>
+          </Section>
+
+          <Section title="Taxes: when you bought" subtitle="Why the purchase date matters when selling" icon={Icon.wallet}>
+            <P>In the US, profit on shares you held <b>1 year or less</b> is taxed like your salary (short-term). Held <b>more than 1 year</b>, it is usually taxed less (long-term). Add the date you first bought each stock in Settings → My holdings, and the app tells you where you stand.</P>
+            <Example caption="On a SELL with a gain, close to the 1-year mark.">
+              <p className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">🧾 {taxText({ days: 340, longTerm: false, longOn: '2026-11-01', daysToLong: 26 }, 30)}</p>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li>Within 60 days of the 1-year mark, a SELL tile shows a <b>tax tip</b>, and the AI check leans toward WAIT unless the stock is falling fast.</li>
+              <li>Selling at a loss has no reason to wait for taxes.</li>
+              <li>If you bought at different times, use your first purchase date. This is a rule of thumb, not tax advice.</li>
+            </ul>
+          </Section>
+
+          <Section title="Your cash & goal" subtitle="What you can afford, and for how long" icon={Icon.wallet}>
+            <P>In Settings → My holdings you can add <b>cash ready to invest</b> and <b>how long</b> you plan to keep the money invested. Both are optional.</P>
+            <Example caption="A buy that costs more than your cash gets a warning.">
+              <p className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">This costs about {fmtMoney(1850)}, but you have {fmtMoney(1200)} cash. Buy fewer shares or skip it.</p>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Cash</b> is added to "Where your money is", so "too much in one stock" is measured against all your money.</li>
+              <li><b>Under 1 year</b>: the AI is stricter about jumpy, risky stocks. <b>More than 5 years</b>: day-to-day noise matters less.</li>
             </ul>
           </Section>
 

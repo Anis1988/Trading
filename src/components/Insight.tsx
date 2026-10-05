@@ -1,5 +1,5 @@
 import type { Insight, Market } from '../lib/insightTypes';
-import { analystText, earningsText } from '../lib/insightTypes';
+import { HEALTH_LABEL, analystText, earningsText, healthText, insiderText } from '../lib/insightTypes';
 import { Change, Sparkline } from './ui';
 import { EARNINGS_SOON_DAYS } from '../lib/concentration';
 
@@ -30,6 +30,13 @@ export function InsightLines({ i }: { i?: Insight }) {
           <AnalystBar a={i.analysts} />
         </div>
       )}
+      {i.health && (
+        <p>
+          <span className={`font-semibold ${i.health.label === 'strong' ? 'text-emerald-300' : i.health.label === 'weak' ? 'text-red-300' : 'text-amber-200'}`}>{i.health.label === 'strong' ? '▲' : i.health.label === 'weak' ? '▼' : '◆'} {HEALTH_LABEL[i.health.label]}</span>
+          {healthText(i.health).replace(HEALTH_LABEL[i.health.label], '')}
+        </p>
+      )}
+      {i.insiders && (i.insiders.bought > 0 || i.insiders.sold > 0) && <p className={i.insiders.bought > 0 ? 'text-emerald-200/90' : ''}>👔 {insiderText(i.insiders)}</p>}
       {parts.length > 0 && <p>{parts.join(' · ')}</p>}
     </div>
   );

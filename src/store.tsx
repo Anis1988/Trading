@@ -253,7 +253,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     patchSignal(sig.id, { reviewStatus: 'pending', reviewError: undefined });
     try {
       const cs = ref.current.settings;
-      const r = await fetchReview(sig, context ?? ref.current.headlines, cs.holdings, { riskPerTrade: cs.riskPerTrade, stopLossPct: cs.stopLossPct, smartStop: cs.smartStop });
+      const r = await fetchReview(sig, context ?? ref.current.headlines, cs.holdings, { riskPerTrade: cs.riskPerTrade, stopLossPct: cs.stopLossPct, smartStop: cs.smartStop, cash: cs.cash, horizon: cs.horizon });
       const qty = r.suggestedQty && r.suggestedQty > 0 ? r.suggestedQty : sig.qty;
       if (qty !== sig.qty) log('info', `${sig.symbol}: quantity changed ${sig.qty} -> ${qty} to match what you own.`);
       const st = ref.current.settings;
@@ -410,7 +410,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         curScore = mScore;
         const remoteJson = remote.data ? jsonOf(snapshot({ ...mSettings, ...remote.data.settings } as Settings, remote.data.watchlist, remote.data.history, remote.data.scoreLog ?? [])) : '';
         // A setting the server copy has never seen (e.g. one added in a newer version) also needs a push.
-        const serverLacksKeys = !!remote.data && (!remote.data.scoreLog || Object.keys(merged.settings).some((k) => !(k in remote.data!.settings)));
+        const serverLacksKeys = !!remote.data && (!remote.data.scoreLog || Object.entries(merged.settings).some(([k, v]) => v !== undefined && !(k in remote.data!.settings)));
         if (remote.data && mergedJson === remoteJson && !serverLacksKeys) break; // server already has everything
         const res = await pushRemote(remote.updatedAt, merged);
         if ('updatedAt' in res) {

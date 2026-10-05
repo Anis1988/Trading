@@ -9,6 +9,7 @@ import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
 import { concentrated } from '../lib/concentration';
 import { BuzzBadge, BuzzRail, RedditPanel } from '../components/Buzz';
 import { buyWait } from '../lib/waitRules';
+import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken } from '../lib/api';
 
 const ago = (iso: string) => {
@@ -44,7 +45,10 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   const alloc = priced
     .map(({ h, r }) => ({ sym: h.symbol, value: h.shares * r!.price }))
     .sort((a, b) => b.value - a.value);
-  const heavy = concentrated(alloc);
+  const cash = settings.cash ?? 0;
+  // Cash counts as part of your money, so "too much in one stock" is measured against everything.
+  const heavy = concentrated([...alloc, { sym: 'Cash', value: cash }]).filter((x) => x.sym !== 'Cash');
+  const allMoney = tot.value + cash;
   // Stocks you own that suddenly get a lot of negative talk on Reddit: a heads-up, not a SELL.
   const worried = held.filter((h) => { const b = ins?.stocks[h.symbol]?.buzz; return b?.trending && b.mood === 'negative'; });
   const mine = new Set([...held.map((h) => h.symbol), ...watchlist]);
@@ -118,15 +122,15 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
           )}
         </section>
       )}
-      {alloc.length > 1 && (
+      {alloc.length + (cash > 0 ? 1 : 0) > 1 && (
         <section className="card hidden space-y-2 md:block">
           <p className="label">Where your money is</p>
-          {alloc.map((a) => {
-            const pct = (a.value / tot.value) * 100;
+          {[...alloc, ...(cash > 0 ? [{ sym: 'Cash', value: cash }] : [])].map((a) => {
+            const pct = (a.value / allMoney) * 100;
             return (
               <div key={a.sym}>
                 <div className="flex justify-between text-sm"><span className="font-display font-semibold">{a.sym}</span><span className="num text-slate-300">{pct.toFixed(0)}% · {fmtMoney(a.value)}</span></div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" style={{ width: `${pct}%` }} /></div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><div className={`h-full rounded-full ${a.sym === 'Cash' ? 'bg-emerald-400/70' : 'bg-gradient-to-r from-cyan-400 to-violet-500'}`} style={{ width: `${pct}%` }} /></div>
               </div>
             );
           })}
@@ -165,6 +169,8 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
               if (!a) return <div key={h.symbol} className="card"><p className="font-display font-semibold">{h.symbol}</p>{loading ? <Skeleton className="mt-2 h-10" /> : <p className="text-sm text-slate-500">No price yet.</p>}</div>;
               const gain = (a.price - h.avgCost) * h.shares;
               const gainPct = h.avgCost > 0 ? ((a.price - h.avgCost) / h.avgCost) * 100 : 0;
+              const tax = taxInfo(h);
+              const taxWait = a.action === 'SELL' && tax && !tax.longTerm && tax.daysToLong <= 60 && a.price > h.avgCost;
               const crowd = a.action === 'BUY' ? buyWait({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m, rsi: a.rsi, sharePct: heavy.find((x) => x.sym === h.symbol)?.pct }) : null;
               return (
                 <div key={h.symbol} className="card !p-0">
@@ -182,6 +188,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                         <Change value={gain} pct={gainPct} />
                       </span>
                     </div>
+                    {taxWait && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Tax tip: in {tax!.daysToLong} days this becomes a long-term gain, usually taxed less. If it isn't falling fast, waiting may save you money.</p>}
                     <p className="mt-2 text-sm text-slate-300">{crowd ? `The trend looks good, but not now. ${crowd}` : a.idea}</p>
                   </button>
                   {open && (
@@ -194,6 +201,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                       </div>
                       <RedditPanel b={ins?.stocks[h.symbol]?.buzz} />
                       <InsightLines i={ins?.stocks[h.symbol]} />
+                      {tax ? <p className="text-xs text-slate-400">🧾 {taxText(tax, a.price - h.avgCost)}</p> : <p className="text-xs text-slate-500">🧾 Add the date you bought it in Settings to see tax timing.</p>}
                       <p className="text-xs text-slate-500">Trend: {a.label.toLowerCase()} · {Math.abs(a.fromHigh)}% below its 6-month high · score {a.score}/5</p>
                       {news.length > 0 && (
                         <ul className="space-y-1 text-sm">

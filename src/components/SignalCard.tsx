@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import { ActionChip, Stat, fmtMoney, type Action } from './ui';
 import { shareAfterBuy } from '../lib/concentration';
 import { MARKET_TEXT } from '../lib/insightTypes';
+import { taxInfo, taxText } from '../lib/holdings';
 
 /** The single word the user acts on. */
 export function finalAction(s: Signal, aiOn: boolean, aiMin = 0): { action: Action; note: string } {
@@ -26,8 +27,11 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
   const done = s.status === 'dismissed';
   const { action, note } = finalAction(s, settings.useAiReview, settings.aiMinConfidence);
   const blocked = settings.useAiReview && s.review?.verdict === 'REJECT';
-  const share = s.side === 'BUY' && s.entryPrice ? shareAfterBuy(s.symbol, s.qty, s.entryPrice, settings.holdings) : null;
+  const share = s.side === 'BUY' && s.entryPrice ? shareAfterBuy(s.symbol, s.qty, s.entryPrice, settings.holdings, settings.cash) : null;
   const stopPct = s.entryPrice && s.stopPrice ? Math.round(((s.entryPrice - s.stopPrice) / s.entryPrice) * 1000) / 10 : null;
+  const tax = s.side === 'SELL' && hold ? taxInfo(hold) : null;
+  const cost = s.side === 'BUY' && s.entryPrice ? s.entryPrice * s.qty : null;
+  const short = settings.cash !== undefined && cost !== null && cost > settings.cash;
   const accent = action === 'BUY' ? 'before:bg-emerald-400' : action === 'SELL' ? 'before:bg-red-400' : action === 'WAIT' ? 'before:bg-amber-400' : 'before:bg-slate-500';
 
   return (
@@ -66,6 +70,14 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
           )}
         </div>
       )}
+      {tax && !done && (
+        <p className={`mt-2 rounded-lg border px-2 py-1.5 text-xs ${!tax.longTerm && s.entryPrice && hold && s.entryPrice > hold.avgCost ? 'border-amber-300/40 bg-amber-400/10 text-amber-100' : 'border-white/10 bg-white/5 text-slate-300'}`}>
+          🧾 {taxText(tax, s.entryPrice && hold ? s.entryPrice - hold.avgCost : undefined)}
+        </p>
+      )}
+      {short && !done && (
+        <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">This costs about {fmtMoney(cost!)}, but you have {fmtMoney(settings.cash!)} cash. Buy fewer shares or skip it.</p>
+      )}
       {share !== null && share > 25 && !done && (
         <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">This would make {s.symbol} about {share.toFixed(0)}% of your money. Consider fewer shares.</p>
       )}
@@ -100,8 +112,8 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
           <p><span className="label">Why it fired</span><br />{s.reason}{s.headlineUrl && <> · <a className="text-cyan-300 underline" href={s.headlineUrl} target="_blank" rel="noopener noreferrer">source</a></>}</p>
           {s.review?.holdingNote && <p><span className="label">Your holdings</span><br />{s.review.holdingNote}</p>}
           {s.review && s.review.risks.length > 0 && <p><span className="label">Watch out</span><br />{s.review.risks.join(' · ')}</p>}
-          {(s.review?.market || s.review?.earnings || s.review?.analysts || s.review?.reddit) && (
-            <p><span className="label">Context</span><br />{[s.review.market && MARKET_TEXT[s.review.market], s.review.earnings, s.review.analysts, s.review.reddit].filter(Boolean).join(' · ')}</p>
+          {(s.review?.market || s.review?.earnings || s.review?.analysts || s.review?.reddit || s.review?.health || s.review?.insiders) && (
+            <p><span className="label">Context</span><br />{[s.review.market && MARKET_TEXT[s.review.market], s.review.earnings, s.review.analysts, s.review.health, s.review.insiders, s.review.reddit].filter(Boolean).join(' · ')}</p>
           )}
           <p className="text-xs text-slate-500">
             Signal score {(s.confidence * 100).toFixed(0)}% · {new Date(s.createdAt).toLocaleString()}

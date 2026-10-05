@@ -12,6 +12,45 @@ export interface Insight {
   analysts?: { buy: number; hold: number; sell: number; period: string };
   basics?: { pe?: number; divYield?: number; high52?: number; low52?: number; beta?: number };
   buzz?: Buzz;
+  health?: Health;
+  insiders?: Insiders;
+}
+
+/** Company finances from the last 12 months (Finnhub). */
+export interface Health {
+  label: 'strong' | 'ok' | 'weak';
+  revGrowth?: number; // sales vs a year ago, %
+  epsGrowth?: number; // profit per share vs a year ago, %
+  margin?: number; // net profit as % of sales
+  debtEq?: number; // debt / owners' money
+}
+
+/** Company bosses trading their own stock on the open market, last 90 days (Finnhub). */
+export interface Insiders {
+  bought: number; // $ value of open-market buys
+  sold: number; // $ value of open-market sells
+  buyers: number; // how many different people bought
+}
+
+const pct = (v: number) => `${v > 0 ? '+' : ''}${Math.round(v)}%`;
+const usd = (v: number) => (v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `$${Math.round(v / 1e3)}K` : `$${Math.round(v)}`);
+
+export const HEALTH_LABEL: Record<Health['label'], string> = { strong: 'Healthy finances', ok: 'Average finances', weak: 'Weak finances' };
+
+export function healthText(h: Health): string {
+  const parts = [
+    h.revGrowth !== undefined ? `sales ${pct(h.revGrowth)} vs last year` : '',
+    h.epsGrowth !== undefined ? `profit per share ${pct(h.epsGrowth)}` : '',
+    h.margin !== undefined ? (h.margin < 0 ? 'losing money' : `keeps ${Math.round(h.margin)}¢ of each $1 of sales as profit`) : '',
+    h.debtEq !== undefined ? (h.debtEq < 0.5 ? 'little debt' : h.debtEq <= 1.5 ? 'normal debt' : 'a lot of debt') : '',
+  ].filter(Boolean);
+  return `${HEALTH_LABEL[h.label]}${parts.length ? `: ${parts.join(', ')}` : ''}`;
+}
+
+export function insiderText(i: Insiders): string {
+  if (i.bought > 0) return `Company insiders bought ${usd(i.bought)} of their own stock in the last 3 months (${i.buyers} ${i.buyers === 1 ? 'person' : 'people'})${i.sold > 0 ? ` and sold ${usd(i.sold)}` : ''}`;
+  if (i.sold > 0) return `Company insiders sold ${usd(i.sold)} in the last 3 months and bought none (insider selling is often routine)`;
+  return 'No insider buying or selling in the last 3 months';
 }
 
 export type Mood = 'positive' | 'negative' | 'mixed' | 'unknown';

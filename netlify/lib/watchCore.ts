@@ -103,7 +103,7 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
           signal: { symbol: sig.symbol, side: sig.side, confidence: sig.confidence, reason: sig.reason, qty: sig.qty },
           headlines: fresh.filter((h) => h.symbol === sig.symbol).slice(0, 15).map((h) => ({ title: h.title, source: h.source, publishedAt: h.publishedAt })),
           holdings,
-          risk: { riskPerTrade: s.riskPerTrade ?? 100, stopLossPct: s.stopLossPct ?? 5, smartStop: s.smartStop ?? true },
+          risk: { riskPerTrade: s.riskPerTrade ?? 100, stopLossPct: s.stopLossPct ?? 5, smartStop: s.smartStop ?? true, cash: s.cash, horizon: s.horizon },
         }),
       ),
     );
@@ -120,7 +120,7 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
         const risk = computeRisk(sig.side, price, s.riskPerTrade ?? 100, stopPctFor(r.quote?.volPct, s.stopLossPct ?? 5, s.smartStop ?? true));
         const ready: Signal = {
           ...sig, qty: r.suggestedQty > 0 ? r.suggestedQty : sig.qty, entryPrice: price, stopPrice: risk?.stop, suggestedQty: risk?.suggestedQty,
-          review: { verdict: r.verdict, confidence: r.confidence, rationale: r.rationale, risks: r.risks, holdingNote: r.holdingNote, price, earnings: r.earnings, analysts: r.analysts, market: r.market, reddit: r.reddit },
+          review: { verdict: r.verdict, confidence: r.confidence, rationale: r.rationale, risks: r.risks, holdingNote: r.holdingNote, price, earnings: r.earnings, analysts: r.analysts, market: r.market, reddit: r.reddit, health: r.health, insiders: r.insiders },
         };
         const plan = planOrder(s.limits?.[sig.symbol]);
         let channelNote = '';

@@ -6,6 +6,7 @@ import type { HistoryItem } from '../types';
 import { cleanSymbol, fmtInterval } from '../lib/util';
 import { Logs } from './Logs';
 import { useTrends } from '../lib/useTrends';
+import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken, setAccessToken } from '../lib/api';
 import {
   alertAction, canPromptInstall, currentSubscription, disablePush, enablePush, getAlertStatus, isIos, isStandalone, onInstallAvailable, promptInstall, pushSupported,
@@ -30,6 +31,7 @@ export function Settings() {
   const [hSym, setHSym] = useState('');
   const [hShares, setHShares] = useState('');
   const [hCost, setHCost] = useState('');
+  const [hDate, setHDate] = useState('');
   const [wSym, setWSym] = useState('');
   const [status, setStatus] = useState<AlertStatus | null>(null);
   const [statusErr, setStatusErr] = useState('');
@@ -59,9 +61,13 @@ export function Settings() {
     const shares = Number(hShares);
     const avgCost = Number(hCost);
     if (!symbol || !(shares > 0) || !(avgCost >= 0)) return toast('error', 'Enter a symbol, shares above 0 and the average price you paid.');
-    update({ holdings: [...s.holdings.filter((h) => h.symbol !== symbol), { symbol, shares, avgCost }] });
+    const today = new Date().toISOString().slice(0, 10);
+    if (hDate && hDate > today) return toast('error', 'The date you bought it can\'t be in the future.');
+    // Keep the earlier purchase date when updating shares without entering a new one.
+    const boughtAt = hDate || s.holdings.find((h) => h.symbol === symbol)?.boughtAt;
+    update({ holdings: [...s.holdings.filter((h) => h.symbol !== symbol), { symbol, shares, avgCost, ...(boughtAt ? { boughtAt } : {}) }] });
     toast('success', `${symbol} saved.`);
-    setHSym(''); setHShares(''); setHCost('');
+    setHSym(''); setHShares(''); setHCost(''); setHDate('');
   };
   const addWatch = () => {
     const sym = cleanSymbol(wSym);
@@ -141,11 +147,15 @@ export function Settings() {
         <div className="space-y-3">
       {/* ---------------- holdings ---------------- */}
       <Section title="My holdings" subtitle={`${s.holdings.length} stock${s.holdings.length === 1 ? '' : 's'} · what you own in Fidelity`} icon={Icon.wallet} defaultOpen>
-        <div className="grid grid-cols-[1fr_1fr_1.2fr] gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+        <div className="grid grid-cols-[1fr_1fr_1.2fr] gap-2 sm:grid-cols-[1fr_1fr_1fr_1.3fr_auto]">
           <input className="input w-full min-w-0" placeholder="Symbol" value={hSym} onChange={(e) => setHSym(e.target.value)} aria-label="Symbol" />
           <input className="input w-full min-w-0" placeholder="Shares" inputMode="decimal" value={hShares} onChange={(e) => setHShares(e.target.value)} aria-label="Shares" />
           <input className="input w-full min-w-0" placeholder="Avg price $" inputMode="decimal" value={hCost} onChange={(e) => setHCost(e.target.value)} aria-label="Average price paid" />
-          <button className="btn-primary col-span-3 sm:col-span-1" onClick={addHolding}>Add / update</button>
+          <label className="col-span-2 flex min-w-0 items-center gap-2 sm:col-span-1">
+            <span className="shrink-0 text-xs text-slate-400">Bought</span>
+            <input className="input w-full min-w-0" type="date" value={hDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setHDate(e.target.value)} aria-label="Date you bought it (optional)" />
+          </label>
+          <button className="btn-primary col-span-1" onClick={addHolding}>Save</button>
         </div>
         <ul className="space-y-2">
           {s.holdings.map((h) => {
@@ -163,6 +173,7 @@ export function Settings() {
                     <span className="num">${t.price}</span>
                     <Change value={(t.price - h.avgCost) * h.shares} pct={h.avgCost > 0 ? ((t.price - h.avgCost) / h.avgCost) * 100 : 0} />
                     <span className="basis-full text-xs text-slate-400">{t.idea}</span>
+                    {taxInfo(h) && <span className="basis-full text-xs text-slate-500">🧾 Bought {h.boughtAt} · {taxText(taxInfo(h)!, t.price - h.avgCost)}</span>}
                   </div>
                 ) : (
                   <p className="mt-1 text-xs text-slate-500">{holdTrends.loading ? 'Checking…' : 'No price yet.'}</p>
@@ -177,6 +188,20 @@ export function Settings() {
             {holdTrends.updated && <span className="text-xs text-slate-500">Updated {holdTrends.updated}</span>}
           </div>
         )}
+        <p className="text-xs text-slate-500">"Bought" is optional: the date of your first purchase. It lets the app warn you before selling a gain that is close to becoming long-term (lower tax). To add a date later, enter the stock again with the date.</p>
+        <div className="space-y-1 border-t border-white/10 pt-3">
+          <Field label="Cash ready to invest ($)" hint="Optional. Cash sitting in your Fidelity account. Used to warn when a buy costs more than you have, and counted in 'Where your money is'.">
+            <input className="input w-32" type="number" min={0} inputMode="decimal" placeholder="e.g. 2000" value={s.cash ?? ''} onChange={(e) => update({ cash: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value) || 0) })} />
+          </Field>
+          <Field label="How long will you keep this money invested?" hint="Optional. Helps the AI judge risk: short = avoid jumpy stocks, long = daily noise matters less.">
+            <select className="input w-full sm:w-52" value={s.horizon ?? ''} onChange={(e) => update({ horizon: (e.target.value || undefined) as typeof s.horizon })}>
+              <option value="">Not set</option>
+              <option value="short">Under 1 year</option>
+              <option value="medium">1 to 5 years</option>
+              <option value="long">More than 5 years</option>
+            </select>
+          </Field>
+        </div>
         <div className="border-t border-white/10 pt-3">
           <p className="text-sm text-slate-200">Also watching <span className="text-slate-500">(optional, not owned)</span></p>
           <div className="mt-2 flex gap-2">

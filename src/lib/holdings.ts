@@ -4,6 +4,41 @@ export interface Holding {
   symbol: string;
   shares: number;
   avgCost: number; // average price paid per share
+  boughtAt?: string; // YYYY-MM-DD, first purchase (for the 1-year tax line)
+}
+
+export interface TaxInfo {
+  days: number; // days held
+  longTerm: boolean; // held more than a year: lower tax on the gain
+  longOn: string; // YYYY-MM-DD the day it becomes long-term
+  daysToLong: number;
+}
+
+/** US rule of thumb: a gain on shares held more than 1 year is taxed less ("long-term"). */
+export function taxInfo(h: Pick<Holding, 'boughtAt'>, now = new Date()): TaxInfo | null {
+  if (!h.boughtAt) return null;
+  const bought = new Date(`${h.boughtAt}T12:00:00Z`);
+  if (isNaN(bought.getTime())) return null;
+  const longDate = new Date(bought);
+  longDate.setUTCFullYear(longDate.getUTCFullYear() + 1);
+  longDate.setUTCDate(longDate.getUTCDate() + 1);
+  const day = 86400_000;
+  const days = Math.max(0, Math.floor((now.getTime() - bought.getTime()) / day));
+  const daysToLong = Math.max(0, Math.ceil((longDate.getTime() - now.getTime()) / day));
+  return { days, longTerm: daysToLong === 0, longOn: longDate.toISOString().slice(0, 10), daysToLong };
+}
+
+const nDays = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
+const niceDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const held = (days: number) => (days >= 60 ? `${Math.floor(days / 30.4)} months` : nDays(days));
+
+/** Plain words about tax timing for a sale. `gain` is the profit per share now (if known). */
+export function taxText(t: TaxInfo, gain?: number): string {
+  if (t.longTerm) return `Held over a year, so any gain is taxed at the lower long-term rate.`;
+  const base = `Held ${held(t.days)}. Until ${niceDate(t.longOn)} (${nDays(t.daysToLong)}) a gain is taxed as short-term, which is usually higher.`;
+  if (gain !== undefined && gain <= 0) return `${base} You're at a loss now, so this doesn't matter much.`;
+  if (t.daysToLong <= 60) return `${base} Waiting ${nDays(t.daysToLong)} could lower the tax, unless the price is falling fast.`;
+  return base;
 }
 
 export interface HoldingAssessment {
@@ -34,6 +69,8 @@ export function assessHolding(side: Side, qty: number, symbol: string, holdings:
     const gain = (price - h.avgCost) * h.shares;
     note += ` Now ${money(price)}: you are ${gain >= 0 ? 'up' : 'down'} ${Math.abs(pct).toFixed(1)}% (${gain >= 0 ? '+' : '-'}${money(Math.abs(gain))}).`;
   }
+  const tax = taxInfo(h);
+  if (tax) note += ` ${taxText(tax, price && h.avgCost > 0 ? price - h.avgCost : undefined)}`;
   let q = qty;
   if (side === 'SELL' && qty > h.shares) {
     q = h.shares;

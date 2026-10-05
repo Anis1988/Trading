@@ -1,5 +1,5 @@
 import { analyze } from '../../src/lib/trend';
-import type { Insight, Market } from '../../src/lib/insightTypes';
+import type { Health, Insight, Insiders, Market } from '../../src/lib/insightTypes';
 import { yahooHistory } from './feeds';
 import { cached } from './aiBudget';
 import { getBuzz } from './reddit';
@@ -38,12 +38,53 @@ async function earningsMap(): Promise<Record<string, { date: string; hour?: stri
   }).catch(() => ({}));
 }
 
-/** Analyst ratings + a few company basics for one stock. Cached 12 hours. */
-function stockInfo(symbol: string): Promise<Pick<Insight, 'analysts' | 'basics'>> {
-  return cached('insights-cache', `info-${symbol}-${day(new Date())}`, 12 * 3600_000, async () => {
-    const [rec, met] = await Promise.all([
+type Info = Pick<Insight, 'analysts' | 'basics' | 'health' | 'insiders'>;
+
+/** Simple 4-point check of the company's last 12 months. Banks and funds often lack these numbers. */
+function health(m: Record<string, number | null>, num: (v: unknown) => number | undefined): Health | undefined {
+  const h: Health = {
+    label: 'ok',
+    revGrowth: num(m.revenueGrowthTTMYoy),
+    epsGrowth: num(m.epsGrowthTTMYoy),
+    margin: num(m.netProfitMarginTTM),
+    debtEq: num(m['totalDebt/totalEquityQuarterly'] ?? m['totalDebt/totalEquityAnnual']),
+  };
+  const known = [h.revGrowth, h.epsGrowth, h.margin, h.debtEq].filter((v) => v !== undefined).length;
+  if (known < 2) return undefined;
+  let score = 0;
+  if (h.revGrowth !== undefined) score += h.revGrowth >= 5 ? 1 : h.revGrowth < -5 ? -1 : 0;
+  if (h.epsGrowth !== undefined) score += h.epsGrowth >= 5 ? 1 : h.epsGrowth < -15 ? -1 : 0;
+  if (h.margin !== undefined) score += h.margin >= 10 ? 1 : h.margin < 0 ? -1 : 0;
+  if (h.debtEq !== undefined) score += h.debtEq < 0.5 ? 1 : h.debtEq > 2 ? -1 : 0;
+  h.label = score >= 2 ? 'strong' : score <= -1 ? 'weak' : 'ok';
+  return h;
+}
+
+/** Open-market buys (code P) and sells (code S) by company insiders in the last 90 days. */
+function insiders(rows: { name: string; change: number; transactionCode: string; transactionPrice: number; transactionDate: string }[]): Insiders {
+  const since = day(new Date(Date.now() - 90 * 86400_000));
+  const out: Insiders = { bought: 0, sold: 0, buyers: 0 };
+  const who = new Set<string>();
+  for (const r of rows) {
+    if (r.transactionDate < since || !(r.transactionPrice > 0)) continue;
+    const value = Math.abs(r.change) * r.transactionPrice;
+    if (r.transactionCode === 'P') (out.bought += value), who.add(r.name);
+    else if (r.transactionCode === 'S') out.sold += value;
+  }
+  out.buyers = who.size;
+  out.bought = Math.round(out.bought);
+  out.sold = Math.round(out.sold);
+  return out;
+}
+
+/** Analyst ratings, company basics and health, insider trades for one stock. Cached 12 hours. */
+function stockInfo(symbol: string): Promise<Info> {
+  return cached('insights-cache', `info2-${symbol}-${day(new Date())}`, 12 * 3600_000, async () => {
+    const from = day(new Date(Date.now() - 90 * 86400_000));
+    const [rec, met, ins] = await Promise.all([
       finnhub<{ period: string; strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }[]>(`/stock/recommendation?symbol=${encodeURIComponent(symbol)}`).catch(() => null),
       finnhub<{ metric?: Record<string, number | null> }>(`/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all`).catch(() => null),
+      finnhub<{ data?: Parameters<typeof insiders>[0] }>(`/stock/insider-transactions?symbol=${encodeURIComponent(symbol)}&from=${from}`).catch(() => null),
     ]);
     const r = rec?.[0];
     const m = met?.metric ?? {};
@@ -59,6 +100,8 @@ function stockInfo(symbol: string): Promise<Pick<Insight, 'analysts' | 'basics'>
             beta: num(m.beta),
           }
         : undefined,
+      health: met ? health(m, num) : undefined,
+      insiders: ins?.data ? insiders(ins.data) : undefined,
     };
   });
 }
@@ -70,7 +113,7 @@ export async function getInsights(symbols: string[]): Promise<Record<string, Ins
   await Promise.all(
     symbols.map(async (s) => {
       const e = earnings[s];
-      const info = await stockInfo(s).catch(() => ({}) as Pick<Insight, 'analysts' | 'basics'>);
+      const info = await stockInfo(s).catch(() => ({}) as Info);
       out[s] = {
         ...info,
         earnings: e ? { date: e.date, hour: e.hour, inDays: Math.round((Date.parse(e.date) - today) / 86400_000) } : undefined,

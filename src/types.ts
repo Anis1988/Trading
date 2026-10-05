@@ -30,6 +30,8 @@ export interface Review {
   earnings?: string;
   analysts?: string;
   reddit?: string;
+  health?: string;
+  insiders?: string;
 }
 
 export type SignalSource = 'local' | 'mcp';
@@ -122,6 +124,8 @@ export interface Settings {
   aiMinConfidence: number; // only signals scoring at least this get an automatic AI check
   serverAlerts: boolean; // background check on Netlify every 15 min, even with the app closed
   weeklySummary: boolean; // Friday evening summary email // auto-email only at or above this signal confidence
+  cash?: number; // cash in the account, ready to invest (optional)
+  horizon?: 'short' | 'medium' | 'long'; // how long the user plans to keep the money invested
   passphraseHash: string;
   passphraseSalt: string;
 }

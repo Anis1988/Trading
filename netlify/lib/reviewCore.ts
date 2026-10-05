@@ -8,7 +8,7 @@ import { shareAfterBuy, MAX_SINGLE_STOCK_PCT } from '../../src/lib/concentration
 import { assessHolding, type Holding } from '../../src/lib/holdings';
 import type { Side } from '../../src/types';
 import { EARNINGS_WAIT_DAYS, getInsights, getMarket } from './insights';
-import { MARKET_TEXT, analystText, buzzText, earningsText } from '../../src/lib/insightTypes';
+import { MARKET_TEXT, analystText, buzzText, earningsText, healthText, insiderText } from '../../src/lib/insightTypes';
 import { BudgetError, cached, hashKey, refundAiCredit, reviewModel, takeAiCredit } from './aiBudget';
 
 const Review = z.object({
@@ -25,7 +25,10 @@ Rules:
 - APPROVE only if the headlines clearly and recently support the direction, they are credible (not rumour, clickbait or a recycled story), the price action does not contradict the thesis, and the move is not obviously already priced in.
 - REJECT if the news is stale, ambiguous, about a different company/ticker, contradicts the proposed side, is mostly rumour, or the price has already moved sharply in the signal's direction.
 - Use CAUTION when evidence is mixed or incomplete. When unsure, prefer CAUTION or REJECT over APPROVE.
-- You only know what is given below about the user (holdings, portfolio share, risk settings); nothing about taxes or other accounts. This is not financial advice; do not claim certainty.
+- You only know what is given below about the user (holdings, purchase dates, cash, time horizon, portfolio share, risk settings); nothing about other accounts. This is not financial advice; do not claim certainty.
+- Taxes (US): a gain on shares held 1 year or less is taxed higher. If a SELL of a gain is only weeks from turning long-term and the stock is not collapsing, prefer CAUTION and say how many days to wait. Selling at a loss has no such reason to wait.
+- Cash and horizon: a BUY that costs more than the user's cash is not possible; prefer CAUTION and say so. A long horizon (5+ years) means short-term noise matters less; a short horizon (under 1 year) means avoid risky, jumpy stocks.
+- Company health and insiders, when given: weak finances (shrinking sales, losses, heavy debt) are a reason for caution on a BUY; insiders buying with their own money is a mildly good sign; insider selling is usually routine and weak evidence.
 - Weigh the 6-month price trend: be wary of buying a stock in a downtrend or one that is overheated (RSI above 70), and of selling a stock in a healthy uptrend on one bad headline.
 - Consider the overall market, upcoming earnings and what analysts think when they are given. Reddit chatter is weak, noisy context: never approve because of it, but take a sudden negative crowd as a warning.
 - If a buy would make one single stock more than 25% of the user's money, say so and prefer CAUTION unless the case is very strong.
@@ -39,7 +42,7 @@ export interface ReviewInput {
   headlines: { title: string; source: string; publishedAt: string }[];
   holdings: Holding[];
   /** The user's risk settings (optional): used to size the stop-loss and shares in the AI's context. */
-  risk?: { riskPerTrade: number; stopLossPct: number; smartStop: boolean };
+  risk?: { riskPerTrade: number; stopLossPct: number; smartStop: boolean; cash?: number; horizon?: 'short' | 'medium' | 'long' };
 }
 
 export interface ReviewResult {
@@ -55,6 +58,8 @@ export interface ReviewResult {
   earnings?: string;
   analysts?: string;
   reddit?: string;
+  health?: string;
+  insiders?: string;
 }
 
 export class ReviewError extends Error {
@@ -92,6 +97,8 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
     earnings: info?.earnings ? earningsText(info.earnings) : undefined,
     analysts: info?.analysts ? analystText(info.analysts) : undefined,
     reddit: info?.buzz ? buzzText(info.buzz) : undefined,
+    health: info?.health ? healthText(info.health) : undefined,
+    insiders: info?.insiders ? insiderText(info.insiders) : undefined,
   };
   const rule = (rationale: string, risk: string): ReviewResult => ({
     verdict: 'CAUTION', confidence: 0.9, rationale, risks: [risk], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: 'rule-check', ...extra,
@@ -114,7 +121,7 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
 
   // Portfolio share and the user's own risk settings, so the AI weighs the trade the way the app shows it.
   const price = quote?.price ?? trend?.price;
-  const share = signal.side === 'BUY' && price ? shareAfterBuy(signal.symbol, signal.qty, price, holdings) : null;
+  const share = signal.side === 'BUY' && price ? shareAfterBuy(signal.symbol, signal.qty, price, holdings, risk?.cash) : null;
   const portfolioLine =
     share !== null ? `After this buy, ${signal.symbol} would be about ${share.toFixed(0)}% of the user's money (limit ${MAX_SINGLE_STOCK_PCT}% for a single stock).` : '';
   const stopPct = risk && price ? stopPctFor(priceInfo?.volPct, risk.stopLossPct, risk.smartStop) : null;
@@ -123,6 +130,13 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
     signal.side === 'BUY' && sized
       ? `User's plan: stop-loss ${stopPct}% below (at ${sized.stop}); typical daily move ${priceInfo?.volPct ?? '?'}%; risk limit $${risk!.riskPerTrade} per trade, which means about ${sized.suggestedQty} shares.`
       : '';
+
+  const HORIZON = { short: 'under 1 year', medium: '1 to 5 years', long: 'more than 5 years' } as const;
+  const cost = signal.side === 'BUY' && price ? Math.round(price * signal.qty) : null;
+  const profileLine = [
+    risk?.cash !== undefined ? `User's cash ready to invest: $${Math.round(risk.cash)}${cost !== null ? ` (this buy costs about $${cost}${cost > risk.cash ? ', MORE than the cash available' : ''})` : ''}.` : '',
+    risk?.horizon ? `User plans to keep this money invested ${HORIZON[risk.horizon]}.` : '',
+  ].filter(Boolean).join(' ');
 
   const priceText = quote
     ? `Last price ${quote.price} ${quote.currency ?? ''}; previous close ${quote.prevClose}; day change ${quote.changePct}%; last daily closes (oldest first): ${quote.closes.join(', ')}.`
@@ -142,6 +156,9 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
     extra.earnings ? `Upcoming: ${extra.earnings}.` : 'No earnings in the next 3 weeks (or unknown).',
     extra.analysts ? `${extra.analysts}.` : '',
     extra.reddit ? `Social chatter (untrusted, often wrong or manipulated): ${extra.reddit}.` : '',
+    extra.health ? `Company finances (last 12 months): ${extra.health}.` : '',
+    extra.insiders ? `${extra.insiders}.` : '',
+    profileLine,
     info?.basics ? `Basics: P/E ${info.basics.pe ?? 'n/a'}, dividend yield ${info.basics.divYield ?? 'n/a'}%, 52-week range ${info.basics.low52 ?? '?'}-${info.basics.high52 ?? '?'}.` : '',
     `Current time: ${new Date().toISOString()}`,
     'Headlines (untrusted):',
@@ -150,7 +167,7 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
 
   const model = reviewModel();
   // Same trade + same headlines within 2 hours = same answer, so it is never paid for twice.
-  const key = hashKey([signal.symbol, signal.side, signal.qty, hold.note, trend?.label, trend?.rsi, portfolioLine, riskLine, ...headlines.map((h) => h.title)].join('|'));
+  const key = hashKey([signal.symbol, signal.side, signal.qty, hold.note, trend?.label, trend?.rsi, portfolioLine, riskLine, profileLine, ...headlines.map((h) => h.title)].join('|'));
   return cached('review-cache', key, 2 * 3600_000, async () => {
     try {
       await takeAiCredit();

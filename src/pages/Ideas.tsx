@@ -192,7 +192,7 @@ export function Ideas() {
           const risk = computeRisk('BUY', i.price, settings.riskPerTrade, stopPct);
           const info = ins?.stocks[i.symbol];
           const soon = !!info?.earnings && info.earnings.inDays >= 0 && info.earnings.inDays <= EARNINGS_SOON_DAYS;
-          const share = risk ? shareAfterBuy(i.symbol, risk.suggestedQty, i.price, settings.holdings) : null;
+          const share = risk ? shareAfterBuy(i.symbol, risk.suggestedQty, i.price, settings.holdings, settings.cash) : null;
           const own = settings.holdings.find((h) => h.symbol === i.symbol);
           const crowd = buzzWait(info?.buzz, a.ret1m, a.rsi);
           return (
@@ -222,6 +222,7 @@ export function Ideas() {
               <div className="mt-2"><InsightLines i={info} /></div>
               {crowd && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{crowd}</p>}
               {soon && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Earnings in {info!.earnings!.inDays} day(s): prices can jump or drop a lot. Better to wait until after.</p>}
+              {risk && settings.cash !== undefined && risk.suggestedQty * i.price > settings.cash && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{risk.suggestedQty} shares cost about {fmtMoney(risk.suggestedQty * i.price)}, but you have {fmtMoney(settings.cash)} cash. {Math.floor(settings.cash / i.price) > 0 ? `You could buy ${Math.floor(settings.cash / i.price)}.` : 'Not enough cash for one share.'}</p>}
               {share !== null && share > 25 && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Buying {risk!.suggestedQty} would make it about {share.toFixed(0)}% of your money. Consider fewer shares.</p>}
               {risk && (
                 <div className="mt-3 grid grid-cols-3 gap-2">

@@ -13,11 +13,11 @@ export function concentrated(values: { sym: string; value: number }[]): { sym: s
     .filter((v) => v.pct > MAX_SINGLE_STOCK_PCT);
 }
 
-/** Share of the portfolio this stock would be after buying `qty` more (cost basis for the others; an estimate). */
-export function shareAfterBuy(sym: string, qty: number, price: number, holdings: { symbol: string; shares: number; avgCost: number }[]): number | null {
+/** Share of the portfolio this stock would be after buying `qty` more (cost basis for the others, plus leftover cash; an estimate). */
+export function shareAfterBuy(sym: string, qty: number, price: number, holdings: { symbol: string; shares: number; avgCost: number }[], cash = 0): number | null {
   if (ETFS.has(sym)) return null;
   const own = holdings.find((h) => h.symbol === sym);
   const mine = ((own?.shares ?? 0) + qty) * price;
-  const others = holdings.filter((h) => h.symbol !== sym).reduce((t, h) => t + h.shares * h.avgCost, 0);
+  const others = holdings.filter((h) => h.symbol !== sym).reduce((t, h) => t + h.shares * h.avgCost, 0) + Math.max(0, cash - qty * price);
   return mine + others > 0 ? (mine / (mine + others)) * 100 : null;
 }
