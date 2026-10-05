@@ -101,7 +101,7 @@ export function Guide() {
                 ['🌎', 'Whether the whole market is rising or falling'],
                 ['🗓', 'Upcoming earnings date'],
                 ['👥', 'What analysts say, P/E, dividend, 52-week range'],
-                ['💬', 'What Reddit is saying: how much talk and whether it is good or bad'],
+                ['💬', 'What Reddit is saying: only how much talk and whether it is good or bad (never the posts themselves)'],
                 ['💼', 'What you own: shares, price paid, gain or loss'],
                 ['🥧', 'How big a share of your money this stock would become'],
                 ['🛡', 'Your stop-loss and your risk limit per trade'],
@@ -256,7 +256,7 @@ export function Guide() {
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li><b>Trending for a bad reason</b> (lots of talk, mostly negative): a BUY becomes <ActionChip action="WAIT" size="sm" /> (on alerts, on your stock tiles and on Ideas), and if you own the stock you get a red heads-up on Today.</li>
               <li><b>Crowd hype</b> (lots of happy talk and the price already jumped): a BUY becomes <ActionChip action="WAIT" size="sm" /> everywhere, because hype often reverses.</li>
-              <li>Reddit never creates a BUY or SELL on its own. It is context, and it is passed to the AI check marked as "untrusted chatter".</li>
+              <li>Reddit never creates a BUY or SELL on its own. It is context. The AI check only gets the numbers and the mood (like "busy, mostly negative"), never the posts themselves, and it is told this is untrusted chatter.</li>
               <li>All of this is free (no AI credit).</li>
             </ul>
             <Warn>Crowds are often wrong, and some posts are written to push a price up or down. Treat Reddit as a warning light, never as a reason to buy.</Warn>

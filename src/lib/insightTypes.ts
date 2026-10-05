@@ -34,10 +34,11 @@ export interface Buzz {
 export const MOOD_LABEL: Record<Mood, string> = { positive: 'mostly positive', negative: 'mostly negative', mixed: 'mixed', unknown: 'mood unknown' };
 
 /** One line for the AI check and the signal details. */
+/** Numbers and a mood label only: no Reddit post text, because this goes to the AI. */
 export function buzzText(b: Buzz): string {
   const talk = b.mentions !== undefined ? `${b.mentions} mentions in 24 h${b.ratio ? ` (${b.ratio}x the day before)` : ''}` : 'rarely mentioned';
   const mood = b.mood === 'unknown' ? '' : `, mood ${MOOD_LABEL[b.mood]} (${b.pos}% positive, ${b.neg}% negative)`;
-  return `Reddit: ${talk}${mood}${b.why ? `; top post: "${b.why}"` : ''}`;
+  return `Reddit: ${talk}${mood}`;
 }
 
 export const MARKET_TEXT: Record<Market['trend'], string> = {
