@@ -1,6 +1,7 @@
 import type { Buzz } from '../../src/lib/insightTypes';
 import { keywordScore, sentimentScore } from '../../src/lib/signals';
 import { cached } from './aiBudget';
+import { googleNews, yahooNews } from './feeds';
 
 const UA = 'web:trading-assistant:1.0 (personal use)';
 const SUBS = 'stocks+wallstreetbets+investing';
@@ -86,14 +87,45 @@ function posts(sym: string): Promise<Buzz['posts']> {
   }).catch(() => []);
 }
 
+/**
+ * Stand-in while there is no Reddit key: when a stock suddenly trends, its news headlines from the
+ * last 2 days usually explain why. Same free word scoring, all headlines count the same. Cached 30 min.
+ */
+function newsItems(sym: string): Promise<Buzz['posts']> {
+  const slot = Math.floor(Date.now() / 1800_000);
+  return cached('buzz-cache', `news-${sym}-${slot}`, 1800_000, async () => {
+    const lists = await Promise.allSettled([yahooNews(sym), googleNews(sym)]);
+    const since = Date.now() - 48 * 3600_000;
+    const seen = new Set<string>();
+    const out: Buzz['posts'] = [];
+    for (const r of lists) {
+      if (r.status !== 'fulfilled') continue;
+      for (const h of r.value) {
+        const at = new Date(h.publishedAt).getTime();
+        const key = h.title.toLowerCase();
+        if (at < since || seen.has(key)) continue;
+        seen.add(key);
+        out.push({ title: h.title.slice(0, 200), sub: h.source, ups: 0, comments: 0, ageH: Math.max(0, Math.round((Date.now() - at) / 3600_000)), url: h.url, tone: tone(h.title) });
+      }
+    }
+    return out.sort((a, b) => a.ageH - b.ageH).slice(0, 20);
+  }).catch(() => []);
+}
+
 export async function getBuzz(symbols: string[]): Promise<Record<string, Buzz>> {
   const ape = await apeWisdom();
   const out: Record<string, Buzz> = {};
   await Promise.all(
     symbols.map(async (sym) => {
       const a = ape[sym];
-      const ps = await posts(sym);
-      // Mood: share of upvote-weighted posts that read positive / negative.
+      let ps = await posts(sym);
+      let moodFrom: Buzz['moodFrom'] = 'reddit';
+      const trending = !!a && a.mentions >= 20 && (a.mentions_24h_ago > 0 ? a.mentions / a.mentions_24h_ago : 0) >= 2;
+      if (ps.length < 3 && trending) {
+        const news = await newsItems(sym);
+        if (news.length >= 3) (ps = news), (moodFrom = 'news');
+      }
+      // Mood: share of posts (upvote-weighted; headlines count the same) that read positive / negative.
       let p = 0, n = 0, z = 0;
       for (const x of ps) {
         const w = Math.log10(10 + x.ups);
@@ -105,7 +137,7 @@ export async function getBuzz(symbols: string[]): Promise<Record<string, Buzz>> 
       const mood: Buzz['mood'] = ps.length < 3 ? 'unknown' : pos - neg >= 20 ? 'positive' : neg - pos >= 20 ? 'negative' : 'mixed';
       const ratio = a && a.mentions_24h_ago > 0 ? Math.round((a.mentions / a.mentions_24h_ago) * 10) / 10 : undefined;
       const wanted = mood === 'positive' ? '+' : mood === 'negative' ? '-' : null;
-      const sorted = [...ps].sort((x, y) => y.ups - x.ups);
+      const sorted = moodFrom === 'news' ? ps : [...ps].sort((x, y) => y.ups - x.ups);
       const why = (wanted ? sorted.find((x) => x.tone === wanted) : undefined) ?? sorted[0];
       if (!a && !ps.length) return;
       out[sym] = {
@@ -113,8 +145,9 @@ export async function getBuzz(symbols: string[]): Promise<Record<string, Buzz>> 
         ratio,
         rank: a?.rank,
         rankBefore: a?.rank_24h_ago,
-        trending: !!a && a.mentions >= 20 && (ratio ?? 0) >= 2,
+        trending,
         mood, pos, neu, neg,
+        moodFrom: mood === 'unknown' ? undefined : moodFrom,
         why: why?.title,
         posts: sorted.slice(0, 3),
       };

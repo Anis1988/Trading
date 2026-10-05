@@ -11,7 +11,7 @@ const MOOD_STYLE = {
 /** Same two free rules the server applies before the AI: why a BUY should become WAIT because of Reddit (null = no reason). */
 export function buzzWait(b: Buzz | undefined, ret1m: number, rsi: number): string | null {
   if (!b?.trending) return null;
-  if (b.mood === 'negative') return 'Reddit is buzzing about it for a bad reason. Wait until the dust settles.';
+  if (b.mood === 'negative') return b.moodFrom === 'news' ? 'Reddit is suddenly buzzing about it and the news behind it is bad. Wait until the dust settles.' : 'Reddit is buzzing about it for a bad reason. Wait until the dust settles.';
   if (b.mood === 'positive' && (ret1m >= 15 || rsi > 70)) return `Crowd hype after a ${ret1m}% jump this month often reverses. Wait for it to calm down.`;
   return null;
 }
@@ -22,14 +22,14 @@ export function BuzzBadge({ b, always = false }: { b?: Buzz; always?: boolean })
   const m = MOOD_STYLE[b.mood];
   const talk = b.trending ? `🔥 Trending${b.ratio ? ` ${b.ratio}×` : ''}` : '💬 Reddit';
   return (
-    <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${m.cls}`} title="Reddit: r/stocks, r/wallstreetbets, r/investing">
-      {talk}{b.mood !== 'unknown' ? ` · ${m.icon} ${MOOD_LABEL[b.mood]}` : ''}
+    <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${m.cls}`} title={b.moodFrom === 'news' ? 'Talk: Reddit. Mood: from the latest news headlines (no Reddit key yet)' : 'Reddit: r/stocks, r/wallstreetbets, r/investing'}>
+      {talk}{b.mood !== 'unknown' ? ` · ${m.icon} ${b.moodFrom === 'news' ? `news ${MOOD_LABEL[b.mood].replace('mostly ', '')}` : MOOD_LABEL[b.mood]}` : ''}
     </span>
   );
 }
 
 export function MoodBar({ b }: { b: Buzz }) {
-  if (b.mood === 'unknown') return <p className="text-xs text-slate-500">Not enough posts to tell the mood.</p>;
+  if (b.mood === 'unknown') return <p className="text-xs text-slate-500">{b.trending ? 'Not enough posts or news to tell the mood.' : 'Mood is checked when talk suddenly jumps.'}</p>;
   return (
     <div>
       <div className="flex h-2.5 overflow-hidden rounded-full bg-white/10" role="img" aria-label={`${b.pos}% positive, ${b.neu}% neutral, ${b.neg}% negative`}>
@@ -73,18 +73,23 @@ export function RedditPanel({ b }: { b?: Buzz }) {
           <p className={`font-semibold ${b.mood === 'positive' ? 'text-emerald-300' : b.mood === 'negative' ? 'text-red-300' : b.mood === 'mixed' ? 'text-amber-200' : 'text-slate-400'}`}>
             {b.mood === 'unknown' ? 'Unknown' : MOOD_LABEL[b.mood].replace(/^./, (c) => c.toUpperCase())}
           </p>
-          <p className="text-[11px] text-slate-500">from post titles</p>
+          <p className="text-[11px] text-slate-500">{b.moodFrom === 'news' ? 'from news headlines' : 'from post titles'}</p>
         </div>
       </div>
       <MoodBar b={b} />
-      {b.why && <p className="text-sm text-slate-200"><span className="label !text-[10px]">Why it's talked about</span><br />{b.why}</p>}
+      {b.moodFrom === 'news' && (
+        <p className="rounded-lg border border-sky-300/30 bg-sky-400/10 px-2 py-1.5 text-xs text-sky-100">
+          How the mood was found: Reddit posts can't be read yet (no Reddit key), so I read this stock's news headlines from the last 2 days. Each headline is scored with simple good and bad words ("surge", "beats" vs "plunge", "probe"). The mood is the share of good vs bad headlines.
+        </p>
+      )}
+      {b.why && <p className="text-sm text-slate-200"><span className="label !text-[10px]">{b.moodFrom === 'news' ? 'Likely reason (from the news)' : "Why it's talked about"}</span><br />{b.why}</p>}
       {b.posts.length > 0 && (
         <ul className="space-y-1.5 text-sm">
           {b.posts.map((p) => (
             <li key={p.url} className="flex gap-2">
               <span aria-hidden="true" className={p.tone === '+' ? 'text-emerald-300' : p.tone === '-' ? 'text-red-300' : 'text-slate-500'}>{p.tone === '+' ? '▲' : p.tone === '-' ? '▼' : '●'}</span>
               <a className="text-slate-300 hover:text-cyan-200 hover:underline" href={p.url} target="_blank" rel="noopener noreferrer">
-                {p.title} <span className="text-xs text-slate-500">· {p.sub} · ⬆ {k(p.ups)} · 💬 {k(p.comments)} · {p.ageH}h</span>
+                {p.title} <span className="text-xs text-slate-500">· {p.sub}{b.moodFrom !== 'news' && <> · ⬆ {k(p.ups)} · 💬 {k(p.comments)}</>} · {p.ageH}h</span>
               </a>
             </li>
           ))}

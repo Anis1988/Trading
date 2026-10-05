@@ -3,6 +3,7 @@ import { ActionChip, Change, Section, Sparkline, Stat, Icon } from '../component
 import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
 import { BuzzBadge, RedditPanel } from '../components/Buzz';
 import type { Buzz } from '../lib/insightTypes';
+import { TermCard } from './Words';
 
 /* ------- made-up example data, only for pictures in this guide ------- */
 const wave = (start: number, drift: number, n = 60) => Array.from({ length: n }, (_, i) => Math.round((start + drift * i + Math.sin(i / 3) * start * 0.02) * 100) / 100);
@@ -13,6 +14,11 @@ const BUZZ_GOOD: Buzz = { mentions: 1284, ratio: 3.1, rank: 2, rankBefore: 9, tr
   { title: 'Is it overvalued at this point? Long-term holders, your plan?', sub: 'r/investing', ups: 940, comments: 388, ageH: 9, url: '#2', tone: '0' },
 ] };
 const BUZZ_BAD: Buzz = { mentions: 2410, ratio: 4.5, rank: 3, rankBefore: 40, trending: true, mood: 'negative', pos: 10, neu: 18, neg: 72, why: 'Deliveries halted after new inspection findings', posts: [] };
+const BUZZ_NEWS: Buzz = { mentions: 2410, ratio: 4.5, rank: 3, rankBefore: 40, trending: true, mood: 'negative', moodFrom: 'news', pos: 0, neu: 25, neg: 75, why: 'Maker halts deliveries after safety probe, shares plunge', posts: [
+  { title: 'Maker halts deliveries after safety probe, shares plunge', sub: 'Yahoo Finance', ups: 0, comments: 0, ageH: 2, url: '#3', tone: '-' },
+  { title: 'Airline customers weigh delays as inspections widen', sub: 'Google News', ups: 0, comments: 0, ageH: 6, url: '#4', tone: '-' },
+  { title: 'What the delivery pause means for the quarter', sub: 'Google News', ups: 0, comments: 0, ageH: 11, url: '#5', tone: '0' },
+] };
 const BUZZ_MIXED: Buzz = { mentions: 830, ratio: 2.2, rank: 6, rankBefore: 11, trending: true, mood: 'mixed', pos: 41, neu: 22, neg: 37, posts: [] };
 
 function Example({ children, caption }: { children: ReactNode; caption?: string }) {
@@ -241,6 +247,13 @@ export function Guide() {
             </ul>
           </Section>
 
+          <Section title="Words tab" subtitle="A plain-English trading dictionary" icon={Icon.words}>
+            <P>Not sure what "bullish", "RSI" or "P/E" means? Open the <b>Words</b> tab. Every word has a one-line meaning, often an example, and a note if this app uses it. Type in the search box to find a word fast.</P>
+            <Example caption="One entry from the Words tab.">
+              <TermCard t={{ word: 'Bull', also: 'bullish', means: 'Someone who thinks prices will go up. "Bullish" = expecting a rise.', example: '"I\'m bullish on Apple" = I think Apple will go up.' }} />
+            </Example>
+          </Section>
+
           <Section title="Reddit buzz" subtitle="What people are saying, and whether it's good or bad" icon={Icon.ideas}>
             <P>The app counts how often each of your stocks is mentioned on r/stocks, r/wallstreetbets and r/investing, compares it with the day before, and reads the top posts of the day to tell if the talk is good or bad.</P>
             <Example caption="A badge only appears when a stock is talked about at least twice as much as usual. The colour tells you if the talk is good (green), bad (red) or mixed (amber).">
@@ -252,6 +265,13 @@ export function Guide() {
             </Example>
             <Example caption="Tap a stock on Today to see the details: how much talk, rank among all stocks, the mood bar, why it's talked about, and the top posts (tap a post to open it on Reddit).">
               <RedditPanel b={BUZZ_GOOD} />
+            </Example>
+            <P><b>No Reddit key yet? Here's how the mood is found for now.</b> Without the key the app can still count mentions, but it can't read the posts. So when a stock suddenly trends, it reads that stock's <b>news headlines from the last 2 days</b> instead, because the news usually explains why people are talking. Each headline is scored with simple good and bad words ("surge", "beats", "record" vs "plunge", "probe", "lawsuit"). If clearly more headlines are bad than good, the mood is bad; if clearly more are good, it is good; otherwise mixed. The badge then says "news" and the details show the headlines instead of posts.</P>
+            <Example caption="Without a Reddit key: the talk numbers come from Reddit, the mood and the likely reason come from the news.">
+              <div className="space-y-2">
+                <BuzzBadge b={BUZZ_NEWS} />
+                <RedditPanel b={BUZZ_NEWS} />
+              </div>
             </Example>
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li><b>Trending for a bad reason</b> (lots of talk, mostly negative): a BUY becomes <ActionChip action="WAIT" size="sm" /> (on alerts, on your stock tiles and on Ideas), and if you own the stock you get a red heads-up on Today.</li>

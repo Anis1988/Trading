@@ -215,7 +215,7 @@ export function Ideas() {
                 {reasons.map((r) => <li key={r} className="flex gap-2"><span aria-hidden="true" className="text-cyan-300">›</span><span>{r}</span></li>)}
                 {info?.buzz && (
                   <li className="flex gap-2"><span aria-hidden="true" className="text-cyan-300">›</span>
-                    <span>Reddit: {info.buzz.trending ? `suddenly ${info.buzz.ratio}× more talk` : 'a normal amount of talk'}{info.buzz.mood !== 'unknown' ? `, ${MOOD_LABEL[info.buzz.mood]}` : ''}{info.buzz.trending && info.buzz.mood === 'negative' ? ' (for a bad reason, careful)' : info.buzz.trending ? ' (hype can reverse)' : ''}.</span>
+                    <span>Reddit: {info.buzz.trending ? `suddenly ${info.buzz.ratio}× more talk` : 'a normal amount of talk'}{info.buzz.mood !== 'unknown' ? `, ${info.buzz.moodFrom === 'news' ? `news behind it ${MOOD_LABEL[info.buzz.mood]}` : MOOD_LABEL[info.buzz.mood]}` : ''}{info.buzz.trending && info.buzz.mood === 'negative' ? ' (for a bad reason, careful)' : info.buzz.trending ? ' (hype can reverse)' : ''}.</span>
                   </li>
                 )}
               </ul>

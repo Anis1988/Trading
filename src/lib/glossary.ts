@@ -1,0 +1,142 @@
+/** Plain-language trading dictionary for the Words tab. `app` = how this app uses the word. */
+export interface Term {
+  word: string;
+  also?: string; // other spellings / related words, also searched
+  means: string;
+  example?: string;
+  app?: string;
+}
+
+export const GROUPS: { name: string; emoji: string; terms: Term[] }[] = [
+  {
+    name: 'The basics',
+    emoji: '📘',
+    terms: [
+      { word: 'Stock', also: 'share, equity', means: 'A tiny piece of a company. If you own a share, you own a small part of that company and its price moves with how people value the company.', example: 'You own 10 shares of Apple.' },
+      { word: 'Ticker', also: 'symbol', means: 'The short code for a stock on the market.', example: 'AAPL is Apple, MSFT is Microsoft, F is Ford.' },
+      { word: 'ETF', also: 'fund, index fund', means: 'A basket of many stocks that you buy as one. Safer than one stock because it is spread out.', example: 'VTI holds almost every US company.', app: 'ETFs are never flagged as "too much in one stock".' },
+      { word: 'Index', means: 'A list of stocks used to measure part of the market.', example: 'The S&P 500 is the 500 biggest US companies.' },
+      { word: 'S&P 500', also: 'SPY', means: 'The 500 biggest US companies together. When people say "the market is up", they usually mean this.', app: 'The app watches SPY to tell if the whole market is going up or down.' },
+      { word: 'Portfolio', means: 'Everything you own together: all your stocks, funds and cash.' },
+      { word: 'Position', also: 'holding', means: 'How much of one stock you own.', example: 'Your AAPL position is 30 shares.' },
+      { word: 'Broker', means: 'The company that buys and sells for you.', example: 'Fidelity is your broker.', app: 'This app never places orders. You do that in Fidelity.' },
+      { word: 'Market cap', means: 'What the whole company is worth: share price × number of shares. Big companies ("large cap") usually move less than small ones.' },
+      { word: 'Dividend', also: 'dividend yield', means: 'Cash some companies pay you just for holding their stock, usually every 3 months. The yield is that cash as a % of the price.', example: 'A $100 stock paying $3 a year has a 3% yield.' },
+      { word: 'Volume', means: 'How many shares changed hands today. High volume means lots of people are buying and selling.' },
+      { word: 'Liquidity', means: 'How easy it is to buy or sell quickly without moving the price. Big stocks are very liquid.' },
+    ],
+  },
+  {
+    name: 'Market mood',
+    emoji: '🐂',
+    terms: [
+      { word: 'Bull', also: 'bullish', means: 'Someone who thinks prices will go up. "Bullish" = expecting a rise. (A bull attacks by pushing its horns up.)', example: '"I\'m bullish on Apple" = I think Apple will go up.' },
+      { word: 'Bear', also: 'bearish', means: 'Someone who thinks prices will go down. "Bearish" = expecting a drop. (A bear attacks by swiping down.)' },
+      { word: 'Bull market', means: 'A long stretch, months or years, when prices mostly go up.' },
+      { word: 'Bear market', means: 'When the market has fallen 20% or more from its top and keeps falling.', app: 'When the market is falling, the app turns BUYs into WAIT.' },
+      { word: 'Correction', means: 'A drop of about 10% from a recent high. Normal and happens often.' },
+      { word: 'Crash', means: 'A very fast, very big drop, often in a few days.' },
+      { word: 'Rally', means: 'A strong rise in prices over a short time.' },
+      { word: 'Volatility', also: 'volatile', means: 'How much a price jumps around. A volatile stock can move 5% in a day; a calm one moves less than 1%.', app: 'The smart stop-loss gives jumpy stocks more room.' },
+      { word: 'Sideways', also: 'choppy, range-bound', means: 'The price goes up and down but ends up about where it started.' },
+      { word: 'Risk-on / risk-off', means: 'Risk-on: people feel brave and buy riskier stocks. Risk-off: people get scared and move to safer things.' },
+    ],
+  },
+  {
+    name: 'Orders (what you click in Fidelity)',
+    emoji: '🛒',
+    terms: [
+      { word: 'Market order', means: 'Buy or sell right now at whatever the current price is. Fast, but the price can be a bit different from what you saw.' },
+      { word: 'Limit order', means: 'Buy or sell only at your price or better. It may never fill if the price doesn\'t get there.', example: 'Buy AAPL, limit $240: you pay $240 or less, or nothing happens.' },
+      { word: 'Stop-loss order', also: 'stop order', means: 'An automatic sell if the price drops to a level you choose, to cap your loss.', example: 'Bought at $100, stop at $92: if it falls to $92, it sells.', app: 'The app suggests a stop price for every BUY.' },
+      { word: 'Bid / Ask', means: 'Bid: the highest price someone will pay right now. Ask: the lowest price someone will sell for. You buy at the ask and sell at the bid.' },
+      { word: 'Spread', means: 'The gap between bid and ask. Small for big stocks, bigger for small ones.' },
+      { word: 'Fill', means: 'When your order actually happens.' },
+      { word: 'Pre-market / after-hours', means: 'Trading before 9:30 am or after 4 pm (New York time). Fewer people trade, so prices can jump more.' },
+    ],
+  },
+  {
+    name: 'Charts & price moves',
+    emoji: '📈',
+    terms: [
+      { word: 'Trend', also: 'uptrend, downtrend', means: 'The general direction of the price over weeks or months. Uptrend: higher highs. Downtrend: lower lows.', app: 'The app scores each stock\'s trend from 0 to 5.' },
+      { word: 'Moving average', also: 'SMA, 20-day, 50-day average', means: 'The average price over the last X days. It smooths out the noise. Price above its average = generally healthy.', app: 'The app compares the 20-day and 50-day averages.' },
+      { word: 'Momentum', means: 'How strongly the price has been moving one way. Stocks with momentum often keep going for a while, until they don\'t.' },
+      { word: 'RSI', also: 'overbought, oversold', means: 'A 0–100 gauge of how fast the price rose or fell lately. Above 70 = "overbought" (rose too fast, may cool off). Below 30 = "oversold" (fell too fast, may bounce).', app: 'RSI above 70 plus Reddit hype turns a BUY into WAIT.' },
+      { word: 'Support / resistance', means: 'Support: a price where a falling stock tends to stop falling. Resistance: a price where a rising stock tends to stall.' },
+      { word: 'Breakout', means: 'When the price pushes above a level it couldn\'t pass before, often with high volume.' },
+      { word: 'Pullback', also: 'dip', means: 'A short drop inside a bigger uptrend.' },
+      { word: 'Buy the dip', means: 'Buying after a drop, hoping it bounces back. Works in strong trends; hurts when the drop keeps going.' },
+      { word: '52-week high / low', means: 'The highest and lowest price in the last year.', app: 'Shown as "% below its 6-month high" and in the company basics.' },
+      { word: 'Gap up / gap down', means: 'When a stock opens much higher or lower than it closed yesterday, usually because of news overnight.' },
+    ],
+  },
+  {
+    name: 'Company numbers',
+    emoji: '🏢',
+    terms: [
+      { word: 'Earnings', also: 'earnings report, quarterly results', means: 'Every 3 months a company reports how much it sold and earned. The price can jump or drop 5–20% that day.', app: 'The app says WAIT on BUYs within 5 days of earnings.' },
+      { word: 'Beat / miss', means: 'Beat: results were better than experts expected (often price goes up). Miss: worse than expected (often down).' },
+      { word: 'Guidance', means: 'What the company says it expects for the next months. Often moves the price more than the results themselves.' },
+      { word: 'Revenue', also: 'sales', means: 'All the money the company took in before costs.' },
+      { word: 'Profit', also: 'net income, margin', means: 'What is left after all costs. Margin = profit as a % of revenue.' },
+      { word: 'EPS', means: 'Earnings per share: the profit divided by the number of shares.' },
+      { word: 'P/E ratio', means: 'Price ÷ yearly earnings per share: how many dollars you pay for $1 of yearly profit. Higher = more expensive, or people expect fast growth.', example: 'P/E 15 is cheap-ish, P/E 60 is expensive.', app: 'Shown in the company basics.' },
+      { word: 'Analyst rating', also: 'buy/hold/sell rating', means: 'What professionals at banks recommend. Useful hint, often late, rarely says "sell".', app: 'Shown as "most analysts say buy".' },
+      { word: 'Price target', means: 'Where an analyst thinks the price will be in about a year. A guess, not a promise.' },
+      { word: 'Upgrade / downgrade', means: 'An analyst changing their rating up or down. Often moves the price that day.' },
+    ],
+  },
+  {
+    name: 'Risk & your money',
+    emoji: '🛡',
+    terms: [
+      { word: 'Diversification', means: 'Spreading money over many stocks and funds so one bad one can\'t hurt you much.' },
+      { word: 'Concentration', means: 'Too much money in one stock.', app: 'The app warns when one stock is over 25% of your money.' },
+      { word: 'Position size', means: 'How many shares you buy. The smarter question is "how much can I lose?" not "how much can I make?".', app: 'The app suggests shares so you only risk your set amount.' },
+      { word: 'Risk per trade', means: 'The most you\'re OK losing on one trade if the stop-loss hits.', app: 'Set in Settings. Default $100.' },
+      { word: 'Drawdown', means: 'How far you are down from your highest point.', example: 'Your account went from $10,000 to $8,500: a 15% drawdown.' },
+      { word: 'Cost basis', also: 'average cost, avg cost', means: 'What you paid per share on average.', app: 'The "paid" number on each stock.' },
+      { word: 'Unrealized / realized gain', also: 'paper gain', means: 'Unrealized: profit on paper while you still hold it. Realized: profit you locked in by selling.' },
+      { word: 'Capital gains tax', also: 'short-term, long-term', means: 'Tax on profit when you sell. Held under 1 year = short-term, taxed like your salary (higher). Over 1 year = long-term, usually lower.' },
+      { word: 'Wash sale', means: 'If you sell at a loss and buy the same stock again within 30 days, you can\'t use that loss on your taxes yet.' },
+      { word: 'Dollar-cost averaging', also: 'DCA', means: 'Investing the same amount on a schedule (say every month) no matter the price. Takes the guessing out.' },
+      { word: 'Long', means: 'Owning a stock, hoping it goes up. Normal buying is "going long".' },
+      { word: 'Short', also: 'short selling', means: 'Betting a stock goes down by borrowing shares and selling them. Losses can be unlimited. Not for beginners.' },
+      { word: 'Margin', means: 'Borrowing money from your broker to buy more. Makes gains and losses bigger. Risky.' },
+      { word: 'Leverage', means: 'Using borrowed money (or special products) so a small move gives a big gain or loss.' },
+      { word: 'Options', also: 'call, put', means: 'Contracts that bet on a price move by a certain date. Call = bet it goes up, put = bet it goes down. Many expire worthless. Risky.' },
+    ],
+  },
+  {
+    name: 'Reddit & internet slang',
+    emoji: '💬',
+    terms: [
+      { word: 'Trending', means: 'Talked about much more than usual.', app: 'The 🔥 badge: at least 2× the talk of the day before.' },
+      { word: 'Sentiment', also: 'mood', means: 'Whether people are mostly positive or negative about a stock.', app: 'Shown as the mood bar.' },
+      { word: 'Hype', means: 'Lots of excited talk that pushes a price up, often beyond what the company is worth. Hype often fades.' },
+      { word: 'FOMO', means: '"Fear of missing out": buying because everyone else is and the price is flying. A classic way to buy at the top.' },
+      { word: 'Meme stock', means: 'A stock pushed up by internet crowds rather than company results. Can soar and crash fast.' },
+      { word: 'Short squeeze', means: 'When a stock many people bet against rises, they rush to buy it back, pushing it even higher.' },
+      { word: 'Pump and dump', means: 'People hype a stock, then sell once others pile in, leaving the newcomers with losses. Illegal, but happens online.' },
+      { word: 'To the moon 🚀', means: 'Slang for "this will go way up". Not evidence.' },
+      { word: 'Diamond hands / paper hands', means: 'Diamond hands: holding no matter what. Paper hands: selling at the first drop.' },
+      { word: 'Bag holder', means: 'Someone stuck with a stock that dropped a lot.' },
+      { word: 'DD', means: '"Due diligence": a post where someone researched a stock. Quality varies a lot.' },
+      { word: 'YOLO', means: 'Putting a lot of money on one risky bet.' },
+    ],
+  },
+  {
+    name: 'Words in this app',
+    emoji: '🧭',
+    terms: [
+      { word: 'BUY / SELL', means: 'The app thinks now is a reasonable time to buy, or to sell some.' },
+      { word: 'HOLD', means: 'Keep what you have. Don\'t add, don\'t sell.' },
+      { word: 'WAIT', means: 'Maybe later. Something says "not now" (earnings soon, market falling, bad crowd talk, or the AI isn\'t sure).' },
+      { word: 'SKIP', means: 'Don\'t do it. The AI checked and said no.' },
+      { word: 'Signal', means: 'An idea to buy or sell, created from news or the price trend.' },
+      { word: 'Confidence', also: 'signal score', means: 'How strong the signal is, from 0 to 100%. Weak ones aren\'t sent to the AI to save credits.' },
+      { word: 'Scoreboard', means: 'Checks later whether past BUY/SELL ideas actually went the right way.' },
+    ],
+  },
+];

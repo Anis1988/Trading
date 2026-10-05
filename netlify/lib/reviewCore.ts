@@ -104,10 +104,11 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
   }
   const buzz = info?.buzz;
   if (signal.side === 'BUY' && buzz?.trending && buzz.mood === 'negative') {
-    return rule(`Reddit is buzzing about it for a bad reason (${buzz.neg}% negative${buzz.why ? `: "${buzz.why}"` : ''}). Wait until the dust settles.`, 'Negative crowd talk');
+    const src = buzz.moodFrom === 'news' ? 'the news behind it is mostly bad' : `${buzz.neg}% of the posts are negative`;
+    return rule(`Reddit is suddenly buzzing about it for a bad reason (${src}${buzz.why ? `: "${buzz.why}"` : ''}). Wait until the dust settles.`, 'Negative crowd talk');
   }
   if (signal.side === 'BUY' && buzz?.trending && buzz.mood === 'positive' && trend && (trend.ret1m >= 15 || trend.rsi > 70)) {
-    return rule(`Everyone on Reddit is suddenly talking about it (${buzz.ratio}x more than yesterday) and the price already jumped ${trend.ret1m}% this month. Crowd hype often reverses; wait for it to calm down.`, 'Crowd hype');
+    return rule(`Everyone on Reddit is suddenly talking about it (${buzz.ratio}x more than yesterday${buzz.moodFrom === 'news' ? ', with good news behind it' : ''}) and the price already jumped ${trend.ret1m}% this month. Crowd hype often reverses; wait for it to calm down.`, 'Crowd hype');
   }
   if (!process.env.ANTHROPIC_API_KEY) throw new ReviewError('ANTHROPIC_API_KEY is not set in Netlify.', 503);
 

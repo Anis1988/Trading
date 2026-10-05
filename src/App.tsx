@@ -7,6 +7,7 @@ import { Ideas } from './pages/Ideas';
 import { History } from './pages/History';
 import { Settings } from './pages/Settings';
 import { Guide } from './pages/Guide';
+import { Words } from './pages/Words';
 
 const TABS = [
   ['Today', Icon.today],
@@ -14,6 +15,7 @@ const TABS = [
   ['History', Icon.history],
   ['Settings', Icon.settings],
   ['Guide', Icon.guide],
+  ['Words', Icon.words],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
@@ -70,7 +72,7 @@ export default function App() {
             <span className="sm:hidden">{settings.stopped ? 'Off' : 'Stop'}</span>
           </button>
         </div>
-        <nav className="grid grid-cols-5 border-t border-white/5 sm:hidden" aria-label="Main">
+        <nav className="grid grid-cols-6 border-t border-white/5 sm:hidden" aria-label="Main">
           {TABS.map(([t, icon]) => (
             <button
               key={t}
@@ -92,6 +94,7 @@ export default function App() {
         {tab === 'History' && <History />}
         {tab === 'Settings' && <Settings />}
         {tab === 'Guide' && <Guide />}
+        {tab === 'Words' && <Words />}
       </main>
     </div>
   );

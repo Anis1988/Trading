@@ -27,17 +27,17 @@ export interface Buzz {
   pos: number; // % of posts (weighted by upvotes) that read positive
   neu: number;
   neg: number;
-  why?: string; // most-upvoted post title in line with the mood
+  moodFrom?: 'reddit' | 'news'; // news = no Reddit key yet, so the mood comes from the stock's latest headlines
+  why?: string; // most-upvoted post title (or newest headline) in line with the mood
   posts: { title: string; sub: string; ups: number; comments: number; ageH: number; url: string; tone: '+' | '-' | '0' }[];
 }
 
 export const MOOD_LABEL: Record<Mood, string> = { positive: 'mostly positive', negative: 'mostly negative', mixed: 'mixed', unknown: 'mood unknown' };
 
-/** One line for the AI check and the signal details. */
-/** Numbers and a mood label only: no Reddit post text, because this goes to the AI. */
+/** One line for the AI check and the signal details. Numbers and a mood label only: no Reddit post text, because this goes to the AI. */
 export function buzzText(b: Buzz): string {
   const talk = b.mentions !== undefined ? `${b.mentions} mentions in 24 h${b.ratio ? ` (${b.ratio}x the day before)` : ''}` : 'rarely mentioned';
-  const mood = b.mood === 'unknown' ? '' : `, mood ${MOOD_LABEL[b.mood]} (${b.pos}% positive, ${b.neg}% negative)`;
+  const mood = b.mood === 'unknown' ? '' : `, ${b.moodFrom === 'news' ? 'news behind it' : 'mood'} ${MOOD_LABEL[b.mood]} (${b.pos}% positive, ${b.neg}% negative)`;
   return `Reddit: ${talk}${mood}`;
 }
 

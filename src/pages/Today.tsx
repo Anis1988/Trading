@@ -77,7 +77,9 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
         return (
           <section key={h.symbol} className="card space-y-1 !border-red-300/40 !bg-red-500/10 text-sm">
             <p className="label !text-red-200">Heads-up · Reddit</p>
-            <p>People are worried about <b className="font-display">{h.symbol}</b>: talk is {b.ratio}× normal and {b.neg}% negative.{b.why ? ` Top post: "${b.why}"` : ''}</p>
+            {b.moodFrom === 'news'
+              ? <p>People on Reddit are suddenly talking about <b className="font-display">{h.symbol}</b> ({b.ratio}× normal), and the news behind it is mostly bad.{b.why ? ` Latest: "${b.why}"` : ''}</p>
+              : <p>People are worried about <b className="font-display">{h.symbol}</b>: talk is {b.ratio}× normal and {b.neg}% negative.{b.why ? ` Top post: "${b.why}"` : ''}</p>}
             <p className="text-xs text-slate-400">Information only. Tap {h.symbol} under My stocks to read more.</p>
           </section>
         );
