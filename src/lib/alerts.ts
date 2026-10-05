@@ -7,6 +7,8 @@ export interface AlertStatus {
   vapidPublicKey: string | null;
   devices: number;
   ai?: { used: number; limit: number; model: string };
+  priceFired?: Record<string, { at: string; price: number }>;
+  backOn?: { symbol: string; rule: string; at: string; price: number; text: string }[];
 }
 
 export const getAlertStatus = () => call<AlertStatus>('/api/alerts');

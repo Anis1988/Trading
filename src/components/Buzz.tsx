@@ -8,14 +8,6 @@ const MOOD_STYLE = {
   unknown: { cls: 'border-white/15 text-slate-300', icon: '●' },
 } as const;
 
-/** Same two free rules the server applies before the AI: why a BUY should become WAIT because of Reddit (null = no reason). */
-export function buzzWait(b: Buzz | undefined, ret1m: number, rsi: number): string | null {
-  if (!b?.trending) return null;
-  if (b.mood === 'negative') return b.moodFrom === 'news' ? 'Reddit is suddenly buzzing about it and the news behind it is bad. Wait until the dust settles.' : 'Reddit is buzzing about it for a bad reason. Wait until the dust settles.';
-  if (b.mood === 'positive' && (ret1m >= 15 || rsi > 70)) return `Crowd hype after a ${ret1m}% jump this month often reverses. Wait for it to calm down.`;
-  return null;
-}
-
 /** "🔥 Trending 3.1× · ▼ mostly negative": shown only when a stock is suddenly talked about much more than usual. */
 export function BuzzBadge({ b, always = false }: { b?: Buzz; always?: boolean }) {
   if (!b || (!b.trending && !always)) return null;

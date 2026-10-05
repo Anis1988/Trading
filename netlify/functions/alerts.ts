@@ -7,6 +7,7 @@ import { runWatch } from '../lib/watchCore';
 import { aiUsage, reviewModel } from '../lib/aiBudget';
 import { redditReady } from '../lib/reddit';
 import { runWeekly } from '../lib/weeklyCore';
+import type { BackOn, PriceHit } from '../lib/extraAlerts';
 import { textEmailParams } from '../../src/lib/emailParams';
 
 export const config = { path: '/api/alerts' };
@@ -35,6 +36,8 @@ export default async (req: Request): Promise<Response> => {
         vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null,
         devices: (await getSubscriptions()).length,
         ai: { ...(await aiUsage()), model: reviewModel() },
+        priceFired: await readServer<Record<string, PriceHit>>('priceFired', {}),
+        backOn: (await readServer<BackOn[]>('backOn', [])).slice(0, 10),
       });
     }
     if (req.method !== 'POST') return json({ error: 'GET or POST only' }, 405);

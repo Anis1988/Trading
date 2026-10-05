@@ -5,9 +5,10 @@ import { ideaToAnalysis, isBuyIdea, reasonsFor, type Idea } from '../lib/picks';
 import { computeRisk, dailyVolPct, stopPctFor } from '../lib/risk';
 import { useInsights } from '../lib/useInsights';
 import { EarningsBadge, InsightLines } from '../components/Insight';
-import { BuzzBadge, buzzWait } from '../components/Buzz';
-import { MOOD_LABEL, weakHealthText } from '../lib/insightTypes';
-import { EARNINGS_SOON_DAYS, shareAfterBuy } from '../lib/concentration';
+import { BuzzBadge } from '../components/Buzz';
+import { buyWait } from '../lib/waitRules';
+import { MOOD_LABEL } from '../lib/insightTypes';
+import { shareAfterBuy } from '../lib/concentration';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
 
 const cache = new Map<string, { at: number; data: ScanResult }>();
@@ -41,7 +42,7 @@ function ScoreBar({ score }: { score: number }) {
 }
 
 export function Ideas() {
-  const { settings, addIdeaSignal, toast, log } = useStore();
+  const { settings, addIdeaSignal, toast, log, logWaits } = useStore();
   const [data, setData] = useState<ScanResult | null>(null);
   const [range, setRange] = useState<[number, number]>(loadRange);
   const [minIn, setMinIn] = useState(range[0] ? String(range[0]) : '');
@@ -87,6 +88,18 @@ export function Ideas() {
   const inPrice = (i: Idea) => i.price >= range[0] && (!range[1] || i.price <= range[1]);
   const buys = (data?.ideas ?? []).filter((i) => inPrice(i) && isBuyIdea(ideaToAnalysis(i), i.score)).slice(0, 9);
   const ins = useInsights(buys.map((i) => i.symbol));
+  // WAITs shown here go to the scoreboard too, so you can see later if waiting was right.
+  const waits = ins
+    ? buys.flatMap((i) => {
+        const a = ideaToAnalysis(i);
+        const w = buyWait({ info: ins.stocks?.[i.symbol], market: ins.market, ret1m: a.ret1m, rsi: a.rsi });
+        return w ? [{ symbol: i.symbol, price: i.price, rule: w.rule }] : [];
+      })
+    : [];
+  const waitKey = waits.map((w) => `${w.symbol}:${w.rule}`).join(',');
+  useEffect(() => {
+    if (waits.length) logWaits(waits);
+  }, [waitKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const rangeLabel = range[0] || range[1] ? `${range[0] ? `$${range[0]}` : '$0'}–${range[1] ? `$${range[1]}` : 'any'}` : 'any price';
 
   const askAi = async () => {
@@ -191,17 +204,15 @@ export function Ideas() {
           const stopPct = stopPctFor(dailyVolPct(i.closes), settings.stopLossPct, settings.smartStop);
           const risk = computeRisk('BUY', i.price, settings.riskPerTrade, stopPct);
           const info = ins?.stocks[i.symbol];
-          const soon = !!info?.earnings && info.earnings.inDays >= 0 && info.earnings.inDays <= EARNINGS_SOON_DAYS;
           const share = risk ? shareAfterBuy(i.symbol, risk.suggestedQty, i.price, settings.holdings, settings.cash) : null;
           const own = settings.holdings.find((h) => h.symbol === i.symbol);
-          const crowd = buzzWait(info?.buzz, a.ret1m, a.rsi);
-          const weak = info?.health?.label === 'weak';
+          const wait = buyWait({ info, market: ins?.market, ret1m: a.ret1m, rsi: a.rsi });
           return (
             <article key={i.symbol} className="card">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="num text-sm text-slate-500">#{rank + 1}</span>
                 <span className="font-display text-2xl font-semibold">{i.symbol}</span>
-                <ActionChip action={crowd || soon || weak || ins?.market?.trend === 'down' ? 'WAIT' : 'BUY'} size="sm" />
+                <ActionChip action={wait ? 'WAIT' : 'BUY'} size="sm" />
                 {own && <span className="rounded-md bg-sky-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-sky-200">You own {own.shares}</span>}
                 <EarningsBadge e={info?.earnings} />
                 <BuzzBadge b={info?.buzz} />
@@ -221,9 +232,7 @@ export function Ideas() {
                 )}
               </ul>
               <div className="mt-2"><InsightLines i={info} /></div>
-              {weak && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{weakHealthText(info!.health!)}</p>}
-              {crowd && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{crowd}</p>}
-              {soon && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Earnings in {info!.earnings!.inDays} day(s): prices can jump or drop a lot. Better to wait until after.</p>}
+              {wait && wait.rule !== 'market' && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{wait.text}</p>}
               {risk && settings.cash !== undefined && risk.suggestedQty * i.price > settings.cash && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{risk.suggestedQty} shares cost about {fmtMoney(risk.suggestedQty * i.price)}, but you have {fmtMoney(settings.cash)} cash. {Math.floor(settings.cash / i.price) > 0 ? `You could buy ${Math.floor(settings.cash / i.price)}.` : 'Not enough cash for one share.'}</p>}
               {share !== null && share > 25 && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Buying {risk!.suggestedQty} would make it about {share.toFixed(0)}% of your money. Consider fewer shares.</p>}
               {risk && (

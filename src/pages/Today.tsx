@@ -8,6 +8,7 @@ import { useInsights } from '../lib/useInsights';
 import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
 import { concentrated } from '../lib/concentration';
 import { BuzzBadge, BuzzRail, RedditPanel } from '../components/Buzz';
+import { PriceAlerts } from '../components/PriceAlerts';
 import { buyWait } from '../lib/waitRules';
 import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken } from '../lib/api';
@@ -18,7 +19,7 @@ const ago = (iso: string) => {
 };
 
 export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
-  const { settings, signals, headlines, resume, watchlist } = useStore();
+  const { settings, signals, headlines, resume, watchlist, logWaits } = useStore();
   const [status, setStatus] = useState<AlertStatus | null>(null);
   useEffect(() => {
     if (getAccessToken()) getAlertStatus().then(setStatus).catch(() => undefined);
@@ -51,6 +52,18 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   const allMoney = tot.value + cash;
   // Stocks you own that suddenly get a lot of negative talk on Reddit: a heads-up, not a SELL.
   const worried = held.filter((h) => { const b = ins?.stocks[h.symbol]?.buzz; return b?.trending && b.mood === 'negative'; });
+  // Today's WAIT tiles go to the scoreboard (once per stock, day and reason) to check later if waiting was right.
+  const waits = ins
+    ? held.flatMap((h) => {
+        const a = rows.find((r) => r.symbol === h.symbol);
+        const w = a?.action === 'BUY' ? buyWait({ info: ins.stocks?.[h.symbol], market: ins.market, ret1m: a.ret1m, rsi: a.rsi }) : null;
+        return a && w ? [{ symbol: h.symbol, price: a.price, rule: w.rule }] : [];
+      })
+    : [];
+  const waitKey = waits.map((w) => `${w.symbol}:${w.rule}`).join(',');
+  useEffect(() => {
+    if (waits.length) logWaits(waits);
+  }, [waitKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const mine = new Set([...held.map((h) => h.symbol), ...watchlist]);
   const news = headlines.filter((x) => x.symbol && mine.has(x.symbol)).slice(0, 10);
 
@@ -77,6 +90,12 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_320px] xl:items-start">
       {/* left rail: money */}
       <aside className="space-y-4 xl:sticky xl:top-20">
+      {(status?.backOn ?? []).filter((b) => Date.now() - Date.parse(b.at) < 3 * 86400_000).map((b) => (
+        <section key={b.symbol + b.at} className="card space-y-1 !border-emerald-300/40 !bg-emerald-500/10 text-sm">
+          <p className="label !text-emerald-200">Back on BUY · {new Date(b.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+          <p><b className="font-display">{b.symbol}</b>: {b.text}</p>
+        </section>
+      ))}
       {worried.map((h) => {
         const b = ins!.stocks[h.symbol]!.buzz!;
         return (
@@ -189,7 +208,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                       </span>
                     </div>
                     {taxWait && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Tax tip: in {tax!.daysToLong} days this becomes a long-term gain, usually taxed less. If it isn't falling fast, waiting may save you money.</p>}
-                    <p className="mt-2 text-sm text-slate-300">{crowd ? `The trend looks good, but not now. ${crowd}` : a.idea}</p>
+                    <p className="mt-2 text-sm text-slate-300">{crowd ? `The trend looks good, but not now. ${crowd.text}` : a.idea}</p>
                   </button>
                   {open && (
                     <div className="space-y-3 border-t border-white/10 px-4 pb-4 pt-3">
@@ -235,6 +254,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
             )}
           </section>
         )}
+        <PriceAlerts status={status} />
         {ins && <BuzzRail items={held.map((h) => ({ sym: h.symbol, b: ins.stocks[h.symbol]?.buzz }))} />}
         <section className="card space-y-2">
           <p className="label">News on your stocks</p>

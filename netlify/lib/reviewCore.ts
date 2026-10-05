@@ -5,6 +5,7 @@ import { yahooHistory, yahooQuote, type Quote } from './feeds';
 import { analyze } from '../../src/lib/trend';
 import { computeRisk, dailyVolPct, stopPctFor } from '../../src/lib/risk';
 import { shareAfterBuy } from '../../src/lib/concentration';
+import type { WaitRule } from '../../src/lib/waitRules';
 import { assessHolding, type Holding } from '../../src/lib/holdings';
 import type { Side } from '../../src/types';
 import { EARNINGS_WAIT_DAYS, getInsights, getMarket } from './insights';
@@ -58,6 +59,7 @@ export interface ReviewResult {
   earnings?: string;
   analysts?: string;
   reddit?: string;
+  rule?: string;
   health?: string;
   insiders?: string;
 }
@@ -100,25 +102,25 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
     health: info?.health ? healthText(info.health) : undefined,
     insiders: info?.insiders ? insiderText(info.insiders) : undefined,
   };
-  const rule = (rationale: string, risk: string): ReviewResult => ({
-    verdict: 'CAUTION', confidence: 0.9, rationale, risks: [risk], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: 'rule-check', ...extra,
+  const rule = (rationale: string, risk: string, key: WaitRule): ReviewResult => ({
+    verdict: 'CAUTION', confidence: 0.9, rationale, risks: [risk], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: 'rule-check', rule: key, ...extra,
   });
   if (signal.side === 'BUY' && info?.earnings && info.earnings.inDays >= 0 && info.earnings.inDays <= EARNINGS_WAIT_DAYS) {
-    return rule(`${earningsText(info.earnings)}. Prices often jump or drop a lot on earnings day, so wait until after.`, 'Earnings coming up');
+    return rule(`${earningsText(info.earnings)}. Prices often jump or drop a lot on earnings day, so wait until after.`, 'Earnings coming up', 'earnings');
   }
   if (signal.side === 'BUY' && market?.trend === 'down') {
-    return rule('The whole market is falling right now. Most buys fail in a falling market, so wait for it to turn.', 'Falling market');
+    return rule('The whole market is falling right now. Most buys fail in a falling market, so wait for it to turn.', 'Falling market', 'market');
   }
   const buzz = info?.buzz;
   if (signal.side === 'BUY' && buzz?.trending && buzz.mood === 'negative') {
     const src = buzz.moodFrom === 'news' ? 'the news behind it is mostly bad' : `${buzz.neg}% of the posts are negative`;
-    return rule(`Reddit is suddenly buzzing about it for a bad reason (${src}${buzz.why ? `: "${buzz.why}"` : ''}). Wait until the dust settles.`, 'Negative crowd talk');
+    return rule(`Reddit is suddenly buzzing about it for a bad reason (${src}${buzz.why ? `: "${buzz.why}"` : ''}). Wait until the dust settles.`, 'Negative crowd talk', 'reddit-bad');
   }
   if (signal.side === 'BUY' && buzz?.trending && buzz.mood === 'positive' && trend && (trend.ret1m >= 15 || trend.rsi > 70)) {
-    return rule(`Everyone on Reddit is suddenly talking about it (${buzz.ratio}x more than yesterday${buzz.moodFrom === 'news' ? ', with good news behind it' : ''}) and the price already jumped ${trend.ret1m}% this month. Crowd hype often reverses; wait for it to calm down.`, 'Crowd hype');
+    return rule(`Everyone on Reddit is suddenly talking about it (${buzz.ratio}x more than yesterday${buzz.moodFrom === 'news' ? ', with good news behind it' : ''}) and the price already jumped ${trend.ret1m}% this month. Crowd hype often reverses; wait for it to calm down.`, 'Crowd hype', 'reddit-hype');
   }
   if (signal.side === 'BUY' && info?.health?.label === 'weak') {
-    return rule(weakHealthText(info.health), 'Weak company finances');
+    return rule(weakHealthText(info.health), 'Weak company finances', 'weak');
   }
   if (!process.env.ANTHROPIC_API_KEY) throw new ReviewError('ANTHROPIC_API_KEY is not set in Netlify.', 503);
 

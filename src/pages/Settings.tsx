@@ -143,7 +143,7 @@ export function Settings() {
     <div className="mx-auto max-w-[1400px] space-y-3">
       <h2 className="text-2xl font-semibold">Settings</h2>
 
-      <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:items-start">
         <div className="space-y-3">
       {/* ---------------- holdings ---------------- */}
       <Section title="My holdings" subtitle={`${s.holdings.length} stock${s.holdings.length === 1 ? '' : 's'} · what you own in Fidelity`} icon={Icon.wallet} defaultOpen>

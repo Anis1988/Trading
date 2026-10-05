@@ -58,6 +58,8 @@ interface Store {
   toasts: Toast[];
   dismissToast: (id: string) => void;
   reviewSignal: (s: Signal) => Promise<Review | null>;
+  /** Remember today's WAITs (stock tiles, Ideas) so the scoreboard can check later whether waiting was right. */
+  logWaits: (items: { symbol: string; price: number; rule: string }[]) => void;
   setSignalQty: (id: string, qty: number) => void;
   addIdeaSignal: (symbol: string, price: number, reason: string, confidence: number, news?: { title: string; url: string }) => void;
 }
@@ -260,7 +262,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const risk = computeRisk(sig.side, r.price, st.riskPerTrade, stopPctFor(r.volPct, st.stopLossPct, st.smartStop));
       patchSignal(sig.id, { review: r, reviewStatus: undefined, qty, entryPrice: r.price, stopPrice: risk?.stop, suggestedQty: risk?.suggestedQty });
       if (r.price) {
-        const entry: ScoreEntry = { id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: r.price, verdict: r.verdict, origin: 'app' };
+        const entry: ScoreEntry = { id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: r.price, verdict: r.verdict, why: r.verdict === 'APPROVE' ? undefined : r.rule ?? 'ai', origin: 'app' };
         setScoreLog((l) => mergeScoreLog([{ ...entry }], l));
       }
       log(r.verdict === 'REJECT' ? 'warn' : 'info', `AI review ${sig.symbol}: ${r.verdict} - ${r.rationale}`);
@@ -564,11 +566,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [stopped, intervalSec, tick, log]);
 
+  const logWaits = useCallback((items: { symbol: string; price: number; rule: string }[]) => {
+    const day = new Date().toISOString().slice(0, 10);
+    const have = new Set(ref.current.scoreLog.map((e) => e.id));
+    const add: ScoreEntry[] = items
+      .filter((x) => x.price > 0)
+      .map((x) => ({ id: `wait-${x.symbol}-${day}-${x.rule}`, symbol: x.symbol, side: 'BUY' as const, createdAt: new Date().toISOString(), entryPrice: x.price, verdict: 'CAUTION' as const, why: x.rule, origin: 'app' as const }))
+      .filter((e) => !have.has(e.id));
+    if (add.length) setScoreLog((l) => mergeScoreLog(add, l));
+  }, []);
+
   const value: Store = {
     settings, update, watchlist, setWatchlist, signals, history, scoreLog, setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, setAutoEmail, setUseMcp, panic, resume,
-    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s), setSignalQty: (id, qty) => patchSignal(id, { qty }), addIdeaSignal,
+    emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s), setSignalQty: (id, qty) => patchSignal(id, { qty }), addIdeaSignal, logWaits,
   };
   return (
     <Ctx.Provider value={value}>

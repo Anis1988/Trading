@@ -4,6 +4,8 @@ import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
 import { BuzzBadge, RedditPanel } from '../components/Buzz';
 import type { Buzz } from '../lib/insightTypes';
 import { TermCard } from './Words';
+import { PriceAlertRow } from '../components/PriceAlerts';
+import { WaitBlock } from '../components/Scoreboard';
 import { taxText } from '../lib/holdings';
 import { fmtMoney } from '../components/ui';
 
@@ -62,7 +64,7 @@ export function Guide() {
         <p className="text-sm text-slate-400">Everything in this app, in plain words. Tap a topic to open it. The examples use made-up numbers.</p>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:items-start">
         <div className="space-y-3">
           <Section title="How the app works" subtitle="From news to your Fidelity order" icon={Icon.guide} defaultOpen>
             <Steps
@@ -217,6 +219,14 @@ export function Guide() {
             <P><b>Pending</b> = not done yet. <b>Executed</b> = you placed it in Fidelity. <b>Cancelled</b> = you decided not to.</P>
             <P><b>Scoreboard</b> checks old calls: was the price higher (for a BUY) or lower (for a SELL) five trading days later? It shows the percentage that were right, split by what the AI said.</P>
             <Tip>Do not trust the scoreboard until it has 20 or more calls. If "AI said skip" does as well as "AI said go", the AI is not helping.</Tip>
+            <P><b>Were the WAITs worth it?</b> Every WAIT is remembered with its reason: from alerts, your stock tiles and Ideas (once per stock, per day). Five trading days later the app checks: if the price was <b>not higher</b>, waiting was right (it cost you nothing). It also shows what you would have made on average by buying anyway.</P>
+            <Example caption="Example after a few weeks. Green = that rule usually saved you money. Red = it held you back more than it helped, so it may be worth turning off.">
+              <WaitBlock rows={[
+                { why: 'earnings', scored: 12, right: 8, ifBought: -1.4, waiting: 2 },
+                { why: 'market', scored: 9, right: 6, ifBought: -2.1, waiting: 0 },
+                { why: 'reddit-bad', scored: 5, right: 2, ifBought: 1.8, waiting: 1 },
+              ]} />
+            </Example>
           </Section>
         </div>
 
@@ -348,6 +358,35 @@ export function Guide() {
             <Example>
               <p className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-sm text-amber-100">This would make AAPL about 41% of your money. Consider fewer shares.</p>
             </Example>
+          </Section>
+
+          <Section title="Back on BUY" subtitle="Told when a WAIT turns into a BUY" icon={Icon.bell}>
+            <P>A WAIT doesn't just sit there. For 14 days the background check looks again every hour at any stock that got a WAIT because of a free rule (earnings, falling market, Reddit, weak finances). When the reason is gone <b>and</b> the price trend still looks good, you get one email and/or phone notification.</P>
+            <Example caption="It also shows at the top of Today for 3 days.">
+              <section className="card space-y-1 !border-emerald-300/40 !bg-emerald-500/10 text-sm">
+                <p className="label !text-emerald-200">Back on BUY · Oct 6</p>
+                <p><b className="font-display">AAPL</b>: Earnings are done. The trend still looks good, so BUY is back on at about $231.40. Open the app to check it.</p>
+              </section>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li>Free: no AI credit. Tap <b>AI check</b> in the app if you want a second opinion before buying.</li>
+              <li>Needs <b>Background alerts</b> and sync on (Settings). WAITs on your stock tiles and Ideas are remembered when you open those screens.</li>
+              <li>WAITs the AI decided on its own are not followed, because there is no clear "reason gone" moment.</li>
+            </ul>
+          </Section>
+
+          <Section title="Price alerts" subtitle="Tell me if a stock hits my price" icon={Icon.bell}>
+            <P>On Today, add a price alert: a symbol, "drops to" or "rises to", and a price. The background check looks every 15 minutes during market hours, even with the app closed, and tells you once.</P>
+            <Example caption="One waiting, one already hit.">
+              <ul className="space-y-2">
+                <PriceAlertRow a={{ id: 'g1', symbol: 'NVDA', op: 'below', price: 160, createdAt: '' }} price={172.4} />
+                <PriceAlertRow a={{ id: 'g2', symbol: 'MSFT', op: 'above', price: 500, createdAt: '' }} hit={{ at: '2026-10-03T15:00:00Z', price: 501.2 }} />
+              </ul>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li>It's only a price alert, not advice. When it fires, open the app to see what it says about that stock.</li>
+              <li>Up to 20 alerts. Remove one with ✕. Needs <b>Background alerts</b> on.</li>
+            </ul>
           </Section>
 
           <Section title="Alerts, emails & notifications" subtitle="How the app reaches you" icon={Icon.bell}>

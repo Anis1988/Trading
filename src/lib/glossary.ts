@@ -139,6 +139,8 @@ export const GROUPS: { name: string; emoji: string; terms: Term[] }[] = [
       { word: 'SKIP', means: 'Don\'t do it. The AI checked and said no.' },
       { word: 'Signal', means: 'An idea to buy or sell, created from news or the price trend.' },
       { word: 'Confidence', also: 'signal score', means: 'How strong the signal is, from 0 to 100%. Weak ones aren\'t sent to the AI to save credits.' },
+      { word: 'Back on BUY', means: 'A message when a stock that got a WAIT is fine to buy again: the reason is gone and the trend still looks good.' },
+      { word: 'Price alert', means: 'A message when a stock reaches a price you chose, like "tell me if NVDA drops to $160". Not advice, just a heads-up.' },
       { word: 'Scoreboard', means: 'Checks later whether past BUY/SELL ideas actually went the right way.' },
     ],
   },

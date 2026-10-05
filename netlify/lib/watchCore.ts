@@ -10,6 +10,8 @@ import { TREND_CHECK_EVERY_MS, trendSellSignals } from '../../src/lib/trendSigna
 import { reviewTrade } from './reviewCore';
 import { sendServerEmail, serverEmailReady } from './mailer';
 import { pushAll } from './push';
+import { BACK_ON_EVERY_MS, checkBackOn, checkPriceAlerts } from './extraAlerts';
+import { textEmailParams } from '../../src/lib/emailParams';
 import { appendServerLog, readServer, readState, writeServer, writeState, type ServerLogEntry } from './state';
 
 const MAX_AGE_MS = 24 * 3600_000;
@@ -42,6 +44,35 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
     if (!state) return { ran: false, reason: 'No synced data yet. Turn on sync in the app.' };
     if (!s.serverAlerts) return { ran: false, reason: 'Background alerts are off.' };
     if (!opts.force && !inActiveHours()) return { ran: false, reason: 'Outside market hours.' };
+
+    // Price alerts and "BUY is back on" first: they don't depend on news and cost no AI.
+    const today = new Date().toISOString().slice(0, 10);
+    const counter = await readServer<{ day: string; n: number }>('emails', { day: today, n: 0 });
+    if (counter.day !== today) Object.assign(counter, { day: today, n: 0 });
+    const notify = async (title: string, body: string): Promise<boolean> => {
+      let ok = false;
+      if (s.toEmail && serverEmailReady() && counter.n < MAX_EMAILS_PER_DAY) {
+        try {
+          await sendServerEmail(textEmailParams(title.replace(/^\S+\s/, ''), body, s.toEmail));
+          counter.n++;
+          ok = true;
+        } catch (e) {
+          say('error', `Email failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      if (await pushAll({ title, body, tag: title }).catch(() => 0)) ok = true;
+      return ok;
+    };
+    try {
+      if (s.priceAlerts?.length) await checkPriceAlerts(s.priceAlerts, notify, say);
+      if (Date.now() - (await readServer<number>('backOnAt', 0)) > BACK_ON_EVERY_MS) {
+        await writeServer('backOnAt', Date.now());
+        await checkBackOn(s, state.data.scoreLog ?? [], notify, say);
+      }
+    } catch (e) {
+      say('error', `Price / back-on check failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    await writeServer('emails', counter);
 
     const holdings = s.holdings ?? [];
     const symbols = [...new Set([...holdings.map((h) => h.symbol), ...(state.data.watchlist ?? [])])].slice(0, 15);
@@ -89,9 +120,6 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
     }
 
     // 3. review + alert
-    const today = new Date().toISOString().slice(0, 10);
-    const counter = await readServer<{ day: string; n: number }>('emails', { day: today, n: 0 });
-    if (counter.day !== today) Object.assign(counter, { day: today, n: 0 });
     const newHistory: HistoryItem[] = [];
     const newScores: ScoreEntry[] = [];
     let emailed = 0;
@@ -113,7 +141,7 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
         if (rv.status === 'rejected') throw rv.reason;
         const r = rv.value;
         const price = r.quote?.price;
-        if (price) newScores.push({ id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: price, verdict: r.verdict, origin: 'server' });
+        if (price) newScores.push({ id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: price, verdict: r.verdict, why: r.verdict === 'APPROVE' ? undefined : r.rule ?? 'ai', origin: 'server' });
         say('info', `${sig.side} ${sig.symbol}: AI ${r.verdict}. ${r.rationale}`);
         if (r.verdict !== 'APPROVE' || sig.confidence < (s.autoEmailMinConfidence ?? 0.85)) continue;
 

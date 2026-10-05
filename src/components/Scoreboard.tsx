@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../store';
 import { fetchTrendSeries } from '../lib/api';
-import { HORIZON_TRADING_DAYS, scoreSignals, entriesToSignals, type Score } from '../lib/scoreboard';
+import { HORIZON_TRADING_DAYS, scoreSignals, scoreWaits, entriesToSignals, type Score, type WaitScore } from '../lib/scoreboard';
+import { RULE_LABEL } from '../lib/waitRules';
 import { ActionChip, Change } from './ui';
 
 function Block({ title, sc }: { title: string; sc: Score }) {
@@ -20,14 +21,54 @@ function Block({ title, sc }: { title: string; sc: Score }) {
   );
 }
 
+/** Was each kind of WAIT worth it? Waiting was right if the price did not go up in the next 5 trading days. */
+export function WaitBlock({ rows }: { rows: WaitScore[] }) {
+  if (!rows.length) return null;
+  const total = rows.reduce((t, r) => ({ scored: t.scored + r.scored, waiting: t.waiting + r.waiting }), { scored: 0, waiting: 0 });
+  return (
+    <div className="panel space-y-2">
+      <p className="label">Were the WAITs worth it?</p>
+      <ul className="space-y-2">
+        {rows.map((r) => {
+          const pct = r.scored ? (r.right / r.scored) * 100 : null;
+          return (
+            <li key={r.why} className="text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                <span className="text-slate-200">{RULE_LABEL[r.why as keyof typeof RULE_LABEL] ?? r.why}</span>
+                {pct !== null ? (
+                  <span className={`num text-xs ${pct >= 50 ? 'text-emerald-300' : 'text-red-300'}`}>right {r.right} of {r.scored}</span>
+                ) : (
+                  <span className="text-xs text-slate-500">{r.waiting} too recent</span>
+                )}
+              </div>
+              {pct !== null && (
+                <>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10"><div className={`h-full rounded-full ${pct >= 50 ? 'bg-emerald-400' : 'bg-red-400'}`} style={{ width: `${pct}%` }} /></div>
+                  <p className="mt-0.5 text-xs text-slate-400">If you had bought anyway: <Change pct={r.ifBought} /> on average{r.waiting ? ` · ${r.waiting} more too recent` : ''}</p>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-xs text-slate-500">
+        A WAIT was right if the price was not higher {HORIZON_TRADING_DAYS} trading days later (waiting cost you nothing). Mostly red after 10+ checks means that rule holds you back more than it helps.
+        {total.scored < 10 ? ' Not enough yet to judge: give it a few weeks.' : ''}
+      </p>
+    </div>
+  );
+}
+
 /** Did past calls work? Price when the call was made vs the close five trading days later. Synced across devices. */
 export function Scoreboard() {
   const { scoreLog } = useStore();
   const [open, setOpen] = useState(false);
   const [series, setSeries] = useState<Record<string, { dates: string[]; closes: number[] }>>({});
   const [err, setErr] = useState('');
-  const candidates = useMemo(() => entriesToSignals(scoreLog), [scoreLog]);
-  const symbols = useMemo(() => [...new Set(candidates.map((s) => s.symbol))].slice(0, 30), [candidates]);
+  // Alerts only (the WAITs logged from stock tiles and Ideas are scored separately below).
+  const candidates = useMemo(() => entriesToSignals(scoreLog.filter((e) => !e.id.startsWith('wait-'))), [scoreLog]);
+  const symbols = useMemo(() => [...new Set(scoreLog.slice(0, 300).map((e) => e.symbol))].slice(0, 40), [scoreLog]);
+  const waits = useMemo(() => scoreWaits(scoreLog, series), [scoreLog, series]);
 
   useEffect(() => {
     if (!open || !symbols.length) return;
@@ -61,6 +102,7 @@ export function Scoreboard() {
             {all.scored.length < 20 ? ` Only ${all.scored.length} scored so far: wait for 20+ before trusting it.` : ''}
             {all.waiting > 0 ? ` ${all.waiting} are too recent to score.` : ''} If "AI said skip" does as well as "AI said go", the AI is not helping.
           </p>
+          <WaitBlock rows={waits} />
           {all.scored.length > 0 && (
             <ul className="divide-y divide-white/5">
               {all.scored.slice(0, 12).map((x) => (

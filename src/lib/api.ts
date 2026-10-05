@@ -78,6 +78,7 @@ export async function fetchReview(sig: Signal, headlines: Headline[], holdings: 
     earnings: r.earnings,
     analysts: r.analysts,
     reddit: r.reddit,
+    rule: r.rule,
     health: r.health,
     insiders: r.insiders,
   };

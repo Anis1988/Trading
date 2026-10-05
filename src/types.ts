@@ -30,6 +30,7 @@ export interface Review {
   earnings?: string;
   analysts?: string;
   reddit?: string;
+  rule?: string; // set when a free rule decided, not the AI
   health?: string;
   insiders?: string;
 }
@@ -90,6 +91,7 @@ export interface ScoreEntry {
   createdAt: string;
   entryPrice: number;
   verdict?: Verdict;
+  why?: string; // for WAIT/SKIP: which free rule (WaitRule) or 'ai'
   origin: 'app' | 'server';
 }
 
@@ -98,6 +100,15 @@ export interface LogEntry {
   ts: string;
   level: 'info' | 'warn' | 'error';
   msg: string;
+}
+
+/** "Tell me if NVDA drops to $160": checked by the background check every 15 minutes. */
+export interface PriceAlert {
+  id: string;
+  symbol: string;
+  op: 'below' | 'above';
+  price: number;
+  createdAt: string;
 }
 
 export interface Settings {
@@ -124,6 +135,7 @@ export interface Settings {
   aiMinConfidence: number; // only signals scoring at least this get an automatic AI check
   serverAlerts: boolean; // background check on Netlify every 15 min, even with the app closed
   weeklySummary: boolean; // Friday evening summary email // auto-email only at or above this signal confidence
+  priceAlerts?: PriceAlert[];
   cash?: number; // cash in the account, ready to invest (optional)
   horizon?: 'short' | 'medium' | 'long'; // how long the user plans to keep the money invested
   passphraseHash: string;
