@@ -93,7 +93,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
         <section className="card space-y-1 !border-amber-300/40 !bg-amber-400/10 text-sm">
           <p className="label !text-amber-200">Too much in one stock</p>
           {heavy.map((h) => (
-            <p key={h.sym}><b className="font-display">{h.sym}</b> is <span className="num">{h.pct.toFixed(0)}%</span> of your money. Avoid adding more; a single bad day there hurts a lot.</p>
+            <p key={h.sym}><b className="font-display">{h.sym}</b> is <span className="num">{h.pct.toFixed(0)}%</span> of your money. Just so you know: a bad day there hurts more.</p>
           ))}
         </section>
       )}
@@ -171,7 +171,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
               const gainPct = h.avgCost > 0 ? ((a.price - h.avgCost) / h.avgCost) * 100 : 0;
               const tax = taxInfo(h);
               const taxWait = a.action === 'SELL' && tax && !tax.longTerm && tax.daysToLong <= 60 && a.price > h.avgCost;
-              const crowd = a.action === 'BUY' ? buyWait({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m, rsi: a.rsi, sharePct: heavy.find((x) => x.sym === h.symbol)?.pct }) : null;
+              const crowd = a.action === 'BUY' ? buyWait({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m, rsi: a.rsi }) : null;
               return (
                 <div key={h.symbol} className="card !p-0">
                   <button className="w-full p-4 text-left" aria-expanded={open} onClick={() => setOpenSym(open ? null : h.symbol)}>

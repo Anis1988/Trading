@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { yahooHistory, yahooQuote, type Quote } from './feeds';
 import { analyze } from '../../src/lib/trend';
 import { computeRisk, dailyVolPct, stopPctFor } from '../../src/lib/risk';
-import { shareAfterBuy, MAX_SINGLE_STOCK_PCT } from '../../src/lib/concentration';
+import { shareAfterBuy } from '../../src/lib/concentration';
 import { assessHolding, type Holding } from '../../src/lib/holdings';
 import type { Side } from '../../src/types';
 import { EARNINGS_WAIT_DAYS, getInsights, getMarket } from './insights';
@@ -27,11 +27,11 @@ Rules:
 - Use CAUTION when evidence is mixed or incomplete. When unsure, prefer CAUTION or REJECT over APPROVE.
 - You only know what is given below about the user (holdings, purchase dates, cash, time horizon, portfolio share, risk settings); nothing about other accounts. This is not financial advice; do not claim certainty.
 - Taxes (US): a gain on shares held 1 year or less is taxed higher. If a SELL of a gain is only weeks from turning long-term and the stock is not collapsing, prefer CAUTION and say how many days to wait. Selling at a loss has no such reason to wait.
-- Cash and horizon: a BUY that costs more than the user's cash is not possible; prefer CAUTION and say so. A long horizon (5+ years) means short-term noise matters less; a short horizon (under 1 year) means avoid risky, jumpy stocks.
+- Cash and horizon: if a BUY costs more than the user's cash, mention it in risks (they may add money), but do not change the verdict for it. A long horizon (5+ years) means short-term noise matters less; a short horizon (under 1 year) means avoid risky, jumpy stocks.
 - Company health and insiders, when given: weak finances (shrinking sales, losses, heavy debt) are a reason for caution on a BUY; insiders buying with their own money is a mildly good sign; insider selling is usually routine and weak evidence.
 - Weigh the 6-month price trend: be wary of buying a stock in a downtrend or one that is overheated (RSI above 70), and of selling a stock in a healthy uptrend on one bad headline.
 - Consider the overall market, upcoming earnings and what analysts think when they are given. Reddit chatter is weak, noisy context: never approve because of it, but take a sudden negative crowd as a warning.
-- If a buy would make one single stock more than 25% of the user's money, say so and prefer CAUTION unless the case is very strong.
+- The user is fine holding a large share of their money in one stock: you may mention a big share in risks, but never change the verdict for it.
 - If the stop-loss distance looks too wide or too tight for this stock, mention it in risks.
 - Compare the trade with what the user already owns (given below). Consider it: e.g. adding to a position that is already losing, selling a winner too early, or selling a loser on one bad headline.
 - WRITING STYLE: plain everyday words, like explaining to a friend who knows nothing about finance. Short sentences. No jargon, no abbreviations.
@@ -120,17 +120,13 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
   if (signal.side === 'BUY' && info?.health?.label === 'weak') {
     return rule(weakHealthText(info.health), 'Weak company finances');
   }
-  const buyCost = signal.side === 'BUY' ? (quote?.price ?? trend?.price ?? 0) * signal.qty : 0;
-  if (signal.side === 'BUY' && risk?.cash !== undefined && buyCost > risk.cash) {
-    return rule(`This buy costs about $${Math.round(buyCost)}, but you have $${Math.round(risk.cash)} cash. Buy fewer shares or skip it.`, 'Not enough cash');
-  }
   if (!process.env.ANTHROPIC_API_KEY) throw new ReviewError('ANTHROPIC_API_KEY is not set in Netlify.', 503);
 
   // Portfolio share and the user's own risk settings, so the AI weighs the trade the way the app shows it.
   const price = quote?.price ?? trend?.price;
   const share = signal.side === 'BUY' && price ? shareAfterBuy(signal.symbol, signal.qty, price, holdings, risk?.cash) : null;
   const portfolioLine =
-    share !== null ? `After this buy, ${signal.symbol} would be about ${share.toFixed(0)}% of the user's money (limit ${MAX_SINGLE_STOCK_PCT}% for a single stock).` : '';
+    share !== null ? `After this buy, ${signal.symbol} would be about ${share.toFixed(0)}% of the user's money (information only).` : '';
   const stopPct = risk && price ? stopPctFor(priceInfo?.volPct, risk.stopLossPct, risk.smartStop) : null;
   const sized = risk && price && stopPct ? computeRisk('BUY', price, risk.riskPerTrade, stopPct) : null;
   const riskLine =

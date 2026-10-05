@@ -76,7 +76,7 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
         </p>
       )}
       {short && !done && (
-        <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">This costs about {fmtMoney(cost!)}, but you have {fmtMoney(settings.cash!)} cash. Buy fewer shares or skip it.</p>
+        <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">This costs about {fmtMoney(cost!)}, but you have {fmtMoney(settings.cash!)} cash. Add money or buy fewer shares.</p>
       )}
       {share !== null && share > 25 && !done && (
         <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">This would make {s.symbol} about {share.toFixed(0)}% of your money. Consider fewer shares.</p>

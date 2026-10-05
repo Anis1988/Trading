@@ -69,7 +69,7 @@ export function Guide() {
               items={[
                 'Every few minutes the app reads the news about the stocks you own (and any you are watching).',
                 'If the news is clearly good or bad, it creates a signal: a suggestion to BUY or SELL. Every hour it also checks the price trend of what you own: if one has been sliding for weeks, it creates a SELL signal even when the news is quiet.',
-                'Free safety rules check it first: you cannot sell what you do not own, no buying right before earnings, no buying while the whole market is falling, no buying into Reddit hype or bad-news buzz, no buying a company with weak finances, no buying more than your cash.',
+                'Free safety rules check it first: you cannot sell what you do not own, no buying right before earnings, no buying while the whole market is falling, no buying into Reddit hype or bad-news buzz, no buying a company with weak finances.',
                 'If it passes, Claude (the AI) reads the news, the price and your holdings, and gives its opinion in simple words.',
                 'You see the result on Today. You decide. You can email yourself the instruction or copy it.',
                 'You place the order yourself in Fidelity. The app never trades for you.',
@@ -177,7 +177,7 @@ export function Guide() {
                 <p className="mt-2 text-sm text-slate-300">No clear reason to act. Keep holding.</p>
               </div>
             </Example>
-            <P>A tile only says <ActionChip action="BUY" size="sm" /> if nothing says "not now". It switches to <ActionChip action="WAIT" size="sm" /> and tells you why when: earnings are within 5 days, the whole market is falling, Reddit is buzzing for a bad reason (or with hype after a big jump), the company's finances are weak, or the stock is already more than 25% of your money. These are the same free checks the alerts use. Buying gets the extra caution on purpose: a missed buy costs nothing, a bad one costs money.</P>
+            <P>A tile only says <ActionChip action="BUY" size="sm" /> if nothing says "not now". It switches to <ActionChip action="WAIT" size="sm" /> and tells you why when: earnings are within 5 days, the whole market is falling, Reddit is buzzing for a bad reason (or with hype after a big jump), or the company's finances are weak. These are the same free checks the alerts use. Buying gets the extra caution on purpose: a missed buy costs nothing, a bad one costs money.</P>
             <P><b>Where your money is</b> shows how your money is split. <b>News on your stocks</b> lists the latest headlines. <b>Background alerts</b> shows the last server check and how many AI checks you used today.</P>
           </Section>
 
@@ -279,8 +279,8 @@ export function Guide() {
 
           <Section title="Your cash & goal" subtitle="What you can afford, and for how long" icon={Icon.wallet}>
             <P>In Settings → My holdings you can add <b>cash ready to invest</b> and <b>how long</b> you plan to keep the money invested. Both are optional.</P>
-            <Example caption="A buy that costs more than your cash gets a warning, and an alert for it becomes WAIT without using AI credit.">
-              <p className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">This costs about {fmtMoney(1850)}, but you have {fmtMoney(1200)} cash. Buy fewer shares or skip it.</p>
+            <Example caption="A buy that costs more than your cash gets a reminder. It's information only: it does not change BUY to WAIT.">
+              <p className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">This costs about {fmtMoney(1850)}, but you have {fmtMoney(1200)} cash. Add money or buy fewer shares.</p>
             </Example>
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li><b>Cash</b> is added to "Where your money is", so "too much in one stock" is measured against all your money.</li>
@@ -344,7 +344,7 @@ export function Guide() {
           </Section>
 
           <Section title="Too much in one stock" subtitle="Spreading your money" icon={Icon.wallet}>
-            <P>If one single company is more than a quarter (25%) of your money, one bad day there hurts a lot. Funds like VTI or VOO are not counted, because they already hold hundreds of companies.</P>
+            <P>If one single company is more than a quarter (25%) of your money, the app shows a small reminder, because one bad day there hurts more. It's information only: it never turns a BUY into WAIT. Funds like VTI or VOO are not counted, because they already hold hundreds of companies.</P>
             <Example>
               <p className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-sm text-amber-100">This would make AAPL about 41% of your money. Consider fewer shares.</p>
             </Example>
@@ -364,7 +364,7 @@ export function Guide() {
           <Section title="Saving AI credits" subtitle="What costs money and what is free" icon={Icon.shield}>
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li><b>Costs about 1 cent</b>: an AI check of a signal, Ask the AI on Ideas, Re-check.</li>
-              <li><b>Free</b>: news, prices, charts, scores, earnings, analysts, the market check, and the safety rules (sell what you do not own, earnings soon, falling market, Reddit buzz, weak finances, not enough cash).</li>
+              <li><b>Free</b>: news, prices, charts, scores, earnings, analysts, the market check, and the safety rules (sell what you do not own, earnings soon, falling market, Reddit buzz, weak finances).</li>
               <li>Only strong signals (75%+ by default) get an automatic AI check; weaker ones show an "AI check" button.</li>
               <li>The same question within 2 hours is answered from memory for free.</li>
               <li>A daily limit (default 20) covers all your devices together. Change both in Settings → Alerts &amp; email.</li>
