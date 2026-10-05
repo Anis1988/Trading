@@ -6,7 +6,7 @@ import { computeRisk, dailyVolPct, stopPctFor } from '../lib/risk';
 import { useInsights } from '../lib/useInsights';
 import { EarningsBadge, InsightLines } from '../components/Insight';
 import { BuzzBadge, buzzWait } from '../components/Buzz';
-import { MOOD_LABEL } from '../lib/insightTypes';
+import { MOOD_LABEL, weakHealthText } from '../lib/insightTypes';
 import { EARNINGS_SOON_DAYS, shareAfterBuy } from '../lib/concentration';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
 
@@ -195,12 +195,13 @@ export function Ideas() {
           const share = risk ? shareAfterBuy(i.symbol, risk.suggestedQty, i.price, settings.holdings, settings.cash) : null;
           const own = settings.holdings.find((h) => h.symbol === i.symbol);
           const crowd = buzzWait(info?.buzz, a.ret1m, a.rsi);
+          const weak = info?.health?.label === 'weak';
           return (
             <article key={i.symbol} className="card">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="num text-sm text-slate-500">#{rank + 1}</span>
                 <span className="font-display text-2xl font-semibold">{i.symbol}</span>
-                <ActionChip action={crowd || soon || ins?.market?.trend === 'down' ? 'WAIT' : 'BUY'} size="sm" />
+                <ActionChip action={crowd || soon || weak || ins?.market?.trend === 'down' ? 'WAIT' : 'BUY'} size="sm" />
                 {own && <span className="rounded-md bg-sky-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-sky-200">You own {own.shares}</span>}
                 <EarningsBadge e={info?.earnings} />
                 <BuzzBadge b={info?.buzz} />
@@ -220,6 +221,7 @@ export function Ideas() {
                 )}
               </ul>
               <div className="mt-2"><InsightLines i={info} /></div>
+              {weak && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{weakHealthText(info!.health!)}</p>}
               {crowd && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{crowd}</p>}
               {soon && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Earnings in {info!.earnings!.inDays} day(s): prices can jump or drop a lot. Better to wait until after.</p>}
               {risk && settings.cash !== undefined && risk.suggestedQty * i.price > settings.cash && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{risk.suggestedQty} shares cost about {fmtMoney(risk.suggestedQty * i.price)}, but you have {fmtMoney(settings.cash)} cash. {Math.floor(settings.cash / i.price) > 0 ? `You could buy ${Math.floor(settings.cash / i.price)}.` : 'Not enough cash for one share.'}</p>}

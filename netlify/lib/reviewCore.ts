@@ -8,7 +8,7 @@ import { shareAfterBuy, MAX_SINGLE_STOCK_PCT } from '../../src/lib/concentration
 import { assessHolding, type Holding } from '../../src/lib/holdings';
 import type { Side } from '../../src/types';
 import { EARNINGS_WAIT_DAYS, getInsights, getMarket } from './insights';
-import { MARKET_TEXT, analystText, buzzText, earningsText, healthText, insiderText } from '../../src/lib/insightTypes';
+import { MARKET_TEXT, analystText, buzzText, earningsText, healthText, insiderText, weakHealthText } from '../../src/lib/insightTypes';
 import { BudgetError, cached, hashKey, refundAiCredit, reviewModel, takeAiCredit } from './aiBudget';
 
 const Review = z.object({
@@ -116,6 +116,13 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
   }
   if (signal.side === 'BUY' && buzz?.trending && buzz.mood === 'positive' && trend && (trend.ret1m >= 15 || trend.rsi > 70)) {
     return rule(`Everyone on Reddit is suddenly talking about it (${buzz.ratio}x more than yesterday${buzz.moodFrom === 'news' ? ', with good news behind it' : ''}) and the price already jumped ${trend.ret1m}% this month. Crowd hype often reverses; wait for it to calm down.`, 'Crowd hype');
+  }
+  if (signal.side === 'BUY' && info?.health?.label === 'weak') {
+    return rule(weakHealthText(info.health), 'Weak company finances');
+  }
+  const buyCost = signal.side === 'BUY' ? (quote?.price ?? trend?.price ?? 0) * signal.qty : 0;
+  if (signal.side === 'BUY' && risk?.cash !== undefined && buyCost > risk.cash) {
+    return rule(`This buy costs about $${Math.round(buyCost)}, but you have $${Math.round(risk.cash)} cash. Buy fewer shares or skip it.`, 'Not enough cash');
   }
   if (!process.env.ANTHROPIC_API_KEY) throw new ReviewError('ANTHROPIC_API_KEY is not set in Netlify.', 503);
 

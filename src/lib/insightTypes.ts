@@ -37,6 +37,9 @@ const usd = (v: number) => (v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? 
 
 export const HEALTH_LABEL: Record<Health['label'], string> = { strong: 'Healthy finances', ok: 'Average finances', weak: 'Weak finances' };
 
+/** Why weak finances turn a BUY into WAIT, in plain words. */
+export const weakHealthText = (h: Health) => `${healthText(h)}. Buying a struggling company is riskier; wait for a stronger case.`;
+
 export function healthText(h: Health): string {
   const parts = [
     h.revGrowth !== undefined ? `sales ${pct(h.revGrowth)} vs last year` : '',
