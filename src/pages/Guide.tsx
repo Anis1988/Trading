@@ -81,6 +81,22 @@ export function Guide() {
             <Warn>This app is not a broker and not financial advice. Every decision and every order is yours.</Warn>
           </Section>
 
+          <Section title="Where the news comes from" subtitle="5 free sources, checked every few minutes" icon={Icon.today}>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Yahoo Finance</b> and <b>Nasdaq</b>: stock news for each of your stocks.</li>
+              <li><b>Google News</b>: searches thousands of newspapers and sites at once.</li>
+              <li><b>Finnhub</b>: company news from Reuters, MarketWatch, Seeking Alpha and others.</li>
+              <li><b>SEC filings</b>: official announcements the company <i>must</i> file with the US government within days of a big event (results, a boss leaving, layoffs, a big deal, bankruptcy). Never rumour, and often out before the articles. The app turns the form's codes into plain words.</li>
+            </ul>
+            <Example caption="An official filing in the news list. Bad ones (restatement, bankruptcy, delisting warning) count strongly against a BUY.">
+              <ul className="space-y-1 text-sm">
+                <li><span className="text-slate-300">AAPL official filing (8-K): results announced; leadership change (executive or director)</span> <span className="text-xs text-slate-500">· SEC filing · 2h</span></li>
+                <li><span className="text-slate-300">Apple tops estimates as services hit a record</span> <span className="text-xs text-slate-500">· Nasdaq · 3h</span></li>
+              </ul>
+            </Example>
+            <P>The same story from two places only counts once. If a source is down or blocks the app, it is skipped and the others still work.</P>
+          </Section>
+
           <Section title="The 5 words" subtitle="BUY · SELL · HOLD · WAIT · SKIP" icon={Icon.today}>
             <P>The app only ever uses these five words, each always with the same colour and symbol.</P>
             <div className="space-y-2.5">
@@ -105,7 +121,7 @@ export function Guide() {
             <P>When a signal passes the free safety rules, Claude gets all of this and answers in plain words:</P>
             <ul className="grid gap-1.5 text-sm text-slate-300 sm:grid-cols-2">
               {[
-                ['📰', 'The headlines about the stock (titles, up to 15)'],
+                ['📰', 'The headlines about the stock (titles, up to 15), with official SEC filings marked as reliable facts'],
                 ['💲', 'Today\'s price and the last few days'],
                 ['📈', 'The 6-month trend: 1 and 3-month change, 50-day average, overheated or not'],
                 ['🌎', 'Whether the whole market is rising or falling'],

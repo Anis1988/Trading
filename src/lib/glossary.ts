@@ -78,6 +78,7 @@ export const GROUPS: { name: string; emoji: string; terms: Term[] }[] = [
       { word: 'Earnings', also: 'earnings report, quarterly results', means: 'Every 3 months a company reports how much it sold and earned. The price can jump or drop 5–20% that day.', app: 'The app says WAIT on BUYs within 5 days of earnings.' },
       { word: 'Beat / miss', means: 'Beat: results were better than experts expected (often price goes up). Miss: worse than expected (often down).' },
       { word: 'Guidance', means: 'What the company says it expects for the next months. Often moves the price more than the results themselves.' },
+      { word: 'SEC filing', also: '8-K, EDGAR', means: 'An official report a US company must send to the government (the SEC). An "8-K" is filed within days of a big event: results, a boss leaving, a big deal, layoffs.', app: 'Shown in your news as "official filing (8-K)".' },
       { word: 'Revenue', also: 'sales', means: 'All the money the company took in before costs.' },
       { word: 'Profit', also: 'net income, margin', means: 'What is left after all costs. Margin = profit as a % of revenue.' },
       { word: 'EPS', means: 'Earnings per share: the profit divided by the number of shares.' },

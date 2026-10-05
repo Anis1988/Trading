@@ -4,7 +4,7 @@ import { planOrder, formatInstruction } from '../../src/lib/instructions';
 import { computeRisk, stopPctFor } from '../../src/lib/risk';
 import { tradeEmailParams } from '../../src/lib/emailParams';
 import { uid } from '../../src/lib/util';
-import { finnhubNews, googleNews, yahooHistory, yahooNews, type ServerHeadline } from './feeds';
+import { finnhubNews, googleNews, nasdaqNews, secFilings, yahooHistory, yahooNews, type ServerHeadline } from './feeds';
 import { analyze, type Analysis } from '../../src/lib/trend';
 import { TREND_CHECK_EVERY_MS, trendSellSignals } from '../../src/lib/trendSignals';
 import { reviewTrade } from './reviewCore';
@@ -81,7 +81,7 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
     // 1. fresh news only (not seen before, not older than 24h)
     const seen = new Set(await readServer<string[]>('seen', []));
     const key = process.env.FINNHUB_KEY;
-    const jobs = symbols.flatMap((sym) => [yahooNews(sym), googleNews(sym), ...(key ? [finnhubNews(sym, key)] : [])]);
+    const jobs = symbols.flatMap((sym) => [yahooNews(sym), googleNews(sym), nasdaqNews(sym), secFilings(sym), ...(key ? [finnhubNews(sym, key)] : [])]);
     const got = (await Promise.allSettled(jobs)).flatMap((r) => (r.status === 'fulfilled' ? r.value : [])) as ServerHeadline[];
     const cutoff = Date.now() - MAX_AGE_MS;
     const fresh: Headline[] = got.filter((h) => !seen.has(h.id) && new Date(h.publishedAt).getTime() >= cutoff);

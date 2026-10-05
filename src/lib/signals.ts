@@ -7,6 +7,8 @@ const KEYWORDS: Record<string, number> = {
   'upgrade': 2.5, 'upgraded': 2.5, 'buyback': 2, 'partnership': 1.5, 'approval': 2, 'approves': 1.5, 'surge': 2, 'soar': 2,
   'misses': -2, 'cuts outlook': -3, 'cut guidance': -3, 'downgrade': -2.5, 'downgraded': -2.5, 'layoffs': -2,
   'lawsuit': -2, 'probe': -2, 'investigation': -2, 'recall': -2.5, 'plunge': -2.5, 'bankruptcy': -4, 'fraud': -4, 'slump': -2,
+  // plain-word labels used for official SEC 8-K filings
+  'restatement': -4, 'removed from the stock exchange': -3, 'write-down': -2.5, 'cybersecurity incident': -2,
 };
 
 // Tiny AFINN-style lexicon (lightweight client-side sentiment)

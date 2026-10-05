@@ -375,7 +375,7 @@ export function Settings() {
         </div>
 
         <p className="label pt-1">News sources</p>
-        <Field label="Fetch news through the Netlify function" hint="Recommended: Yahoo + Google News (+ Finnhub). Avoids browser blocks.">
+        <Field label="Fetch news through the Netlify function" hint="Recommended: Yahoo, Google News, Nasdaq, official SEC filings (+ Finnhub). Avoids browser blocks.">
           <Toggle on={s.useServerFeeds} onChange={(v) => update({ useServerFeeds: v })} label="Server news" />
         </Field>
         <Field label={`NewsAPI (key ${config.newsApiKey ? 'set' : 'missing'})`} hint="Only used when the option above is off.">

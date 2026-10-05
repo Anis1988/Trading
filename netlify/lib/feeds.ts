@@ -76,6 +76,57 @@ export async function finnhubNews(symbol: string, key: string): Promise<ServerHe
   }));
 }
 
+/** Nasdaq.com news per stock (free RSS, no key). */
+export async function nasdaqNews(symbol: string): Promise<ServerHeadline[]> {
+  const res = await get(`https://www.nasdaq.com/feed/rssoutbound?symbol=${encodeURIComponent(symbol)}`);
+  return parseRss(await res.text(), 'Nasdaq', symbol);
+}
+
+/** 8-K item numbers in plain words: what the company had to report. */
+const ITEMS: Record<string, string> = {
+  '1.01': 'signed a major deal', '1.02': 'ended a major deal', '1.03': 'bankruptcy', '1.05': 'cybersecurity incident',
+  '2.01': 'bought or sold a business', '2.02': 'results announced', '2.03': 'took on new debt', '2.04': 'debt payment triggered early',
+  '2.05': 'cost cuts or layoffs', '2.06': 'big write-down (loss in value)', '3.01': 'warning it may be removed from the stock exchange',
+  '3.02': 'sold new shares', '4.01': 'changed auditor', '4.02': 'past results can no longer be relied on (restatement)',
+  '5.01': 'change in control of the company', '5.02': 'leadership change (executive or director)', '5.03': 'changed company rules',
+  '5.07': 'shareholder vote results', '7.01': 'shared information with investors', '8.01': 'other important event',
+};
+
+/**
+ * Official company announcements (SEC EDGAR "8-K"), free and no key. Never rumour: the company must file these
+ * within days of a major event. SEC asks for a contact in the User-Agent: set SEC_CONTACT_EMAIL in Netlify.
+ */
+export async function secFilings(symbol: string): Promise<ServerHeadline[]> {
+  const ua = `TradingAssistant/1.0 personal use${process.env.SEC_CONTACT_EMAIL ? ` ${process.env.SEC_CONTACT_EMAIL}` : ''}`;
+  const res = await fetch(`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(symbol)}&type=8-K&dateb=&owner=include&count=10&output=atom`, {
+    headers: { 'User-Agent': ua, Accept: 'application/atom+xml' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (res.status === 404) return []; // funds and unknown tickers have no filings
+  if (!res.ok) throw new Error(`sec.gov: HTTP ${res.status}`);
+  const xml = await res.text();
+  const out: ServerHeadline[] = [];
+  for (const e of (xml.match(/<entry>[\s\S]*?<\/entry>/gi) ?? []).slice(0, 10)) {
+    const form = tag(e, 'category').trim() || (e.match(/<category[^>]*term="([^"]+)"/i)?.[1] ?? '');
+    if (form && !/^8-K/i.test(form)) continue;
+    const url = e.match(/<link[^>]*href="([^"]+)"/i)?.[1] ?? '';
+    const when = new Date(tag(e, 'updated'));
+    const summary = tag(e, 'summary');
+    const items = [...new Set([...summary.matchAll(/Item\s+(\d\.\d\d)/gi)].map((m) => m[1]))].filter((i) => i !== '9.01');
+    const words = items.map((i) => ITEMS[i]).filter(Boolean);
+    const title = `${symbol} official filing (8-K): ${words.length ? words.join('; ') : 'company announcement'}`;
+    out.push({
+      id: `sec:${url || title + when.toISOString()}`.slice(0, 300),
+      title,
+      url,
+      source: 'SEC filing',
+      publishedAt: (isNaN(when.getTime()) ? new Date() : when).toISOString(),
+      symbol,
+    });
+  }
+  return out;
+}
+
 export interface Quote {
   price: number;
   prevClose: number;

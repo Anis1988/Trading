@@ -1,4 +1,4 @@
-import { finnhubNews, googleNews, yahooNews, type ServerHeadline } from '../lib/feeds';
+import { finnhubNews, googleNews, nasdaqNews, secFilings, yahooNews, type ServerHeadline } from '../lib/feeds';
 import { guard, json, parseSymbols } from '../lib/guard';
 
 export const config = { path: '/api/news' };
@@ -13,7 +13,7 @@ export default async (req: Request): Promise<Response> => {
   const key = process.env.FINNHUB_KEY;
   const jobs: Promise<ServerHeadline[]>[] = [];
   for (const s of symbols) {
-    jobs.push(yahooNews(s), googleNews(s));
+    jobs.push(yahooNews(s), googleNews(s), nasdaqNews(s), secFilings(s));
     if (key) jobs.push(finnhubNews(s, key));
   }
   const settled = await Promise.allSettled(jobs);

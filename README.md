@@ -10,7 +10,7 @@ React + TypeScript + Tailwind SPA, deployed to Netlify from GitHub. It watches n
 - **Background alerts** (Netlify Scheduled Function every 15 min) email / notify you even when the app is closed; **weekly summary** email on Fridays
 - **Installable app** (Add to Home Screen) and **phone notifications** (Web Push)
 - Poller with exponential backoff + jitter (default 5 min, configurable)
-- Sources: **Netlify function `/api/news`** (Yahoo Finance + Google News RSS, optional Finnhub - server-side, so no CORS blocks), browser RSS/NewsAPI as a fallback, optional MCP (also the route for X/Twitter, which is never fetched in-browser)
+- Sources: **Netlify function `/api/news`** (Yahoo Finance + Google News + Nasdaq RSS, official SEC 8-K filings, optional Finnhub - server-side, so no CORS blocks), browser RSS/NewsAPI as a fallback, optional MCP (also the route for X/Twitter, which is never fetched in-browser)
 - **AI trade review** (`/api/review`, Claude): every signal gets APPROVE / CAUTION / REJECT with rationale, risks and live price context. **REJECT blocks emails**; auto-email requires APPROVE; a failed review never counts as approval
 - Local engine: keyword weights + small sentiment lexicon -> side + confidence (`src/lib/signals.ts`)
 - Optional MCP: POST headlines, receive `{ signals: [{symbol, side, confidence, reason, qty, autoEmail?}] }`
@@ -52,6 +52,7 @@ git push -u origin main
 | `ANTHROPIC_API_KEY` | for AI review | **Server-only** (functions). Never reaches the browser |
 | `REVIEW_MODEL` | optional | Default `claude-opus-5-5`; set `claude-sonnet-5-5` for faster/cheaper reviews |
 | `FINNHUB_KEY` | optional | **Server-only**. Adds Finnhub company news |
+| `SEC_CONTACT_EMAIL` | recommended | **Server-only**. Contact email sent to sec.gov in the User-Agent (SEC's fair-access rule) for the free 8-K filings feed |
 | `APP_ACCESS_TOKEN` | required for sync & background alerts | **Server-only**. `/api/*` requires it; enter it in Settings -> Sync & access |
 | `EMAILJS_PRIVATE_KEY` | for background alerts / weekly email | **Server-only**. EmailJS -> Account -> API keys -> Private key. Also tick *Allow EmailJS API for non-browser applications* (Account -> Security) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | for notifications | **Server-only**. Generate once with `npx web-push generate-vapid-keys` |
