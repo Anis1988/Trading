@@ -200,7 +200,7 @@ export function Ideas() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="num text-sm text-slate-500">#{rank + 1}</span>
                 <span className="font-display text-2xl font-semibold">{i.symbol}</span>
-                <ActionChip action={crowd ? 'WAIT' : 'BUY'} size="sm" />
+                <ActionChip action={crowd || soon || ins?.market?.trend === 'down' ? 'WAIT' : 'BUY'} size="sm" />
                 {own && <span className="rounded-md bg-sky-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-sky-200">You own {own.shares}</span>}
                 <EarningsBadge e={info?.earnings} />
                 <BuzzBadge b={info?.buzz} />

@@ -172,6 +172,7 @@ export function Guide() {
                 <p className="mt-2 text-sm text-slate-300">No clear reason to act. Keep holding.</p>
               </div>
             </Example>
+            <P>A tile only says <ActionChip action="BUY" size="sm" /> if nothing says "not now". It switches to <ActionChip action="WAIT" size="sm" /> and tells you why when: earnings are within 5 days, the whole market is falling, Reddit is buzzing for a bad reason (or with hype after a big jump), or the stock is already more than 25% of your money. These are the same free checks the alerts use.</P>
             <P><b>Where your money is</b> shows how your money is split. <b>News on your stocks</b> lists the latest headlines. <b>Background alerts</b> shows the last server check and how many AI checks you used today.</P>
           </Section>
 

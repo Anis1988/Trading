@@ -7,7 +7,8 @@ import { getAlertStatus, type AlertStatus } from '../lib/alerts';
 import { useInsights } from '../lib/useInsights';
 import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
 import { concentrated } from '../lib/concentration';
-import { BuzzBadge, BuzzRail, RedditPanel, buzzWait } from '../components/Buzz';
+import { BuzzBadge, BuzzRail, RedditPanel } from '../components/Buzz';
+import { buyWait } from '../lib/waitRules';
 import { getAccessToken } from '../lib/api';
 
 const ago = (iso: string) => {
@@ -164,7 +165,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
               if (!a) return <div key={h.symbol} className="card"><p className="font-display font-semibold">{h.symbol}</p>{loading ? <Skeleton className="mt-2 h-10" /> : <p className="text-sm text-slate-500">No price yet.</p>}</div>;
               const gain = (a.price - h.avgCost) * h.shares;
               const gainPct = h.avgCost > 0 ? ((a.price - h.avgCost) / h.avgCost) * 100 : 0;
-              const crowd = a.action === 'BUY' ? buzzWait(ins?.stocks[h.symbol]?.buzz, a.ret1m, a.rsi) : null;
+              const crowd = a.action === 'BUY' ? buyWait({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m, rsi: a.rsi, sharePct: heavy.find((x) => x.sym === h.symbol)?.pct }) : null;
               return (
                 <div key={h.symbol} className="card !p-0">
                   <button className="w-full p-4 text-left" aria-expanded={open} onClick={() => setOpenSym(open ? null : h.symbol)}>
@@ -181,7 +182,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                         <Change value={gain} pct={gainPct} />
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-slate-300">{crowd ? `${a.idea} But: ${crowd}` : a.idea}</p>
+                    <p className="mt-2 text-sm text-slate-300">{crowd ? `The trend looks good, but not now. ${crowd}` : a.idea}</p>
                   </button>
                   {open && (
                     <div className="space-y-3 border-t border-white/10 px-4 pb-4 pt-3">
