@@ -3,7 +3,7 @@ import { call } from './api';
 export interface AlertStatus {
   lastRun: string | null;
   log: { ts: string; level: 'info' | 'warn' | 'error'; msg: string }[];
-  ready: { ai: boolean; email: boolean; push: boolean };
+  ready: { ai: boolean; email: boolean; push: boolean; reddit?: boolean };
   vapidPublicKey: string | null;
   devices: number;
   ai?: { used: number; limit: number; model: string };

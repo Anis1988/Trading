@@ -2,6 +2,7 @@ import { analyze } from '../../src/lib/trend';
 import type { Insight, Market } from '../../src/lib/insightTypes';
 import { yahooHistory } from './feeds';
 import { cached } from './aiBudget';
+import { getBuzz } from './reddit';
 
 const FINNHUB = 'https://finnhub.io/api/v1';
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -63,7 +64,7 @@ function stockInfo(symbol: string): Promise<Pick<Insight, 'analysts' | 'basics'>
 }
 
 export async function getInsights(symbols: string[]): Promise<Record<string, Insight>> {
-  const earnings = await earningsMap();
+  const [earnings, buzz] = await Promise.all([earningsMap(), getBuzz(symbols).catch(() => ({}) as Awaited<ReturnType<typeof getBuzz>>)]);
   const today = Date.parse(day(new Date()));
   const out: Record<string, Insight> = {};
   await Promise.all(
@@ -73,6 +74,7 @@ export async function getInsights(symbols: string[]): Promise<Record<string, Ins
       out[s] = {
         ...info,
         earnings: e ? { date: e.date, hour: e.hour, inDays: Math.round((Date.parse(e.date) - today) / 86400_000) } : undefined,
+        buzz: buzz[s],
       };
     }),
   );

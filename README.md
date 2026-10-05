@@ -128,3 +128,6 @@ The response must include header `X-MCP-Signature: hex(HMAC-SHA256(body, apiKey)
 - Yahoo/Google can still rate-limit or change their feeds; failures show up in Logs and trigger backoff. Browser-side RSS/NewsAPI (when `Fetch news via Netlify function` is off) is mostly CORS-blocked.
 - Polling only runs while a tab is open. No price data is fetched, so limit prices are user-entered.
 - localStorage is per-browser and not encrypted.
+
+### Reddit buzz (free)
+Mention counts and 24 h change for r/wallstreetbets, r/stocks, r/investing come from ApeWisdom (no key). Top posts of the day and the mood (positive / negative / mixed, from free word scoring of titles weighted by upvotes) come from the official Reddit API: create a free *script* app at https://www.reddit.com/prefs/apps and set `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` in Netlify (server-only). Without the keys you still get mention counts and trends, but no mood or posts. Free rules: a BUY on a stock trending with mostly negative talk, or trending with positive hype after a big price jump, becomes WAIT. Owned stocks trending negative show a heads-up on Today. Reddit never creates a signal by itself; it is passed to the AI check as untrusted context. Cached 30 minutes.

@@ -120,7 +120,7 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
         const risk = computeRisk(sig.side, price, s.riskPerTrade ?? 100, stopPctFor(r.quote?.volPct, s.stopLossPct ?? 5, s.smartStop ?? true));
         const ready: Signal = {
           ...sig, qty: r.suggestedQty > 0 ? r.suggestedQty : sig.qty, entryPrice: price, stopPrice: risk?.stop, suggestedQty: risk?.suggestedQty,
-          review: { verdict: r.verdict, confidence: r.confidence, rationale: r.rationale, risks: r.risks, holdingNote: r.holdingNote, price, earnings: r.earnings, analysts: r.analysts, market: r.market },
+          review: { verdict: r.verdict, confidence: r.confidence, rationale: r.rationale, risks: r.risks, holdingNote: r.holdingNote, price, earnings: r.earnings, analysts: r.analysts, market: r.market, reddit: r.reddit },
         };
         const plan = planOrder(s.limits?.[sig.symbol]);
         let channelNote = '';

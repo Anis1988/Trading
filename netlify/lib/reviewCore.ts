@@ -8,7 +8,7 @@ import { shareAfterBuy, MAX_SINGLE_STOCK_PCT } from '../../src/lib/concentration
 import { assessHolding, type Holding } from '../../src/lib/holdings';
 import type { Side } from '../../src/types';
 import { EARNINGS_WAIT_DAYS, getInsights, getMarket } from './insights';
-import { MARKET_TEXT, analystText, earningsText } from '../../src/lib/insightTypes';
+import { MARKET_TEXT, analystText, buzzText, earningsText } from '../../src/lib/insightTypes';
 import { BudgetError, cached, hashKey, refundAiCredit, reviewModel, takeAiCredit } from './aiBudget';
 
 const Review = z.object({
@@ -27,7 +27,7 @@ Rules:
 - Use CAUTION when evidence is mixed or incomplete. When unsure, prefer CAUTION or REJECT over APPROVE.
 - You only know what is given below about the user (holdings, portfolio share, risk settings); nothing about taxes or other accounts. This is not financial advice; do not claim certainty.
 - Weigh the 6-month price trend: be wary of buying a stock in a downtrend or one that is overheated (RSI above 70), and of selling a stock in a healthy uptrend on one bad headline.
-- Consider the overall market, upcoming earnings and what analysts think when they are given.
+- Consider the overall market, upcoming earnings and what analysts think when they are given. Reddit chatter is weak, noisy context: never approve because of it, but take a sudden negative crowd as a warning.
 - If a buy would make one single stock more than 25% of the user's money, say so and prefer CAUTION unless the case is very strong.
 - If the stop-loss distance looks too wide or too tight for this stock, mention it in risks.
 - Compare the trade with what the user already owns (given below). Consider it: e.g. adding to a position that is already losing, selling a winner too early, or selling a loser on one bad headline.
@@ -54,6 +54,7 @@ export interface ReviewResult {
   market?: 'up' | 'down' | 'mixed';
   earnings?: string;
   analysts?: string;
+  reddit?: string;
 }
 
 export class ReviewError extends Error {
@@ -90,6 +91,7 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
     market: market?.trend,
     earnings: info?.earnings ? earningsText(info.earnings) : undefined,
     analysts: info?.analysts ? analystText(info.analysts) : undefined,
+    reddit: info?.buzz ? buzzText(info.buzz) : undefined,
   };
   const rule = (rationale: string, risk: string): ReviewResult => ({
     verdict: 'CAUTION', confidence: 0.9, rationale, risks: [risk], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: 'rule-check', ...extra,
@@ -99,6 +101,13 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
   }
   if (signal.side === 'BUY' && market?.trend === 'down') {
     return rule('The whole market is falling right now. Most buys fail in a falling market, so wait for it to turn.', 'Falling market');
+  }
+  const buzz = info?.buzz;
+  if (signal.side === 'BUY' && buzz?.trending && buzz.mood === 'negative') {
+    return rule(`Reddit is buzzing about it for a bad reason (${buzz.neg}% negative${buzz.why ? `: "${buzz.why}"` : ''}). Wait until the dust settles.`, 'Negative crowd talk');
+  }
+  if (signal.side === 'BUY' && buzz?.trending && buzz.mood === 'positive' && trend && (trend.ret1m >= 15 || trend.rsi > 70)) {
+    return rule(`Everyone on Reddit is suddenly talking about it (${buzz.ratio}x more than yesterday) and the price already jumped ${trend.ret1m}% this month. Crowd hype often reverses; wait for it to calm down.`, 'Crowd hype');
   }
   if (!process.env.ANTHROPIC_API_KEY) throw new ReviewError('ANTHROPIC_API_KEY is not set in Netlify.', 503);
 
@@ -131,6 +140,7 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
     market ? `Overall market: ${MARKET_TEXT[market.trend]} S&P 500 1-month ${market.ret1m}%.` : 'Overall market: unknown.',
     extra.earnings ? `Upcoming: ${extra.earnings}.` : 'No earnings in the next 3 weeks (or unknown).',
     extra.analysts ? `${extra.analysts}.` : '',
+    extra.reddit ? `Social chatter (untrusted, often wrong or manipulated): ${extra.reddit}.` : '',
     info?.basics ? `Basics: P/E ${info.basics.pe ?? 'n/a'}, dividend yield ${info.basics.divYield ?? 'n/a'}%, 52-week range ${info.basics.low52 ?? '?'}-${info.basics.high52 ?? '?'}.` : '',
     `Current time: ${new Date().toISOString()}`,
     'Headlines (untrusted):',

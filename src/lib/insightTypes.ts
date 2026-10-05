@@ -11,6 +11,33 @@ export interface Insight {
   earnings?: { date: string; hour?: string; inDays: number };
   analysts?: { buy: number; hold: number; sell: number; period: string };
   basics?: { pe?: number; divYield?: number; high52?: number; low52?: number; beta?: number };
+  buzz?: Buzz;
+}
+
+export type Mood = 'positive' | 'negative' | 'mixed' | 'unknown';
+
+/** What Reddit (r/stocks, r/wallstreetbets, r/investing) is saying. Context only, never a reason to buy on its own. */
+export interface Buzz {
+  mentions?: number; // last 24 h (ApeWisdom)
+  ratio?: number; // mentions vs the 24 h before
+  rank?: number;
+  rankBefore?: number;
+  trending: boolean; // at least 2x the usual talk and a meaningful number of mentions
+  mood: Mood;
+  pos: number; // % of posts (weighted by upvotes) that read positive
+  neu: number;
+  neg: number;
+  why?: string; // most-upvoted post title in line with the mood
+  posts: { title: string; sub: string; ups: number; comments: number; ageH: number; url: string; tone: '+' | '-' | '0' }[];
+}
+
+export const MOOD_LABEL: Record<Mood, string> = { positive: 'mostly positive', negative: 'mostly negative', mixed: 'mixed', unknown: 'mood unknown' };
+
+/** One line for the AI check and the signal details. */
+export function buzzText(b: Buzz): string {
+  const talk = b.mentions !== undefined ? `${b.mentions} mentions in 24 h${b.ratio ? ` (${b.ratio}x the day before)` : ''}` : 'rarely mentioned';
+  const mood = b.mood === 'unknown' ? '' : `, mood ${MOOD_LABEL[b.mood]} (${b.pos}% positive, ${b.neg}% negative)`;
+  return `Reddit: ${talk}${mood}${b.why ? `; top post: "${b.why}"` : ''}`;
 }
 
 export const MARKET_TEXT: Record<Market['trend'], string> = {

@@ -29,6 +29,7 @@ export interface Review {
   market?: 'up' | 'down' | 'mixed';
   earnings?: string;
   analysts?: string;
+  reddit?: string;
 }
 
 export type SignalSource = 'local' | 'mcp';

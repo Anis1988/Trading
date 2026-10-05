@@ -5,6 +5,7 @@ import { serverEmailReady, sendServerEmail } from '../lib/mailer';
 import { getSubscriptions, pushAll, pushReady, removeSubscription, saveSubscription } from '../lib/push';
 import { runWatch } from '../lib/watchCore';
 import { aiUsage, reviewModel } from '../lib/aiBudget';
+import { redditReady } from '../lib/reddit';
 import { runWeekly } from '../lib/weeklyCore';
 import { textEmailParams } from '../../src/lib/emailParams';
 
@@ -30,7 +31,7 @@ export default async (req: Request): Promise<Response> => {
       return json({
         lastRun: await readServer<string | null>('lastRun', null),
         log: await readServer<ServerLogEntry[]>('log', []),
-        ready: { ai: !!process.env.ANTHROPIC_API_KEY, email: serverEmailReady(), push: pushReady() },
+        ready: { ai: !!process.env.ANTHROPIC_API_KEY, email: serverEmailReady(), push: pushReady(), reddit: redditReady() },
         vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null,
         devices: (await getSubscriptions()).length,
         ai: { ...(await aiUsage()), model: reviewModel() },

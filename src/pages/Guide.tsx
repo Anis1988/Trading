@@ -1,11 +1,19 @@
 import type { ReactNode } from 'react';
 import { ActionChip, Change, Section, Sparkline, Stat, Icon } from '../components/ui';
 import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
+import { BuzzBadge, RedditPanel } from '../components/Buzz';
+import type { Buzz } from '../lib/insightTypes';
 
 /* ------- made-up example data, only for pictures in this guide ------- */
 const wave = (start: number, drift: number, n = 60) => Array.from({ length: n }, (_, i) => Math.round((start + drift * i + Math.sin(i / 3) * start * 0.02) * 100) / 100);
 const UP = wave(180, 0.6);
 const DOWN = wave(520, -0.9);
+const BUZZ_GOOD: Buzz = { mentions: 1284, ratio: 3.1, rank: 2, rankBefore: 9, trending: true, mood: 'positive', pos: 68, neu: 20, neg: 12, why: 'Guidance looks strong, data-center orders still climbing', posts: [
+  { title: 'Guidance looks strong, data-center orders still climbing', sub: 'r/stocks', ups: 2400, comments: 611, ageH: 3, url: '#1', tone: '+' },
+  { title: 'Is it overvalued at this point? Long-term holders, your plan?', sub: 'r/investing', ups: 940, comments: 388, ageH: 9, url: '#2', tone: '0' },
+] };
+const BUZZ_BAD: Buzz = { mentions: 2410, ratio: 4.5, rank: 3, rankBefore: 40, trending: true, mood: 'negative', pos: 10, neu: 18, neg: 72, why: 'Deliveries halted after new inspection findings', posts: [] };
+const BUZZ_MIXED: Buzz = { mentions: 830, ratio: 2.2, rank: 6, rankBefore: 11, trending: true, mood: 'mixed', pos: 41, neu: 22, neg: 37, posts: [] };
 
 function Example({ children, caption }: { children: ReactNode; caption?: string }) {
   return (
@@ -53,7 +61,7 @@ export function Guide() {
               items={[
                 'Every few minutes the app reads the news about the stocks you own (and any you are watching).',
                 'If the news is clearly good or bad, it creates a signal: a suggestion to BUY or SELL. Every hour it also checks the price trend of what you own: if one has been sliding for weeks, it creates a SELL signal even when the news is quiet.',
-                'Free safety rules check it first: you cannot sell what you do not own, no buying right before earnings, no buying while the whole market is falling.',
+                'Free safety rules check it first: you cannot sell what you do not own, no buying right before earnings, no buying while the whole market is falling, no buying into Reddit hype or bad-news buzz.',
                 'If it passes, Claude (the AI) reads the news, the price and your holdings, and gives its opinion in simple words.',
                 'You see the result on Today. You decide. You can email yourself the instruction or copy it.',
                 'You place the order yourself in Fidelity. The app never trades for you.',
@@ -93,6 +101,7 @@ export function Guide() {
                 ['🌎', 'Whether the whole market is rising or falling'],
                 ['🗓', 'Upcoming earnings date'],
                 ['👥', 'What analysts say, P/E, dividend, 52-week range'],
+                ['💬', 'What Reddit is saying: how much talk and whether it is good or bad'],
                 ['💼', 'What you own: shares, price paid, gain or loss'],
                 ['🥧', 'How big a share of your money this stock would become'],
                 ['🛡', 'Your stop-loss and your risk limit per trade'],
@@ -230,6 +239,27 @@ export function Guide() {
               <li><b>Dividend</b>: cash the company pays you each year, as a % of the price.</li>
               <li><b>52-week</b>: the lowest and highest price in the last year.</li>
             </ul>
+          </Section>
+
+          <Section title="Reddit buzz" subtitle="What people are saying, and whether it's good or bad" icon={Icon.ideas}>
+            <P>The app counts how often each of your stocks is mentioned on r/stocks, r/wallstreetbets and r/investing, compares it with the day before, and reads the top posts of the day to tell if the talk is good or bad.</P>
+            <Example caption="A badge only appears when a stock is talked about at least twice as much as usual. The colour tells you if the talk is good (green), bad (red) or mixed (amber).">
+              <div className="flex flex-wrap gap-2">
+                <BuzzBadge b={BUZZ_GOOD} />
+                <BuzzBadge b={BUZZ_BAD} />
+                <BuzzBadge b={BUZZ_MIXED} />
+              </div>
+            </Example>
+            <Example caption="Tap a stock on Today to see the details: how much talk, rank among all stocks, the mood bar, why it's talked about, and the top posts (tap a post to open it on Reddit).">
+              <RedditPanel b={BUZZ_GOOD} />
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Trending for a bad reason</b> (lots of talk, mostly negative): a BUY becomes <ActionChip action="WAIT" size="sm" />, and if you own the stock you get a red heads-up on Today.</li>
+              <li><b>Crowd hype</b> (lots of happy talk and the price already jumped): a BUY becomes <ActionChip action="WAIT" size="sm" />, because hype often reverses.</li>
+              <li>Reddit never creates a BUY or SELL on its own. It is context, and it is passed to the AI check marked as "untrusted chatter".</li>
+              <li>All of this is free (no AI credit).</li>
+            </ul>
+            <Warn>Crowds are often wrong, and some posts are written to push a price up or down. Treat Reddit as a warning light, never as a reason to buy.</Warn>
           </Section>
 
           <Section title="Smart stop-loss" subtitle="A safety exit sized to each stock" icon={Icon.shield}>

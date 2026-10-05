@@ -75,6 +75,7 @@ export async function fetchReview(sig: Signal, headlines: Headline[], holdings: 
     market: r.market,
     earnings: r.earnings,
     analysts: r.analysts,
+    reddit: r.reddit,
   };
 }
 

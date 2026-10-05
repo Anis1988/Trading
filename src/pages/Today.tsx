@@ -7,6 +7,7 @@ import { getAlertStatus, type AlertStatus } from '../lib/alerts';
 import { useInsights } from '../lib/useInsights';
 import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
 import { concentrated } from '../lib/concentration';
+import { BuzzBadge, BuzzRail, RedditPanel } from '../components/Buzz';
 import { getAccessToken } from '../lib/api';
 
 const ago = (iso: string) => {
@@ -43,6 +44,8 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
     .map(({ h, r }) => ({ sym: h.symbol, value: h.shares * r!.price }))
     .sort((a, b) => b.value - a.value);
   const heavy = concentrated(alloc);
+  // Stocks you own that suddenly get a lot of negative talk on Reddit: a heads-up, not a SELL.
+  const worried = held.filter((h) => { const b = ins?.stocks[h.symbol]?.buzz; return b?.trending && b.mood === 'negative'; });
   const mine = new Set([...held.map((h) => h.symbol), ...watchlist]);
   const news = headlines.filter((x) => x.symbol && mine.has(x.symbol)).slice(0, 10);
 
@@ -69,6 +72,16 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_320px] xl:items-start">
       {/* left rail: money */}
       <aside className="space-y-4 xl:sticky xl:top-20">
+      {worried.map((h) => {
+        const b = ins!.stocks[h.symbol]!.buzz!;
+        return (
+          <section key={h.symbol} className="card space-y-1 !border-red-300/40 !bg-red-500/10 text-sm">
+            <p className="label !text-red-200">Heads-up · Reddit</p>
+            <p>People are worried about <b className="font-display">{h.symbol}</b>: talk is {b.ratio}× normal and {b.neg}% negative.{b.why ? ` Top post: "${b.why}"` : ''}</p>
+            <p className="text-xs text-slate-400">Information only. Tap {h.symbol} under My stocks to read more.</p>
+          </section>
+        );
+      })}
       {heavy.length > 0 && (
         <section className="card space-y-1 !border-amber-300/40 !bg-amber-400/10 text-sm">
           <p className="label !text-amber-200">Too much in one stock</p>
@@ -156,6 +169,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                       <span className="font-display text-xl font-semibold">{h.symbol}</span>
                       {a.action && <ActionChip action={a.action} size="sm" />}
                       <EarningsBadge e={ins?.stocks[h.symbol]?.earnings} />
+                      <BuzzBadge b={ins?.stocks[h.symbol]?.buzz} />
                       <span className="num ml-auto text-lg">${a.price}</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -174,6 +188,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                         <div className="panel !p-2"><p className="label !text-[10px]">1 month</p><Change pct={a.ret1m} className="text-xs" /></div>
                         <div className="panel !p-2"><p className="label !text-[10px]">3 months</p><Change pct={a.ret3m} className="text-xs" /></div>
                       </div>
+                      <RedditPanel b={ins?.stocks[h.symbol]?.buzz} />
                       <InsightLines i={ins?.stocks[h.symbol]} />
                       <p className="text-xs text-slate-500">Trend: {a.label.toLowerCase()} · {Math.abs(a.fromHigh)}% below its 6-month high · score {a.score}/5</p>
                       {news.length > 0 && (
@@ -208,6 +223,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
             )}
           </section>
         )}
+        {ins && <BuzzRail items={held.map((h) => ({ sym: h.symbol, b: ins.stocks[h.symbol]?.buzz }))} />}
         <section className="card space-y-2">
           <p className="label">News on your stocks</p>
           {news.length ? (

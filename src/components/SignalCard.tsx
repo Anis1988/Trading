@@ -100,8 +100,8 @@ export function SignalCard({ s, compact = false }: { s: Signal; compact?: boolea
           <p><span className="label">Why it fired</span><br />{s.reason}{s.headlineUrl && <> · <a className="text-cyan-300 underline" href={s.headlineUrl} target="_blank" rel="noopener noreferrer">source</a></>}</p>
           {s.review?.holdingNote && <p><span className="label">Your holdings</span><br />{s.review.holdingNote}</p>}
           {s.review && s.review.risks.length > 0 && <p><span className="label">Watch out</span><br />{s.review.risks.join(' · ')}</p>}
-          {(s.review?.market || s.review?.earnings || s.review?.analysts) && (
-            <p><span className="label">Context</span><br />{[s.review.market && MARKET_TEXT[s.review.market], s.review.earnings, s.review.analysts].filter(Boolean).join(' · ')}</p>
+          {(s.review?.market || s.review?.earnings || s.review?.analysts || s.review?.reddit) && (
+            <p><span className="label">Context</span><br />{[s.review.market && MARKET_TEXT[s.review.market], s.review.earnings, s.review.analysts, s.review.reddit].filter(Boolean).join(' · ')}</p>
           )}
           <p className="text-xs text-slate-500">
             Signal score {(s.confidence * 100).toFixed(0)}% · {new Date(s.createdAt).toLocaleString()}

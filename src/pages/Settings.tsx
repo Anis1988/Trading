@@ -289,6 +289,7 @@ export function Settings() {
                 <Ready ok={status.ready.ai} label="AI key" />
                 <Ready ok={status.ready.email} label="Server email" />
                 <Ready ok={status.ready.push} label="Notifications" />
+                <Ready ok={!!status.ready.reddit} label="Reddit" />
                 <span className="text-slate-500">{status.lastRun ? `Last check ${new Date(status.lastRun).toLocaleString()}` : 'No background check yet'}</span>
               </div>
               {status.log.slice(0, 4).map((l, i) => <p key={i} className={l.level === 'error' ? 'text-red-300' : l.level === 'warn' ? 'text-amber-200' : 'text-slate-400'}>{new Date(l.ts).toLocaleTimeString()} · {l.msg}</p>)}

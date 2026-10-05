@@ -5,6 +5,8 @@ import { ideaToAnalysis, isBuyIdea, reasonsFor, type Idea } from '../lib/picks';
 import { computeRisk, dailyVolPct, stopPctFor } from '../lib/risk';
 import { useInsights } from '../lib/useInsights';
 import { EarningsBadge, InsightLines } from '../components/Insight';
+import { BuzzBadge } from '../components/Buzz';
+import { MOOD_LABEL } from '../lib/insightTypes';
 import { EARNINGS_SOON_DAYS, shareAfterBuy } from '../lib/concentration';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
 
@@ -200,6 +202,7 @@ export function Ideas() {
                 <ActionChip action="BUY" size="sm" />
                 {own && <span className="rounded-md bg-sky-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-sky-200">You own {own.shares}</span>}
                 <EarningsBadge e={info?.earnings} />
+                <BuzzBadge b={info?.buzz} />
                 <span className="num ml-auto text-lg">${i.price}</span>
               </div>
               <div className="mt-1 flex items-center justify-between gap-2">
@@ -209,6 +212,11 @@ export function Ideas() {
               <div className="mt-2"><Sparkline values={i.closes} height={52} label={`${i.symbol} price, last 3 months`} /></div>
               <ul className="mt-2 space-y-1 text-sm text-slate-300">
                 {reasons.map((r) => <li key={r} className="flex gap-2"><span aria-hidden="true" className="text-cyan-300">›</span><span>{r}</span></li>)}
+                {info?.buzz && (
+                  <li className="flex gap-2"><span aria-hidden="true" className="text-cyan-300">›</span>
+                    <span>Reddit: {info.buzz.trending ? `suddenly ${info.buzz.ratio}× more talk` : 'a normal amount of talk'}{info.buzz.mood !== 'unknown' ? `, ${MOOD_LABEL[info.buzz.mood]}` : ''}{info.buzz.trending && info.buzz.mood === 'negative' ? ' (for a bad reason, careful)' : info.buzz.trending ? ' (hype can reverse)' : ''}.</span>
+                  </li>
+                )}
               </ul>
               <div className="mt-2"><InsightLines i={info} /></div>
               {soon && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Earnings in {info!.earnings!.inDays} day(s): prices can jump or drop a lot. Better to wait until after.</p>}
