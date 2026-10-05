@@ -5,7 +5,7 @@ import { ideaToAnalysis, isBuyIdea, reasonsFor, type Idea } from '../lib/picks';
 import { computeRisk, dailyVolPct, stopPctFor } from '../lib/risk';
 import { useInsights } from '../lib/useInsights';
 import { EarningsBadge, InsightLines } from '../components/Insight';
-import { BuzzBadge } from '../components/Buzz';
+import { BuzzBadge, buzzWait } from '../components/Buzz';
 import { MOOD_LABEL } from '../lib/insightTypes';
 import { EARNINGS_SOON_DAYS, shareAfterBuy } from '../lib/concentration';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
@@ -194,12 +194,13 @@ export function Ideas() {
           const soon = !!info?.earnings && info.earnings.inDays >= 0 && info.earnings.inDays <= EARNINGS_SOON_DAYS;
           const share = risk ? shareAfterBuy(i.symbol, risk.suggestedQty, i.price, settings.holdings) : null;
           const own = settings.holdings.find((h) => h.symbol === i.symbol);
+          const crowd = buzzWait(info?.buzz, a.ret1m, a.rsi);
           return (
             <article key={i.symbol} className="card">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="num text-sm text-slate-500">#{rank + 1}</span>
                 <span className="font-display text-2xl font-semibold">{i.symbol}</span>
-                <ActionChip action="BUY" size="sm" />
+                <ActionChip action={crowd ? 'WAIT' : 'BUY'} size="sm" />
                 {own && <span className="rounded-md bg-sky-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-sky-200">You own {own.shares}</span>}
                 <EarningsBadge e={info?.earnings} />
                 <BuzzBadge b={info?.buzz} />
@@ -219,6 +220,7 @@ export function Ideas() {
                 )}
               </ul>
               <div className="mt-2"><InsightLines i={info} /></div>
+              {crowd && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{crowd}</p>}
               {soon && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Earnings in {info!.earnings!.inDays} day(s): prices can jump or drop a lot. Better to wait until after.</p>}
               {share !== null && share > 25 && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Buying {risk!.suggestedQty} would make it about {share.toFixed(0)}% of your money. Consider fewer shares.</p>}
               {risk && (

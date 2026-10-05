@@ -254,8 +254,8 @@ export function Guide() {
               <RedditPanel b={BUZZ_GOOD} />
             </Example>
             <ul className="space-y-1.5 text-sm text-slate-300">
-              <li><b>Trending for a bad reason</b> (lots of talk, mostly negative): a BUY becomes <ActionChip action="WAIT" size="sm" />, and if you own the stock you get a red heads-up on Today.</li>
-              <li><b>Crowd hype</b> (lots of happy talk and the price already jumped): a BUY becomes <ActionChip action="WAIT" size="sm" />, because hype often reverses.</li>
+              <li><b>Trending for a bad reason</b> (lots of talk, mostly negative): a BUY becomes <ActionChip action="WAIT" size="sm" /> (on alerts, on your stock tiles and on Ideas), and if you own the stock you get a red heads-up on Today.</li>
+              <li><b>Crowd hype</b> (lots of happy talk and the price already jumped): a BUY becomes <ActionChip action="WAIT" size="sm" /> everywhere, because hype often reverses.</li>
               <li>Reddit never creates a BUY or SELL on its own. It is context, and it is passed to the AI check marked as "untrusted chatter".</li>
               <li>All of this is free (no AI credit).</li>
             </ul>
