@@ -8,6 +8,7 @@ import { finnhubNews, googleNews, nasdaqNews, secFilings, yahooHistory, yahooNew
 import { analyze, type Analysis } from '../../src/lib/trend';
 import { TREND_CHECK_EVERY_MS, trendSellSignals } from '../../src/lib/trendSignals';
 import { reviewTrade } from './reviewCore';
+import { isAbout, profiles } from './relevance';
 import { sendServerEmail, serverEmailReady } from './mailer';
 import { pushAll } from './push';
 import { BACK_ON_EVERY_MS, checkBackOn, checkPriceAlerts } from './extraAlerts';
@@ -82,7 +83,10 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
     const seen = new Set(await readServer<string[]>('seen', []));
     const key = process.env.FINNHUB_KEY;
     const jobs = symbols.flatMap((sym) => [yahooNews(sym), googleNews(sym), nasdaqNews(sym), secFilings(sym), ...(key ? [finnhubNews(sym, key)] : [])]);
-    const got = (await Promise.allSettled(jobs)).flatMap((r) => (r.status === 'fulfilled' ? r.value : [])) as ServerHeadline[];
+    const prof = await profiles(symbols).catch(() => ({}) as Awaited<ReturnType<typeof profiles>>);
+    // Only headlines really about the stock: a feed searched for VTI also returns stories about other companies.
+    const got = (await Promise.allSettled(jobs)).flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+      .filter((h) => isAbout(h.title, h.symbol, prof[h.symbol])) as ServerHeadline[];
     const cutoff = Date.now() - MAX_AGE_MS;
     const fresh: Headline[] = got.filter((h) => !seen.has(h.id) && new Date(h.publishedAt).getTime() >= cutoff);
     got.forEach((h) => seen.add(h.id));

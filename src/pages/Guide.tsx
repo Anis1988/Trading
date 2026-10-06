@@ -97,6 +97,7 @@ export function Guide() {
               </ul>
             </Example>
             <P>The same story from two places only counts once. If a source is down or blocks the app, it is skipped and the others still work.</P>
+            <P>A headline only counts for a stock if it names the stock (its ticker, like AAPL, or its company name, like Apple). News sites mix in general market stories about other companies; those are left out. For a fund like VTI or SPY, only headlines that name the fund count, so most of its signals come from its price trend instead.</P>
           </Section>
 
           <Section title="The 5 words" subtitle="BUY · SELL · HOLD · WAIT · SKIP" icon={Icon.today}>
