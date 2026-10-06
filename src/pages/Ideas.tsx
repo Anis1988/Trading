@@ -7,7 +7,7 @@ import { useInsights } from '../lib/useInsights';
 import { EarningsBadge, InsightLines, VsMarketLine } from '../components/Insight';
 import { vsMarket } from '../lib/relative';
 import { BuzzBadge } from '../components/Buzz';
-import { buyWait } from '../lib/waitRules';
+import { buyWait, marketNote } from '../lib/waitRules';
 import { MOOD_LABEL } from '../lib/insightTypes';
 import { shareAfterBuy } from '../lib/concentration';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
@@ -232,6 +232,7 @@ export function Ideas() {
                   </li>
                 )}
               </ul>
+              {!wait && marketNote(ins?.market, a.ret1m) && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">⚠ {marketNote(ins?.market, a.ret1m)}</p>}
               <div className="mt-2 space-y-0.5"><VsMarketLine v={vsMarket(i.symbol, i.ret3m, ins?.market)} always /><InsightLines i={info} /></div>
               {wait && wait.rule !== 'market' && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{wait.text}</p>}
               {risk && settings.cash !== undefined && risk.suggestedQty * i.price > settings.cash && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{risk.suggestedQty} shares cost about {fmtMoney(risk.suggestedQty * i.price)}, but you have {fmtMoney(settings.cash)} cash. {Math.floor(settings.cash / i.price) > 0 ? `You could buy ${Math.floor(settings.cash / i.price)}.` : 'Not enough cash for one share.'}</p>}

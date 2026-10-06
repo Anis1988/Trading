@@ -39,7 +39,7 @@ export async function checkPriceAlerts(alerts: PriceAlert[], notify: Notify, say
 
 const CLEARED: Record<WaitRule, string> = {
   earnings: 'Earnings are done.',
-  market: 'The market stopped falling.',
+  market: 'The market stopped falling (or this stock is now holding up better than it).',
   'reddit-bad': 'The bad buzz on Reddit has calmed down.',
   'reddit-hype': 'The Reddit hype has cooled off.',
   weak: 'Company finances no longer look weak.',

@@ -111,8 +111,9 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
   if (signal.side === 'BUY' && info?.earnings && info.earnings.inDays >= 0 && info.earnings.inDays <= EARNINGS_WAIT_DAYS) {
     return rule(`${earningsText(info.earnings)}. Prices often jump or drop a lot on earnings day, so wait until after.`, 'Earnings coming up', 'earnings');
   }
-  if (signal.side === 'BUY' && market?.trend === 'down') {
-    return rule('The whole market is falling right now. Most buys fail in a falling market, so wait for it to turn.', 'Falling market', 'market');
+  // Falling market: wait only if the stock is doing no better than the market (same rule as the app's tiles).
+  if (signal.side === 'BUY' && market?.trend === 'down' && (!trend || trend.ret1m <= market.ret1m)) {
+    return rule(`The whole market is falling and ${signal.symbol} is doing no better${trend ? ` (${trend.ret1m}% vs the market's ${market.ret1m}% this month)` : ''}. Most buys fail in a falling market, so wait for it to turn.`, 'Falling market', 'market');
   }
   const buzz = info?.buzz;
   if (signal.side === 'BUY' && buzz?.trending && buzz.mood === 'negative') {

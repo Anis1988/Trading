@@ -33,7 +33,7 @@ export const GROUPS: { name: string; emoji: string; terms: Term[] }[] = [
       { word: 'Bull', also: 'bullish', means: 'Someone who thinks prices will go up. "Bullish" = expecting a rise. (A bull attacks by pushing its horns up.)', example: '"I\'m bullish on Apple" = I think Apple will go up.' },
       { word: 'Bear', also: 'bearish', means: 'Someone who thinks prices will go down. "Bearish" = expecting a drop. (A bear attacks by swiping down.)' },
       { word: 'Bull market', means: 'A long stretch, months or years, when prices mostly go up.' },
-      { word: 'Bear market', means: 'When the market has fallen 20% or more from its top and keeps falling.', app: 'When the market is falling, the app turns BUYs into WAIT.' },
+      { word: 'Bear market', means: 'When the market has fallen 20% or more from its top and keeps falling.', app: 'When the market is falling, the app turns BUYs into WAIT, unless the stock is holding up better than the market.' },
       { word: 'Correction', means: 'A drop of about 10% from a recent high. Normal and happens often.' },
       { word: 'Crash', means: 'A very fast, very big drop, often in a few days.' },
       { word: 'Rally', means: 'A strong rise in prices over a short time.' },

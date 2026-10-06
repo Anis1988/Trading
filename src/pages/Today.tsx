@@ -10,7 +10,7 @@ import { vsMarket } from '../lib/relative';
 import { concentrated } from '../lib/concentration';
 import { BuzzBadge, BuzzRail, RedditPanel } from '../components/Buzz';
 import { PriceAlerts } from '../components/PriceAlerts';
-import { buyWait } from '../lib/waitRules';
+import { buyWait, marketNote } from '../lib/waitRules';
 import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken } from '../lib/api';
 
@@ -211,6 +211,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                     {taxWait && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Tax tip: in {tax!.daysToLong} days this becomes a long-term gain, usually taxed less. If it isn't falling fast, waiting may save you money.</p>}
                     <div className="mt-1.5"><VsMarketLine v={vsMarket(h.symbol, a.ret3m, ins?.market)} /></div>
                     <p className="mt-2 text-sm text-slate-300">{crowd ? `The trend looks good, but not now. ${crowd.text}` : a.idea}</p>
+                    {a.action === 'BUY' && !crowd && marketNote(ins?.market, a.ret1m) && <p className="mt-1.5 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">⚠ {marketNote(ins?.market, a.ret1m)}</p>}
                   </button>
                   {open && (
                     <div className="space-y-3 border-t border-white/10 px-4 pb-4 pt-3">

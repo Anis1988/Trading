@@ -73,7 +73,7 @@ export function Guide() {
               items={[
                 'Every few minutes the app reads the news about the stocks you own (and any you are watching).',
                 'If the news is clearly good or bad, it creates a signal: a suggestion to BUY or SELL. Every hour it also checks the price trend of what you own: if one has been sliding for weeks, it creates a SELL signal even when the news is quiet.',
-                'Free safety rules check it first: you cannot sell what you do not own, no buying right before earnings, no buying while the whole market is falling, no buying into Reddit hype or bad-news buzz, no buying a company with weak finances.',
+                'Free safety rules check it first: you cannot sell what you do not own, no buying right before earnings, no buying a stock that is doing no better than a falling market, no buying into Reddit hype or bad-news buzz, no buying a company with weak finances.',
                 'If it passes, Claude (the AI) reads the news, the price and your holdings, and gives its opinion in simple words.',
                 'You see the result on Today. You decide. You can email yourself the instruction or copy it.',
                 'You place the order yourself in Fidelity. The app never trades for you.',
@@ -199,7 +199,7 @@ export function Guide() {
                 <p className="mt-2 text-sm text-slate-300">No clear reason to act. Keep holding.</p>
               </div>
             </Example>
-            <P>A tile only says <ActionChip action="BUY" size="sm" /> if nothing says "not now". It switches to <ActionChip action="WAIT" size="sm" /> and tells you why when: earnings are within 5 days, the whole market is falling, Reddit is buzzing for a bad reason (or with hype after a big jump), or the company's finances are weak. These are the same free checks the alerts use. Buying gets the extra caution on purpose: a missed buy costs nothing, a bad one costs money.</P>
+            <P>A tile only says <ActionChip action="BUY" size="sm" /> if nothing says "not now". It switches to <ActionChip action="WAIT" size="sm" /> and tells you why when: earnings are within 5 days, the whole market is falling and the stock is doing no better than it, Reddit is buzzing for a bad reason (or with hype after a big jump), or the company's finances are weak. These are the same free checks the alerts use. Buying gets the extra caution on purpose: a missed buy costs nothing, a bad one costs money.</P>
             <P><b>Where your money is</b> shows how your money is split. <b>News on your stocks</b> lists the latest headlines. <b>Background alerts</b> shows the last server check and how many AI checks you used today.</P>
           </Section>
 
@@ -256,7 +256,7 @@ export function Guide() {
             <Example>
               <MarketCard m={{ trend: 'down', price: 500, ret1m: -4.2, ret3m: -6.1, closes: DOWN }} />
             </Example>
-            <P><b>Rising</b>: normal. <b>Sideways</b>: no clear direction. <b>Falling</b>: every BUY becomes <ActionChip action="WAIT" size="sm" /> automatically, for free (no AI credit used).</P>
+            <P><b>Rising</b>: normal. <b>Sideways</b>: no clear direction. <b>Falling</b>: a BUY becomes <ActionChip action="WAIT" size="sm" /> if the stock did no better than the market this month. A stock that is holding up better (for example +3% while the market is −4%) stays <ActionChip action="BUY" size="sm" /> with a heads-up to buy a smaller amount. Free, no AI credit used.</P>
           </Section>
 
           <Section title="Earnings warning" subtitle="Why buying right before earnings is risky" icon={Icon.today}>
