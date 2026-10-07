@@ -216,7 +216,7 @@ export function Guide() {
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li><b>Price per share</b>: pick a range such as "Under $50" to see only stocks you can afford.</li>
               <li><b>Ask the AI</b>: Claude picks its best few from the list (one credit, saved for an hour).</li>
-              <li><b>Check with AI &amp; send to Today</b>: turns an idea into a signal card on Today, checked against what you own.</li>
+              <li><b>Check with AI &amp; send to Today</b>: turns an idea into a signal card at the <b>top</b> of Today, checked against what you own. If it is already on Today, it moves to the top: with a fresh AI check, or reusing the last one if it is less than an hour old (no extra AI cost).</li>
               <li><b>Shares to buy</b>: how many shares keep your possible loss within your risk limit.</li>
             </ul>
             <Warn>A high score means the stock has been doing well. It cannot promise the future; any stock can fall.</Warn>
@@ -408,10 +408,11 @@ export function Guide() {
             <Example caption="It also shows at the top of Today for 3 days.">
               <section className="card space-y-1 !border-emerald-300/40 !bg-emerald-500/10 text-sm">
                 <p className="label !text-emerald-200">Back on BUY · Oct 6</p>
-                <p><b className="font-display">AAPL</b>: Earnings are done. The trend still looks good, so BUY is back on at about $231.40. Open the app to check it.</p>
+                <p><b className="font-display">AAPL</b>: Earnings are done. The trend still looks good, so BUY AAPL is back on at about $231.40 (it said WAIT on Oct 2 because earnings were coming up).</p>
               </section>
             </Example>
             <ul className="space-y-1.5 text-sm text-slate-300">
+              <li>The email says it all: which stock, whether it is a new buy or adding to one you own, the price now and when it said WAIT, why it waited, what changed, the trend, and a stop-loss and number of shares that keep the risk at your limit.</li>
               <li>Free: no AI credit. Tap <b>AI check</b> in the app if you want a second opinion before buying.</li>
               <li>Needs <b>Background alerts</b> and sync on (Settings). WAITs on your stock tiles and Ideas are remembered when you open those screens.</li>
               <li>WAITs the AI decided on its own are not followed, because there is no clear "reason gone" moment.</li>

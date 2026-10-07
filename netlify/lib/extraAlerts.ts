@@ -1,5 +1,6 @@
 import type { PriceAlert, ScoreEntry, Settings } from '../../src/types';
-import { analyze } from '../../src/lib/trend';
+import { analyze, type Analysis } from '../../src/lib/trend';
+import { computeRisk, dailyVolPct, stopPctFor } from '../../src/lib/risk';
 import { buyWait, type WaitRule } from '../../src/lib/waitRules';
 import { yahooHistory, yahooQuote } from './feeds';
 import { getInsights, getMarket } from './insights';
@@ -52,6 +53,32 @@ export const BACK_ON_EVERY_MS = 50 * 60_000; // a little under an hour, so the h
  * "Tell me when a WAIT turns into a BUY": stocks held back by a free rule in the last 14 days
  * (alerts, stock tiles, Ideas) are re-checked hourly; when the reason is gone and the trend is still good, notify once.
  */
+const RULE_NAME: Record<WaitRule, string> = {
+  earnings: 'earnings were coming up', market: 'the whole market was falling', 'reddit-bad': 'Reddit was buzzing about it for a bad reason',
+  'reddit-hype': 'there was Reddit hype after a big jump', weak: 'the company finances looked weak',
+};
+const day = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const pct = (n: number) => `${n > 0 ? '+' : ''}${n}%`;
+
+/** The "BUY is back on" email: which stock, buy what, why it waited, what changed, the trend and a safe size. */
+export function backOnText(e: ScoreEntry, a: Analysis, ownedShares: number | undefined, s: Partial<Settings>, closes: number[]): string {
+  const stopPct = stopPctFor(dailyVolPct(closes), s.stopLossPct ?? 5, s.smartStop ?? true);
+  const risk = computeRisk('BUY', a.price, s.riskPerTrade ?? 100, stopPct);
+  const site = process.env.URL ?? '';
+  return [
+    `${e.symbol}: BUY is back on.`,
+    '',
+    `What: BUY ${e.symbol}. ${ownedShares ? `You own ${ownedShares} shares, so this means adding more.` : "You don't own it yet: it is a new buy idea."}`,
+    `Price now: about $${a.price} (it was $${e.entryPrice} on ${day(e.createdAt)}, when the app said WAIT).`,
+    `Why it said WAIT: ${RULE_NAME[e.why as WaitRule] ?? e.why}.`,
+    `What changed: ${CLEARED[e.why as WaitRule]}`,
+    `Trend: ${a.idea} (1 month ${pct(a.ret1m)}, 3 months ${pct(a.ret3m)}).`,
+    ...(risk ? [`If you buy: a stop-loss around $${risk.stop} (−${stopPct}%) and about ${risk.suggestedQty} shares keeps a possible loss near $${s.riskPerTrade ?? 100}.`] : []),
+    '',
+    `This is not an order and not advice: the app never buys anything. Open the app to check it first${site ? `: ${site}` : '.'}`,
+  ].join('\n');
+}
+
 export async function checkBackOn(s: Partial<Settings>, scoreLog: ScoreEntry[], notify: Notify, say: Say): Promise<number> {
   const since = new Date(Date.now() - WATCH_DAYS * 86400_000).toISOString();
   const latest = new Map<string, ScoreEntry>();
@@ -73,8 +100,9 @@ export async function checkBackOn(s: Partial<Settings>, scoreLog: ScoreEntry[], 
     if (!a) continue;
     const good = owned ? a.action === 'BUY' : a.ideaKind === 'buy';
     if (!good || buyWait({ info: info[e.symbol], market, ret1m: a.ret1m, rsi: a.rsi })) continue;
-    const text = `${CLEARED[e.why as WaitRule]} The trend still looks good, so BUY is back on at about $${a.price}. Open the app to check it.`;
-    if (await notify(`✅ ${e.symbol}: BUY is back on`, text)) {
+    // Short line for the app (Today, log); the full details go in the email / notification.
+    const text = `${CLEARED[e.why as WaitRule]} The trend still looks good, so BUY ${e.symbol} is back on at about $${a.price} (it said WAIT on ${day(e.createdAt)} because ${RULE_NAME[e.why as WaitRule] ?? e.why}).`;
+    if (await notify(`✅ ${e.symbol}: BUY is back on`, backOnText(e, a, owned?.shares, s, hist?.closes ?? []))) {
       done.unshift({ symbol: e.symbol, rule: e.why!, at: new Date().toISOString(), price: a.price, text, waitAt: e.createdAt });
       say('info', `${e.symbol}: back on BUY. ${text}`);
       n++;

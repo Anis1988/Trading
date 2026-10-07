@@ -279,12 +279,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   /** Turn a buy idea into a normal signal: it then gets the AI check (with your holdings) and the Email / Copy buttons on Today. */
   const addIdeaSignal = (symbol: string, price: number, reason: string, confidence: number, news?: { title: string; url: string }) => {
     const st = ref.current.settings;
-    if (ref.current.signals.some((x) => x.symbol === symbol && x.side === 'BUY' && x.status === 'new')) return toast('info', `${symbol} is already waiting on Today.`);
+    // Already on Today: move it to the top. If the AI checked it in the last hour, reuse that check (no new AI cost);
+    // otherwise replace it with a fresh check at today's price.
+    const existing = ref.current.signals.find((x) => x.symbol === symbol && x.side === 'BUY' && x.status === 'new');
+    if (existing && existing.review && !existing.reviewStatus && Date.now() - Date.parse(existing.createdAt) < 3600_000) {
+      setSignals((l) => [existing, ...l.filter((x) => x.id !== existing.id)]);
+      return toast('info', `${symbol} moved to the top of Today (the AI checked it less than an hour ago).`);
+    }
     const sig: Signal = {
       id: uid(), symbol, side: 'BUY', confidence, reason, qty: st.defaultQty, createdAt: nowIso(), status: 'new',
       source: 'local', headlineUrl: news?.url, entryPrice: price,
     };
-    setSignals((l) => [{ ...sig, reviewStatus: st.useAiReview ? 'pending' : undefined }, ...l]);
+    setSignals((l) => [{ ...sig, reviewStatus: st.useAiReview ? 'pending' : undefined }, ...l.filter((x) => x.id !== existing?.id)]);
     log('info', `Idea sent to Today: BUY ${symbol}`);
     toast('success', `${symbol} sent to Today for the AI check.`);
     if (st.useAiReview) {
