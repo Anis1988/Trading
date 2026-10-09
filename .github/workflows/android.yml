@@ -24,6 +24,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Phone notifications on if the Firebase app file is there
+        run: if [ -f android/app/google-services.json ]; then echo "VITE_FCM=1" >> "$GITHUB_ENV"; echo "Firebase found"; else echo "No google-services.json: built without phone notifications"; fi
       - name: Build the screens (they talk to the live site's server)
         run: npm run build
         env:

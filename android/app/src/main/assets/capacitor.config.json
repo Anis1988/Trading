@@ -2,7 +2,7 @@
 	"appId": "app.tradinganis",
 	"appName": "Trading",
 	"webDir": "build",
-	"backgroundColor": "#05070f",
+	"backgroundColor": "#03140c",
 	"plugins": {
 		"CapacitorHttp": {
 			"enabled": true

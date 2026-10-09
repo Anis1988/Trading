@@ -1,5 +1,6 @@
 import { call } from './api';
 import { isNative } from './native';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 export interface AlertStatus {
   lastRun: string | null;
@@ -27,7 +28,7 @@ export function registerServiceWorker(): void {
   }
 }
 
-export const pushSupported = () => !isNative() && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+export const pushSupported = () => isNative() ? appPushReady() : 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 export const isStandalone = () =>
   isNative() || window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
 export const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -86,4 +87,57 @@ export async function promptInstall(): Promise<boolean> {
   const { outcome } = await deferredInstall.userChoice;
   deferredInstall = null;
   return outcome === 'accepted';
+}
+
+/* ---------- Android app: phone notifications through Firebase ---------- */
+const APP_TOKEN_KEY = 'ta.appPushToken';
+const savedAppToken = (): string => { try { return localStorage.getItem(APP_TOKEN_KEY) ?? ''; } catch { return ''; } };
+const keepAppToken = (t: string) => { try { if (t) localStorage.setItem(APP_TOKEN_KEY, t); else localStorage.removeItem(APP_TOKEN_KEY); } catch { /* ignore */ } };
+
+/** The app was built with Firebase (google-services.json present when GitHub built it). */
+export const appPushReady = () => isNative() && import.meta.env.VITE_FCM === '1';
+export const appPushOn = () => appPushReady() && !!savedAppToken();
+
+/** This phone's Firebase address (asks Android for it; it can change after an app update or reinstall). */
+function appToken(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const subs = [
+      PushNotifications.addListener('registration', (t) => { done(); resolve(t.value); }),
+      PushNotifications.addListener('registrationError', (e) => { done(); reject(new Error(`Could not register for notifications: ${e.error}`)); }),
+    ];
+    const timer = setTimeout(() => { done(); reject(new Error('Android did not answer. Check the internet connection and try again.')); }, 20_000);
+    const done = () => { clearTimeout(timer); subs.forEach((s) => void s.then((x) => x.remove())); };
+    void PushNotifications.register().catch((e) => { done(); reject(e); });
+  });
+}
+
+const channel = () => PushNotifications.createChannel({ id: 'alerts', name: 'Trading alerts', description: 'BUY/SELL calls, price alerts and summaries', importance: 5, visibility: 1, vibration: true });
+
+export async function enableAppPush(): Promise<void> {
+  let p = await PushNotifications.checkPermissions();
+  if (p.receive !== 'granted') p = await PushNotifications.requestPermissions();
+  if (p.receive !== 'granted') throw new Error('Notifications were not allowed. Allow them in Android Settings → Apps → Trading → Notifications, then try again.');
+  await channel();
+  const token = await appToken();
+  await alertAction({ action: 'subscribe-app', token });
+  keepAppToken(token);
+}
+
+export async function disableAppPush(): Promise<void> {
+  const token = savedAppToken();
+  if (token) await alertAction({ action: 'unsubscribe-app', token }).catch(() => undefined);
+  await PushNotifications.unregister().catch(() => undefined);
+  keepAppToken('');
+}
+
+/** On app start: keeps the server's copy of this phone's address current, and shows alerts that arrive while the app is open. */
+export function startAppPush(onAlert: (title: string, body: string) => void): () => void {
+  if (!appPushReady()) return () => undefined;
+  const h = PushNotifications.addListener('pushNotificationReceived', (n) => onAlert(n.title ?? 'Trading', n.body ?? ''));
+  if (savedAppToken()) {
+    void channel().then(appToken).then(async (t) => {
+      if (t !== savedAppToken()) { await alertAction({ action: 'subscribe-app', token: t }); keepAppToken(t); }
+    }).catch(() => undefined);
+  }
+  return () => void h.then((x) => x.remove());
 }

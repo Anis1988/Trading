@@ -11,7 +11,7 @@ import { getAccessToken, setAccessToken } from '../lib/api';
 import { isNative } from '../lib/native';
 import { APP_BUILD, downloadApp, latestApp } from '../components/AppUpdate';
 import {
-  alertAction, canPromptInstall, currentSubscription, disablePush, enablePush, getAlertStatus, isIos, isStandalone, onInstallAvailable, promptInstall, pushSupported,
+  alertAction, appPushOn, disableAppPush, enableAppPush, canPromptInstall, currentSubscription, disablePush, enablePush, getAlertStatus, isIos, isStandalone, onInstallAvailable, promptInstall, pushSupported,
   type AlertStatus,
 } from '../lib/alerts';
 import { ActionChip, Change, Field, Icon, Section, Toggle } from '../components/ui';
@@ -51,7 +51,8 @@ export function Settings() {
   };
   useEffect(() => {
     if (getAccessToken()) void loadStatus();
-    void currentSubscription().then((x) => setPushOn(!!x));
+    if (isNative()) setPushOn(appPushOn());
+    else void currentSubscription().then((x) => setPushOn(!!x));
     const off = onInstallAvailable(() => setInstallable(true));
     return () => {
       off();
@@ -113,6 +114,13 @@ export function Settings() {
 
   const togglePush = (on: boolean) =>
     run('push', async () => {
+      if (isNative()) {
+        // Android app: Firebase (the key file must be uploaded on the website first).
+        if (on) await enableAppPush();
+        else await disableAppPush();
+        setPushOn(on);
+        return toast(on ? 'success' : 'info', on ? 'Notifications are on for this phone.' : 'Notifications are off on this phone.');
+      }
       if (!on) {
         await disablePush();
         setPushOn(false);
@@ -331,7 +339,7 @@ export function Settings() {
         </div>
 
         <div className="panel space-y-2">
-          <Field label="Notifications on this device" hint={pushSupported() ? 'A phone/computer alert when a background alert fires.' : isNative() ? 'Phone alerts in the Android app come in the next version. Email alerts work now.' : isIos() && !isStandalone() ? 'On iPhone: add the app to your Home Screen first, then open it from there.' : 'Not supported in this browser.'}>
+          <Field label="Notifications on this device" hint={pushSupported() ? 'A phone/computer alert when a background alert fires.' : isNative() ? 'This version was built without Firebase, so phone alerts are not available yet.' : isIos() && !isStandalone() ? 'On iPhone: add the app to your Home Screen first, then open it from there.' : 'Not supported in this browser.'}>
             <Toggle on={pushOn} disabled={busy === 'push' || !pushSupported()} onChange={(v) => void togglePush(v)} label="Notifications" />
           </Field>
           <Field label="Android app notifications" hint={status?.firebase ? `Firebase key saved (project ${status.firebase}). ${status.phones ?? 0} phone(s) get alerts.` : 'Upload your Firebase key file once (from your computer) so the Android app can get phone alerts. See Guide → Android app.'}>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { App as NativeApp } from '@capacitor/app';
 import { isNative } from './lib/native';
 import { AppUpdateCheck } from './components/AppUpdate';
+import { startAppPush } from './lib/alerts';
 import { useStore } from './store';
 import { Toasts } from './components/Toasts';
 import { Icon } from './components/ui';
@@ -36,7 +37,9 @@ function Logo() {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('Today');
-  const { panic, settings, signals } = useStore();
+  const { panic, settings, signals, toast } = useStore();
+  // Android app: an alert that arrives while the app is open shows as a message at the top.
+  useEffect(() => startAppPush((title, body) => toast('info', body ? `${title}: ${body}` : title)), []); // eslint-disable-line react-hooks/exhaustive-deps
   // Android back button: back to Today first, then the app goes to the background (like other apps).
   const tabRef = useRef(tab);
   tabRef.current = tab;

@@ -462,7 +462,8 @@ export function Guide() {
               <li><b>Update</b>: when a new version is ready, a banner shows at the top of the app. Tap <b>Update</b>: the new version downloads, then tap <b>Install</b>. It installs over the old one and keeps your data. <b>Later</b> hides it until the next version. You can also check in <b>Settings → App version</b>.</li>
               <li>Open <b>Settings → Sync &amp; access</b> and enter the same access token as on the website, so your data appears.</li>
               <li>The phone's back button goes back to Today, then closes the app.</li>
-              <li>Phone notifications inside the app come in the next version. Email alerts already work.</li>
+              <li><b>Phone notifications</b>: turn on <b>Settings → Notifications</b> inside the app. You get the same alerts as by email, even when the app is closed. While the app is open, they show as a message at the top.</li>
+              <li><b>One-time Firebase setup</b> (Google's free notification service): 1. On <b>console.firebase.google.com</b>, create a project. 2. Add an <b>Android</b> app with the name <b>app.tradinganis</b> and download <b>google-services.json</b>: give it to Claude to add to the app (it only names your project, it is not a password). 3. In Project settings → <b>Service accounts</b>, tap <b>Generate new private key</b>: this file IS private. Upload it on the website in <b>Settings → Notifications → Android app notifications</b>, and never send it to anyone.</li>
             </ul>
           </Section>
 
