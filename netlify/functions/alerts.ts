@@ -4,6 +4,7 @@ import { readServer, type ServerLogEntry } from '../lib/state';
 import { serverEmailReady, sendServerEmail } from '../lib/mailer';
 import { getSubscriptions, pushAll, pushReady, removeSubscription, saveSubscription } from '../lib/push';
 import { runWatch } from '../lib/watchCore';
+import { firebaseKey, getFcmTokens, parseFirebaseKey, removeFcmToken, saveFcmToken, saveFirebaseKey } from '../lib/fcm';
 import { aiUsage, reviewModel } from '../lib/aiBudget';
 import { redditReady } from '../lib/reddit';
 import { runWeekly } from '../lib/weeklyCore';
@@ -16,6 +17,10 @@ const Post = z.discriminatedUnion('action', [
   z.object({ action: z.literal('subscribe'), subscription: z.object({ endpoint: z.string().url().max(1000), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }) }) }),
   z.object({ action: z.literal('unsubscribe'), endpoint: z.string().max(1000) }),
   z.object({ action: z.literal('test-push') }),
+  // Android app: the phone's Firebase address, and the Firebase key file (uploaded once in Settings, kept on the server only).
+  z.object({ action: z.literal('subscribe-app'), token: z.string().min(20).max(4096) }),
+  z.object({ action: z.literal('unsubscribe-app'), token: z.string().max(4096) }),
+  z.object({ action: z.literal('firebase-key'), key: z.record(z.string(), z.unknown()).nullable() }),
   z.object({ action: z.literal('test-email'), to: z.string().email().max(200) }),
   z.object({ action: z.literal('run-now') }),
   z.object({ action: z.literal('weekly-now') }),
@@ -35,6 +40,8 @@ export default async (req: Request): Promise<Response> => {
         ready: { ai: !!process.env.ANTHROPIC_API_KEY, email: serverEmailReady(), push: pushReady(), reddit: redditReady() },
         vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null,
         devices: (await getSubscriptions()).length,
+        phones: (await getFcmTokens()).length,
+        firebase: (await firebaseKey())?.project_id ?? null,
         ai: { ...(await aiUsage()), model: reviewModel() },
         priceFired: await readServer<Record<string, PriceHit>>('priceFired', {}),
         backOn: (await readServer<BackOn[]>('backOn', [])).slice(0, 10),
@@ -54,6 +61,19 @@ export default async (req: Request): Promise<Response> => {
       case 'unsubscribe':
         await removeSubscription(body.endpoint);
         return json({ ok: true });
+      case 'subscribe-app':
+        if (!(await firebaseKey())) return json({ error: 'Phone notifications need the Firebase key: on the website, open Settings → Notifications and upload it.' }, 503);
+        return json({ phones: await saveFcmToken(body.token) });
+      case 'unsubscribe-app':
+        await removeFcmToken(body.token);
+        return json({ ok: true });
+      case 'firebase-key': {
+        if (body.key === null) return (await saveFirebaseKey(null), json({ firebase: null }));
+        const k = parseFirebaseKey(body.key);
+        if (!k) return json({ error: 'That is not a Firebase service account key file (it should contain "type": "service_account").' }, 400);
+        await saveFirebaseKey(k);
+        return json({ firebase: k.project_id });
+      }
       case 'test-push': {
         const n = await pushAll({ title: 'Trading Assistant', body: 'Notifications work on this device.', tag: 'test' });
         return n ? json({ sent: n }) : json({ error: 'No device received it. Turn notifications on first.' }, 400);

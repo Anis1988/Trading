@@ -6,6 +6,8 @@ export interface AlertStatus {
   ready: { ai: boolean; email: boolean; push: boolean; reddit?: boolean };
   vapidPublicKey: string | null;
   devices: number;
+  phones?: number; // Android app phones that get notifications
+  firebase?: string | null; // Firebase project of the uploaded key (the key itself stays on the server)
   ai?: { used: number; limit: number; model: string };
   priceFired?: Record<string, { at: string; price: number }>;
   backOn?: { symbol: string; rule: string; at: string; price: number; text: string }[];

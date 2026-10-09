@@ -332,6 +332,25 @@ export function Settings() {
           <Field label="Notifications on this device" hint={pushSupported() ? 'A phone/computer alert when a background alert fires.' : isIos() && !isStandalone() ? 'On iPhone: add the app to your Home Screen first, then open it from there.' : 'Not supported in this browser.'}>
             <Toggle on={pushOn} disabled={busy === 'push' || !pushSupported()} onChange={(v) => void togglePush(v)} label="Notifications" />
           </Field>
+          <Field label="Android app notifications" hint={status?.firebase ? `Firebase key saved (project ${status.firebase}). ${status.phones ?? 0} phone(s) get alerts.` : 'Upload your Firebase key file once (from your computer) so the Android app can get phone alerts. See Guide → Android app.'}>
+            <div className="flex flex-wrap gap-2">
+              <label className={`btn ${busy ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}>
+                {busy === 'fb' ? <><span className="spinner" /> Saving…</> : status?.firebase ? 'Replace key file' : 'Upload key file'}
+                <input type="file" accept=".json,application/json" className="hidden" onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (f) void run('fb', async () => {
+                    let key: unknown;
+                    try { key = JSON.parse(await f.text()); } catch { throw new Error('That file is not a Firebase key file (.json).'); }
+                    const r = await alertAction<{ firebase: string }>({ action: 'firebase-key', key });
+                    toast('success', `Firebase key saved (project ${r.firebase}).`);
+                    void loadStatus();
+                  });
+                }} />
+              </label>
+              {status?.firebase && <button className="btn" disabled={!!busy} onClick={() => window.confirm('Remove the Firebase key? Phones stop getting notifications.') && void run('fbx', async () => { await alertAction({ action: 'firebase-key', key: null }); toast('success', 'Firebase key removed.'); void loadStatus(); })}>Remove</button>}
+            </div>
+          </Field>
           {pushOn && <button className="btn" disabled={!!busy} onClick={() => void run('tp', async () => { await alertAction({ action: 'test-push' }); toast('success', 'Test notification sent.'); })}>Send test notification</button>}
           {!isStandalone() && (
             <Field label="Install as an app" hint={isIos() ? 'Safari: tap Share, then "Add to Home Screen".' : installable ? 'Adds a full-screen icon to your home screen.' : 'Use your browser menu: "Install app" or "Add to Home screen".'}>
