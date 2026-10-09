@@ -9,6 +9,8 @@ const config: CapacitorConfig = {
   plugins: {
     // Requests go through Android itself (not the web view), so the live server and news feeds answer without CORS limits.
     CapacitorHttp: { enabled: true },
+    // The app is dark: the phone's clock, battery and signal icons are shown light so they are easy to read.
+    SystemBars: { style: 'DARK', initialViewportFitValueHint: 'cover' },
   },
 };
 
