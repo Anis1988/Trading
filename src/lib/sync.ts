@@ -1,5 +1,6 @@
 import type { HistoryItem, ScoreEntry, Settings } from '../types';
 import { getAccessToken } from './api';
+import { apiUrl } from './native';
 
 // Settings that stay per-device on purpose: the switches that stop or automate emailing must never be flipped by another device.
 const LOCAL_ONLY = ['stopped', 'autoEmail', 'useMcp'] as const;
@@ -50,7 +51,7 @@ async function req(method: 'GET' | 'PUT', body?: unknown): Promise<{ status: num
   const token = getAccessToken();
   let res: Response;
   try {
-    res = await fetch('/api/sync', {
+    res = await fetch(apiUrl('/api/sync'), {
       method,
       headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), 'X-Access-Token': token },
       body: body ? JSON.stringify(body) : undefined,

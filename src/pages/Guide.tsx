@@ -444,6 +444,23 @@ export function Guide() {
             </ul>
           </Section>
 
+          <Section title="Android app" subtitle="The same app, installed on your phone" icon={Icon.bell}>
+            <P>There is also a real Android app. It has the same screens and rules, and it uses the same server, so your stocks, history, settings and AI limit are shared with the website. Like the website, it never places orders.</P>
+            <Example caption="What you see on the download page, opened on your phone.">
+              <section className="card space-y-1 text-sm">
+                <p className="label">Android app (latest) · version 1.0.12</p>
+                <p><b className="font-display">Trading.apk</b> <span className="text-slate-400">· 4.1 MB</span></p>
+              </section>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Install</b>: on your phone, open the GitHub release called <b>android-latest</b> and tap <b>Trading.apk</b>. The first time, Android asks to allow installing apps from your browser: allow it once.</li>
+              <li><b>Update</b>: do the same with a newer version. It installs over the old one and keeps your data.</li>
+              <li>Open <b>Settings → Sync &amp; access</b> and enter the same access token as on the website, so your data appears.</li>
+              <li>The phone's back button goes back to Today, then closes the app.</li>
+              <li>Phone notifications inside the app come in the next version. Email alerts already work.</li>
+            </ul>
+          </Section>
+
           <Section title="Saving AI credits" subtitle="What costs money and what is free" icon={Icon.shield}>
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li><b>Costs about 1 cent</b>: an AI check of a signal, Ask the AI on Ideas, Re-check.</li>

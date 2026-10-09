@@ -8,6 +8,7 @@ import { Logs } from './Logs';
 import { useTrends } from '../lib/useTrends';
 import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken, setAccessToken } from '../lib/api';
+import { isNative } from '../lib/native';
 import {
   alertAction, canPromptInstall, currentSubscription, disablePush, enablePush, getAlertStatus, isIos, isStandalone, onInstallAvailable, promptInstall, pushSupported,
   type AlertStatus,
@@ -329,7 +330,7 @@ export function Settings() {
         </div>
 
         <div className="panel space-y-2">
-          <Field label="Notifications on this device" hint={pushSupported() ? 'A phone/computer alert when a background alert fires.' : isIos() && !isStandalone() ? 'On iPhone: add the app to your Home Screen first, then open it from there.' : 'Not supported in this browser.'}>
+          <Field label="Notifications on this device" hint={pushSupported() ? 'A phone/computer alert when a background alert fires.' : isNative() ? 'Phone alerts in the Android app come in the next version. Email alerts work now.' : isIos() && !isStandalone() ? 'On iPhone: add the app to your Home Screen first, then open it from there.' : 'Not supported in this browser.'}>
             <Toggle on={pushOn} disabled={busy === 'push' || !pushSupported()} onChange={(v) => void togglePush(v)} label="Notifications" />
           </Field>
           {pushOn && <button className="btn" disabled={!!busy} onClick={() => void run('tp', async () => { await alertAction({ action: 'test-push' }); toast('success', 'Test notification sent.'); })}>Send test notification</button>}

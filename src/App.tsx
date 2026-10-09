@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { App as NativeApp } from '@capacitor/app';
+import { isNative } from './lib/native';
 import { useStore } from './store';
 import { Toasts } from './components/Toasts';
 import { Icon } from './components/ui';
@@ -34,6 +36,17 @@ function Logo() {
 export default function App() {
   const [tab, setTab] = useState<Tab>('Today');
   const { panic, settings, signals } = useStore();
+  // Android back button: back to Today first, then the app goes to the background (like other apps).
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  useEffect(() => {
+    if (!isNative()) return;
+    const h = NativeApp.addListener('backButton', () => {
+      if (tabRef.current !== 'Today') setTab('Today');
+      else void NativeApp.minimizeApp();
+    });
+    return () => void h.then((x) => x.remove());
+  }, []);
   const newCount = signals.filter((s) => s.status === 'new' && s.review?.verdict !== 'REJECT').length;
   const stop = () => {
     if (window.confirm('Stop alerts?\n\nThis stops checking the news and turns Auto-Email off on this device. Nothing is cancelled in Fidelity and nothing is deleted. You can resume any time.')) panic();
@@ -42,7 +55,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <Toasts />
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/75 backdrop-blur-xl" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/75 backdrop-blur-xl" style={{ paddingTop: 'var(--safe-area-inset-top, env(safe-area-inset-top))' }}>
         <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-3 px-3 sm:px-4">
           <Logo />
           <span className="font-display text-lg font-semibold tracking-tight">Trading</span>
@@ -88,7 +101,7 @@ export default function App() {
           ))}
         </nav>
       </header>
-      <main className="mx-auto max-w-[1600px] px-3 pb-12 pt-4 sm:px-4 lg:px-6">
+      <main className="mx-auto max-w-[1600px] px-3 pb-12 pt-4 sm:px-4 lg:px-6" style={{ paddingBottom: 'calc(3rem + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))' }}>
         {tab === 'Today' && <Today goTo={setTab} />}
         {tab === 'Ideas' && <Ideas />}
         {tab === 'History' && <History />}

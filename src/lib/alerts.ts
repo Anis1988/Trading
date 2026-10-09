@@ -1,4 +1,5 @@
 import { call } from './api';
+import { isNative } from './native';
 
 export interface AlertStatus {
   lastRun: string | null;
@@ -18,14 +19,15 @@ export const alertAction = <T = Record<string, unknown>>(body: Record<string, un
 
 /* ---------- installable app + notifications ---------- */
 export function registerServiceWorker(): void {
-  if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  // Not in the Android app: it loads its screens from the phone itself, and web alerts don't reach an app.
+  if ('serviceWorker' in navigator && import.meta.env.PROD && !isNative()) {
     navigator.serviceWorker.register('/sw.js').catch(() => undefined);
   }
 }
 
-export const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+export const pushSupported = () => !isNative() && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 export const isStandalone = () =>
-  window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+  isNative() || window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
 export const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 
 function keyToBytes(base64: string): Uint8Array<ArrayBuffer> {

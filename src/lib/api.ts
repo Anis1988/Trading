@@ -3,6 +3,7 @@ import type { Holding } from './holdings';
 import type { Series } from './trend';
 import type { Idea } from './picks';
 import { SourceError } from './rss';
+import { apiUrl } from './native';
 
 const TOKEN_KEY = 'ta.accessToken';
 export const getAccessToken = (): string => {
@@ -24,7 +25,7 @@ export async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAccessToken();
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers: { ...(init?.headers ?? {}), ...(token ? { 'X-Access-Token': token } : {}) } });
+    res = await fetch(apiUrl(path), { ...init, headers: { ...(init?.headers ?? {}), ...(token ? { 'X-Access-Token': token } : {}) } });
   } catch {
     throw new SourceError('Could not reach the server functions. Run `npm run dev:full` locally or deploy to Netlify.');
   }

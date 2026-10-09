@@ -1,6 +1,8 @@
 [build]
   command = "npm run build"
   publish = "build"
+  # The Android app (branch "android") is built by GitHub, not Netlify: skip it here so it uses no Netlify credits.
+  ignore = '[ "$BRANCH" = "android" ]'
 
 [build.environment]
   NODE_VERSION = "20"
