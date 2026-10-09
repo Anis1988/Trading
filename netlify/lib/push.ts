@@ -1,5 +1,6 @@
 import webpush, { type PushSubscription } from 'web-push';
 import { readServer, writeServer } from './state';
+import { fcmAll } from './fcm';
 
 export const pushReady = () => !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 
@@ -18,8 +19,13 @@ export async function removeSubscription(endpoint: string): Promise<void> {
   await writeServer('push-subs', (await getSubscriptions()).filter((s) => s.endpoint !== endpoint));
 }
 
-/** Sends to every registered device; drops subscriptions the browser has revoked. Returns how many were delivered. */
+/** Sends to every registered device (browsers and the Android app); drops revoked ones. Returns how many were delivered. */
 export async function pushAll(payload: { title: string; body: string; tag?: string }): Promise<number> {
+  const phones = await fcmAll(payload).catch(() => 0);
+  return phones + (await webPushAll(payload));
+}
+
+async function webPushAll(payload: { title: string; body: string; tag?: string }): Promise<number> {
   if (!pushReady()) return 0;
   webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:alerts@example.com', process.env.VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!);
   const subs = await getSubscriptions();

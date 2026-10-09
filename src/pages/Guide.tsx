@@ -440,6 +440,7 @@ export function Guide() {
               <li><b>Auto-email (app open)</b>: emails BUY/SELL calls the AI approved, but only while the app is open on that device.</li>
               <li><b>Background alerts (app closed)</b>: the server checks once an hour on weekdays (about 7am–7pm New York) and emails you approved calls even when your phone is locked. It also checks your stocks' trends every hour. When this is on, the app does not send its own auto-email too, so you never get the same email twice.</li>
               <li><b>Notifications</b>: a phone alert for background alerts. On iPhone, first add the app to your Home Screen (Safari → Share → Add to Home Screen) and open it from there.</li>
+              <li><b>Android app notifications</b>: the Android app gets the same alerts as phone notifications through Google's free Firebase service. One-time setup: upload your Firebase key file in <b>Settings → Notifications → Android app notifications</b> (from your computer), then turn on Notifications inside the app.</li>
               <li><b>Weekly summary</b>: every Friday after the market closes: your profit/loss, the week's instructions and the scoreboard.</li>
               <li><b>Stop alerts</b> (top right): stops checking the news and turns auto-email off on that device. It does not touch Fidelity and deletes nothing. Press Resume to start again.</li>
             </ul>
