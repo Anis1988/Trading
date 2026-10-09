@@ -28,6 +28,7 @@ jobs:
         run: npm run build
         env:
           VITE_API_BASE: https://tradinganis.netlify.app
+          VITE_APP_BUILD: ${{ github.run_number }} # the app compares this with the release page to offer updates
       - name: Copy them into the Android project
         run: npx cap sync android
       - uses: actions/setup-java@v5

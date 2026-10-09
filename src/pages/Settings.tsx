@@ -9,6 +9,7 @@ import { useTrends } from '../lib/useTrends';
 import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken, setAccessToken } from '../lib/api';
 import { isNative } from '../lib/native';
+import { APP_BUILD, downloadApp, latestApp } from '../components/AppUpdate';
 import {
   alertAction, canPromptInstall, currentSubscription, disablePush, enablePush, getAlertStatus, isIos, isStandalone, onInstallAvailable, promptInstall, pushSupported,
   type AlertStatus,
@@ -334,6 +335,16 @@ export function Settings() {
             <Toggle on={pushOn} disabled={busy === 'push' || !pushSupported()} onChange={(v) => void togglePush(v)} label="Notifications" />
           </Field>
           {pushOn && <button className="btn" disabled={!!busy} onClick={() => void run('tp', async () => { await alertAction({ action: 'test-push' }); toast('success', 'Test notification sent.'); })}>Send test notification</button>}
+          {isNative() && (
+            <Field label="App version" hint={`1.0.${APP_BUILD}. New versions are also offered at the top of the app when you open it.`}>
+              <button className="btn" disabled={!!busy} onClick={() => void run('upd', async () => {
+                const r = await latestApp();
+                if (!r) throw new Error('Could not reach the download page. Try again in a minute.');
+                if (r.build <= APP_BUILD) toast('success', 'You have the latest version.');
+                else await downloadApp(r.url);
+              })}>{busy === 'upd' ? <><span className="spinner" /> Checking…</> : 'Check for updates'}</button>
+            </Field>
+          )}
           {!isStandalone() && (
             <Field label="Install as an app" hint={isIos() ? 'Safari: tap Share, then "Add to Home Screen".' : installable ? 'Adds a full-screen icon to your home screen.' : 'Use your browser menu: "Install app" or "Add to Home screen".'}>
               {installable && <button className="btn" onClick={() => void promptInstall().then((ok) => ok && toast('success', 'Installed.'))}>Install</button>}

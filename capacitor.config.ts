@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appId: 'app.tradinganis',
   appName: 'Trading',
   webDir: 'build',
-  backgroundColor: '#05070f',
+  backgroundColor: '#03140c',
   plugins: {
     // Requests go through Android itself (not the web view), so the live server and news feeds answer without CORS limits.
     CapacitorHttp: { enabled: true },

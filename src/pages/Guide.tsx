@@ -10,6 +10,7 @@ import { BacktestRow } from '../components/Backtest';
 import { VsMarketLine } from '../components/Insight';
 import { taxText } from '../lib/holdings';
 import { fmtMoney } from '../components/ui';
+import { UpdateBanner } from '../components/AppUpdate';
 
 /* ------- made-up example data, only for pictures in this guide ------- */
 const wave = (start: number, drift: number, n = 60) => Array.from({ length: n }, (_, i) => Math.round((start + drift * i + Math.sin(i / 3) * start * 0.02) * 100) / 100);
@@ -452,9 +453,12 @@ export function Guide() {
                 <p><b className="font-display">Trading.apk</b> <span className="text-slate-400">· 4.1 MB</span></p>
               </section>
             </Example>
+            <Example caption="The update banner (example numbers).">
+              <UpdateBanner have={12} next={13} />
+            </Example>
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li><b>Install</b>: on your phone, open the GitHub release called <b>android-latest</b> and tap <b>Trading.apk</b>. The first time, Android asks to allow installing apps from your browser: allow it once.</li>
-              <li><b>Update</b>: do the same with a newer version. It installs over the old one and keeps your data.</li>
+              <li><b>Update</b>: when a new version is ready, a banner shows at the top of the app. Tap <b>Update</b>: the new version downloads, then tap <b>Install</b>. It installs over the old one and keeps your data. <b>Later</b> hides it until the next version. You can also check in <b>Settings → App version</b>.</li>
               <li>Open <b>Settings → Sync &amp; access</b> and enter the same access token as on the website, so your data appears.</li>
               <li>The phone's back button goes back to Today, then closes the app.</li>
               <li>Phone notifications inside the app come in the next version. Email alerts already work.</li>

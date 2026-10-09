@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { App as NativeApp } from '@capacitor/app';
 import { isNative } from './lib/native';
+import { AppUpdateCheck } from './components/AppUpdate';
 import { useStore } from './store';
 import { Toasts } from './components/Toasts';
 import { Icon } from './components/ui';
@@ -102,6 +103,7 @@ export default function App() {
         </nav>
       </header>
       <main className="mx-auto max-w-[1600px] px-3 pb-12 pt-4 sm:px-4 lg:px-6" style={{ paddingBottom: 'calc(3rem + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))' }}>
+        <AppUpdateCheck />
         {tab === 'Today' && <Today goTo={setTab} />}
         {tab === 'Ideas' && <Ideas />}
         {tab === 'History' && <History />}
