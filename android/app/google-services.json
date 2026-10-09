@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "295699799411",
+    "project_id": "trading-def41",
+    "storage_bucket": "trading-def41.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:295699799411:android:9ae579102cac7b27a0b906",
+        "android_client_info": {
+          "package_name": "app.tradinganis"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYgOTdaYi8K600zxrcOxHyw-B19ghR-ME"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
