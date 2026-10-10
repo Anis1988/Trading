@@ -1,4 +1,5 @@
 import type { PriceAlert, ScoreEntry, Settings } from '../../src/types';
+import { PRESETS, resolveRules, sizeQty, type Rules } from '../../src/lib/strictness';
 import { analyze, type Analysis } from '../../src/lib/trend';
 import { computeRisk, dailyVolPct, stopPctFor } from '../../src/lib/risk';
 import { buyWait, type WaitRule } from '../../src/lib/waitRules';
@@ -61,9 +62,11 @@ const day = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 
 const pct = (n: number) => `${n > 0 ? '+' : ''}${n}%`;
 
 /** The "BUY is back on" email: which stock, buy what, why it waited, what changed, the trend and a safe size. */
-export function backOnText(e: ScoreEntry, a: Analysis, ownedShares: number | undefined, s: Partial<Settings>, closes: number[]): string {
+export function backOnText(e: ScoreEntry, a: Analysis, ownedShares: number | undefined, s: Partial<Settings>, closes: number[], rules: Rules = PRESETS.balanced): string {
   const stopPct = stopPctFor(dailyVolPct(closes), s.stopLossPct ?? 5, s.smartStop ?? true);
-  const risk = computeRisk('BUY', a.price, s.riskPerTrade ?? 100, stopPct);
+  const risk0 = computeRisk('BUY', a.price, s.riskPerTrade ?? 100, stopPct);
+  // 🎚️ Shares follow the level in use (Risky buys smaller; "Buy half now" halves it again).
+  const risk = risk0 ? { ...risk0, suggestedQty: sizeQty(risk0.suggestedQty, rules, a.half) } : null;
   const site = process.env.URL ?? '';
   return [
     `${e.symbol}: BUY is back on.`,
@@ -92,17 +95,19 @@ export async function checkBackOn(s: Partial<Settings>, scoreLog: ScoreEntry[], 
   if (!todo.length) return 0;
 
   const [market, info] = await Promise.all([getMarket(), getInsights(todo.map((e) => e.symbol)).catch(() => ({}) as Awaited<ReturnType<typeof getInsights>>)]);
+  // 🎚️ The level in use (Settings → How careful; Auto follows the market): the same rules as the app's tiles.
+  const lv = resolveRules(s, market);
   let n = 0;
   for (const e of todo) {
     const hist = await yahooHistory(e.symbol).catch(() => null);
     const owned = s.holdings?.find((h) => h.symbol === e.symbol);
-    const a = hist ? analyze(e.symbol, hist.closes, owned) : null;
+    const a = hist ? analyze(e.symbol, hist.closes, owned, lv.rules) : null;
     if (!a) continue;
     const good = owned ? a.action === 'BUY' : a.ideaKind === 'buy';
-    if (!good || buyWait({ info: info[e.symbol], market, ret1m: a.ret1m, rsi: a.rsi })) continue;
+    if (!good || buyWait({ info: info[e.symbol], market, ret1m: a.ret1m, rsi: a.rsi, score: a.score }, lv.rules)) continue;
     // Short line for the app (Today, log); the full details go in the email / notification.
     const text = `${CLEARED[e.why as WaitRule]} The trend still looks good, so BUY ${e.symbol} is back on at about $${a.price} (it said WAIT on ${day(e.createdAt)} because ${RULE_NAME[e.why as WaitRule] ?? e.why}).`;
-    if (await notify(`✅ ${e.symbol}: BUY is back on`, backOnText(e, a, owned?.shares, s, hist?.closes ?? []))) {
+    if (await notify(`✅ ${e.symbol}: BUY is back on`, backOnText(e, a, owned?.shares, s, hist?.closes ?? [], lv.rules))) {
       done.unshift({ symbol: e.symbol, rule: e.why!, at: new Date().toISOString(), price: a.price, text, waitAt: e.createdAt });
       say('info', `${e.symbol}: back on BUY. ${text}`);
       n++;

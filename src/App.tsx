@@ -90,7 +90,7 @@ export default function App() {
       </header>
       <main className="mx-auto max-w-[1600px] px-3 pb-12 pt-4 sm:px-4 lg:px-6">
         {tab === 'Today' && <Today goTo={setTab} />}
-        {tab === 'Ideas' && <Ideas />}
+        {tab === 'Ideas' && <Ideas goTo={setTab} />}
         {tab === 'History' && <History />}
         {tab === 'Settings' && <Settings />}
         {tab === 'Guide' && <Guide />}

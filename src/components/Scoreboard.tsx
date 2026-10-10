@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { fetchTrendSeries } from '../lib/api';
 import { HORIZON_TRADING_DAYS, scoreSignals, scoreWaits, entriesToSignals, type Score, type WaitScore } from '../lib/scoreboard';
 import { RULE_LABEL } from '../lib/waitRules';
+import { LEVEL } from '../lib/strictness';
 import { ActionChip, Change } from './ui';
 
 function Block({ title, sc }: { title: string; sc: Score }) {
@@ -79,6 +80,13 @@ export function Scoreboard() {
   const all = useMemo(() => scoreSignals(candidates, series), [candidates, series]);
   const go = useMemo(() => scoreSignals(candidates.filter((s) => s.review?.verdict === 'APPROVE'), series), [candidates, series]);
   const no = useMemo(() => scoreSignals(candidates.filter((s) => s.review?.verdict === 'REJECT'), series), [candidates, series]);
+  // 🎚️ How each level did (BUY calls the AI approved, tagged with the level in use).
+  const byLevel = useMemo(() => {
+    const lv = new Map(scoreLog.map((e) => [e.id, e.level ?? 'balanced']));
+    const groups = new Map<string, typeof candidates>();
+    for (const c of candidates.filter((x) => x.side === 'BUY' && x.review?.verdict === 'APPROVE')) groups.set(lv.get(c.id) ?? 'balanced', [...(groups.get(lv.get(c.id) ?? 'balanced') ?? []), c]);
+    return [...groups.entries()].map(([k, list]) => [k, scoreSignals(list, series)] as const);
+  }, [candidates, series, scoreLog]);
 
   return (
     <section className="card !p-0">
@@ -102,6 +110,15 @@ export function Scoreboard() {
             {all.scored.length < 20 ? ` Only ${all.scored.length} scored so far: wait for 20+ before trusting it.` : ''}
             {all.waiting > 0 ? ` ${all.waiting} are too recent to score.` : ''} If "AI said skip" does as well as "AI said go", the AI is not helping.
           </p>
+          {byLevel.length > 0 && (
+            <div className="panel space-y-1">
+              <p className="label">By level (🎚️ How careful)</p>
+              <ul className="space-y-0.5 text-xs">{byLevel.map(([lv, sc]) => (
+                <li key={lv} className="flex justify-between gap-2"><span>{LEVEL[lv as keyof typeof LEVEL]?.icon ?? '⚖️'} {LEVEL[lv as keyof typeof LEVEL]?.name ?? 'Balanced'}</span><span className="num text-slate-300">{sc.scored.length ? `${sc.winRate!.toFixed(0)}% right of ${sc.scored.length}` : `${sc.waiting} too recent`}</span></li>
+              ))}</ul>
+              <p className="text-[11px] text-slate-500">Calls made before levels existed count as Balanced.</p>
+            </div>
+          )}
           <WaitBlock rows={waits} />
           {all.scored.length > 0 && (
             <ul className="divide-y divide-white/5">
