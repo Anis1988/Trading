@@ -14,6 +14,7 @@ import {
 } from '../lib/alerts';
 import { ActionChip, Change, Field, Icon, Section, Toggle } from '../components/ui';
 import { StrictnessSection } from '../components/Strictness';
+import { FidelityImport } from '../components/FidelityImport';
 
 const Ready = ({ ok, label }: { ok: boolean; label: string }) => (
   <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] ${ok ? 'border-emerald-300/40 text-emerald-200' : 'border-white/15 text-slate-400'}`}>
@@ -158,6 +159,7 @@ export function Settings() {
           </label>
           <button className="btn-primary col-span-1" onClick={addHolding}>Save</button>
         </div>
+        <FidelityImport />
         <ul className="space-y-2">
           {s.holdings.map((h) => {
             const t = holdTrends.rows.find((r) => r.symbol === h.symbol);
