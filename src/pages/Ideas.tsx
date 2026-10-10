@@ -7,7 +7,9 @@ import { useInsights } from '../lib/useInsights';
 import { EarningsBadge, InsightLines, VsMarketLine } from '../components/Insight';
 import { vsMarket } from '../lib/relative';
 import { BuzzBadge } from '../components/Buzz';
-import { buyWait, marketNote } from '../lib/waitRules';
+import { buyNotes, buyWait } from '../lib/waitRules';
+import { resolveRules, sizeQty, trendBuy } from '../lib/strictness';
+import { LevelBadge } from '../components/Strictness';
 import { MOOD_LABEL } from '../lib/insightTypes';
 import { shareAfterBuy } from '../lib/concentration';
 import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
@@ -42,7 +44,7 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-export function Ideas() {
+export function Ideas({ goTo }: { goTo?: (tab: 'Settings') => void }) {
   const { settings, addIdeaSignal, toast, log, logWaits } = useStore();
   const [data, setData] = useState<ScanResult | null>(null);
   const [range, setRange] = useState<[number, number]>(loadRange);
@@ -87,19 +89,22 @@ export function Ideas() {
   useEffect(() => void scan(), [scan]);
 
   const inPrice = (i: Idea) => i.price >= range[0] && (!range[1] || i.price <= range[1]);
-  const buys = (data?.ideas ?? []).filter((i) => inPrice(i) && isBuyIdea(ideaToAnalysis(i), i.score)).slice(0, 9);
+  // 🎚️ The level in use (Settings → How careful). Auto needs the market, which comes without any symbol.
+  const mk = useInsights([]);
+  const level = resolveRules(settings, mk?.market);
+  const buys = (data?.ideas ?? []).filter((i) => inPrice(i) && isBuyIdea(ideaToAnalysis(i), i.score, level.rules)).slice(0, 9);
   const ins = useInsights(buys.map((i) => i.symbol));
   // WAITs shown here go to the scoreboard too, so you can see later if waiting was right.
   const waits = ins
     ? buys.flatMap((i) => {
         const a = ideaToAnalysis(i);
-        const w = buyWait({ info: ins.stocks?.[i.symbol], market: ins.market, ret1m: a.ret1m, rsi: a.rsi });
+        const w = buyWait({ info: ins.stocks?.[i.symbol], market: ins.market, ret1m: a.ret1m, rsi: a.rsi, score: a.score }, level.rules);
         return w ? [{ symbol: i.symbol, price: i.price, rule: w.rule }] : [];
       })
     : [];
   const waitKey = waits.map((w) => `${w.symbol}:${w.rule}`).join(',');
   useEffect(() => {
-    if (waits.length) logWaits(waits);
+    if (waits.length) logWaits(waits, level.preset);
   }, [waitKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const rangeLabel = range[0] || range[1] ? `${range[0] ? `$${range[0]}` : '$0'}–${range[1] ? `$${range[1]}` : 'any'}` : 'any price';
 
@@ -144,7 +149,7 @@ export function Ideas() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div className="mr-auto">
-          <h2 className="text-2xl font-semibold">What to buy now</h2>
+          <div className="flex flex-wrap items-center gap-2"><h2 className="text-2xl font-semibold">What to buy now</h2><LevelBadge r={level} onClick={() => goTo?.('Settings')} /></div>
           <p className="text-sm text-slate-400">
             {data ? `${data.scanned} large US stocks and ETFs scanned` : 'Scanning large US stocks and ETFs'} · ranked by trend, momentum and news
           </p>
@@ -156,7 +161,8 @@ export function Ideas() {
 
       {ins?.market?.trend === 'down' && (
         <p className="card !border-red-300/40 !bg-red-500/10 text-sm text-red-100">
-          ▼ The overall market is falling. Buying now is riskier: most buys fail in a falling market, so the AI check will say WAIT until it turns.
+          ▼ The overall market is falling. Buying now is riskier: most buys fail in a falling market.{' '}
+          {!level.rules.marketOn ? 'Your settings don’t wait for that: keep any buy small.' : level.rules.marketMode === 'all' ? 'On this level, every buy says WAIT until it turns.' : level.rules.marketMode === 'falling' ? 'On this level, only stocks that are falling themselves say WAIT: keep buys small.' : 'Stocks doing no better than the market say WAIT until it turns.'}
         </p>
       )}
 
@@ -203,17 +209,22 @@ export function Ideas() {
           const a = ideaToAnalysis(i);
           const reasons = reasonsFor(a, i.newsNet, i.headline);
           const stopPct = stopPctFor(dailyVolPct(i.closes), settings.stopLossPct, settings.smartStop);
-          const risk = computeRisk('BUY', i.price, settings.riskPerTrade, stopPct);
+          const base = computeRisk('BUY', i.price, settings.riskPerTrade, stopPct);
+          // 🎚️ Shares follow the level (Risky buys smaller; "Buy half now" halves it again).
+          const half = trendBuy(a, level.rules).half;
+          const risk = base ? { ...base, suggestedQty: sizeQty(base.suggestedQty, level.rules, half) } : null;
           const info = ins?.stocks[i.symbol];
           const share = risk ? shareAfterBuy(i.symbol, risk.suggestedQty, i.price, settings.holdings, settings.cash) : null;
           const own = settings.holdings.find((h) => h.symbol === i.symbol);
-          const wait = buyWait({ info, market: ins?.market, ret1m: a.ret1m, rsi: a.rsi });
+          const wait = buyWait({ info, market: ins?.market, ret1m: a.ret1m, rsi: a.rsi, score: a.score }, level.rules);
+          const notes = wait ? [] : buyNotes({ info, market: ins?.market, ret1m: a.ret1m }, level.rules);
           return (
             <article key={i.symbol} className="card">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="num text-sm text-slate-500">#{rank + 1}</span>
                 <span className="font-display text-2xl font-semibold">{i.symbol}</span>
                 <ActionChip action={wait ? 'WAIT' : 'BUY'} size="sm" />
+                {!wait && half && <span className="rounded-md bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-200">Buy half now</span>}
                 {own && <span className="rounded-md bg-sky-400/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-sky-200">You own {own.shares}</span>}
                 <EarningsBadge e={info?.earnings} />
                 <BuzzBadge b={info?.buzz} />
@@ -232,7 +243,8 @@ export function Ideas() {
                   </li>
                 )}
               </ul>
-              {!wait && marketNote(ins?.market, a.ret1m) && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">⚠ {marketNote(ins?.market, a.ret1m)}</p>}
+              {!wait && half && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Rising fast (RSI {a.rsi}). On this level: buy half now, keep the rest for a dip.</p>}
+              {notes.map((n) => <p key={n} className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">⚠ {n}</p>)}
               <div className="mt-2 space-y-0.5"><VsMarketLine v={vsMarket(i.symbol, i.ret3m, ins?.market)} always /><InsightLines i={info} /></div>
               {wait && wait.rule !== 'market' && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{wait.text}</p>}
               {risk && settings.cash !== undefined && risk.suggestedQty * i.price > settings.cash && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">{risk.suggestedQty} shares cost about {fmtMoney(risk.suggestedQty * i.price)}, but you have {fmtMoney(settings.cash)} cash. {Math.floor(settings.cash / i.price) > 0 ? `You could buy ${Math.floor(settings.cash / i.price)}.` : 'Not enough cash for one share.'}</p>}

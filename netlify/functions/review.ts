@@ -4,6 +4,13 @@ import { reviewTrade, ReviewError } from '../lib/reviewCore';
 
 export const config = { path: '/api/review' };
 
+const CustomRules = z.object({
+  buyScore: z.union([z.literal(3), z.literal(4), z.literal(5)]), stretchedOn: z.boolean(), stretchedRsi: z.number().min(55).max(90), halfZone: z.boolean(),
+  earningsOn: z.boolean(), earningsDays: z.number().int().min(1).max(14), marketOn: z.boolean(), marketMode: z.enum(['all', 'beat', 'falling']),
+  weakOn: z.boolean(), redditBadOn: z.boolean(), hypeOn: z.boolean(), hypeJump: z.number().min(5).max(50), ai: z.enum(['careful', 'balanced', 'risky']),
+  sizePct: z.number().min(25).max(200), minIdea: z.number().min(30).max(90),
+}).partial();
+
 const Body = z.object({
   signal: z.object({
     symbol: z.string().regex(/^[A-Z.\-]{1,8}$/),
@@ -17,7 +24,11 @@ const Body = z.object({
     .max(15),
   // What the user actually owns (entered in Settings). Empty = unknown.
   holdings: z.array(z.object({ symbol: z.string().regex(/^[A-Z.\-]{1,8}$/), shares: z.number().nonnegative().max(1e9), avgCost: z.number().nonnegative().max(1e7), boughtAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })).max(100).default([]),
-  risk: z.object({ riskPerTrade: z.number().positive().max(1e7), stopLossPct: z.number().min(1).max(50), smartStop: z.boolean(), cash: z.number().nonnegative().max(1e10).optional(), horizon: z.enum(['short', 'medium', 'long']).optional() }).optional(),
+  risk: z.object({ riskPerTrade: z.number().positive().max(1e7), stopLossPct: z.number().min(1).max(50), smartStop: z.boolean(), cash: z.number().nonnegative().max(1e10).optional(), horizon: z.enum(['short', 'medium', 'long']).optional(),
+    // 🎚️ How careful (Settings): the level and, for Custom, its rules (numbers clamped to sane ranges).
+    strictness: z.enum(['careful', 'balanced', 'risky', 'custom', 'auto']).optional(),
+    customRules: CustomRules.optional(),
+  }).optional(),
 });
 
 // POST /api/review { signal, headlines, holdings } -> { verdict, confidence, rationale, risks, holdingNote, suggestedQty, quote, model }

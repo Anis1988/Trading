@@ -1,4 +1,5 @@
 import type { Analysis } from './trend';
+import { PRESETS, trendBuy, type Rules } from './strictness';
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
@@ -20,8 +21,11 @@ export function scoreIdea(a: Analysis, newsNet = 0): number {
 export type Strength = 'Strong' | 'Good' | 'Fair' | 'Weak';
 export const strength = (s: number): Strength => (s >= 75 ? 'Strong' : s >= 60 ? 'Good' : s >= 45 ? 'Fair' : 'Weak');
 
-/** Worth showing as a BUY idea: healthy trend and not overheated. */
-export const isBuyIdea = (a: Analysis, score: number) => a.score >= 4 && a.rsi <= 70 && score >= 60;
+/** Worth showing as a BUY idea: a good enough trend for the level in use, not stretched, and a decent idea score. */
+export const isBuyIdea = (a: Analysis, score: number, r: Rules = PRESETS.balanced) => {
+  const t = trendBuy(a, r);
+  return t.ok && !t.stretched && score >= r.minIdea;
+};
 
 export function reasonsFor(a: Analysis, newsNet: number, headline?: string): string[] {
   const out: string[] = [];

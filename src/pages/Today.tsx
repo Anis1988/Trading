@@ -10,7 +10,9 @@ import { vsMarket } from '../lib/relative';
 import { concentrated } from '../lib/concentration';
 import { BuzzBadge, BuzzRail, RedditPanel } from '../components/Buzz';
 import { PriceAlerts } from '../components/PriceAlerts';
-import { buyWait, marketNote } from '../lib/waitRules';
+import { buyNotes, buyWait } from '../lib/waitRules';
+import { resolveRules } from '../lib/strictness';
+import { LevelBadge } from '../components/Strictness';
 import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken } from '../lib/api';
 
@@ -28,8 +30,10 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   const [openSym, setOpenSym] = useState<string | null>(null);
   const [showEarlier, setShowEarlier] = useState(false);
   const held = settings.holdings;
-  const { rows, dates, loading, err } = useTrends(held.map((h) => h.symbol), settings);
   const ins = useInsights(held.map((h) => h.symbol));
+  // 🎚️ The level in use (Settings → How careful): the same rules on every tile, in Ideas and in the background.
+  const level = resolveRules(settings, ins?.market);
+  const { rows, dates, loading, err } = useTrends(held.map((h) => h.symbol), settings, level.rules);
 
   // Portfolio totals in dollars (only holdings that have a price).
   const priced = held.map((h) => ({ h, r: rows.find((x) => x.symbol === h.symbol) })).filter((x) => x.r);
@@ -57,13 +61,13 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   const waits = ins
     ? held.flatMap((h) => {
         const a = rows.find((r) => r.symbol === h.symbol);
-        const w = a?.action === 'BUY' ? buyWait({ info: ins.stocks?.[h.symbol], market: ins.market, ret1m: a.ret1m, rsi: a.rsi }) : null;
+        const w = a?.action === 'BUY' ? buyWait({ info: ins.stocks?.[h.symbol], market: ins.market, ret1m: a.ret1m, rsi: a.rsi, score: a.score }, level.rules) : null;
         return a && w ? [{ symbol: h.symbol, price: a.price, rule: w.rule }] : [];
       })
     : [];
   const waitKey = waits.map((w) => `${w.symbol}:${w.rule}`).join(',');
   useEffect(() => {
-    if (waits.length) logWaits(waits);
+    if (waits.length) logWaits(waits, level.preset);
   }, [waitKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const mine = new Set([...held.map((h) => h.symbol), ...watchlist]);
   const news = headlines.filter((x) => x.symbol && mine.has(x.symbol)).slice(0, 10);
@@ -179,7 +183,10 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
 
       {held.length > 0 ? (
         <section>
-          <h2 className="mb-2 text-lg font-semibold">My stocks</h2>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">My stocks</h2>
+            <LevelBadge r={level} onClick={() => goTo('Settings')} />
+          </div>
           {err && priced.length > 0 && <p className="mb-2 text-sm text-amber-200">{err}</p>}
           <div className="grid gap-3 md:grid-cols-2">
             {held.map((h) => {
@@ -191,7 +198,8 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
               const gainPct = h.avgCost > 0 ? ((a.price - h.avgCost) / h.avgCost) * 100 : 0;
               const tax = taxInfo(h);
               const taxWait = a.action === 'SELL' && tax && !tax.longTerm && tax.daysToLong <= 60 && a.price > h.avgCost;
-              const crowd = a.action === 'BUY' ? buyWait({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m, rsi: a.rsi }) : null;
+              const crowd = a.action === 'BUY' ? buyWait({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m, rsi: a.rsi, score: a.score }, level.rules) : null;
+              const notes = a.action === 'BUY' && !crowd ? buyNotes({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m }, level.rules) : [];
               return (
                 <div key={h.symbol} className="card !p-0">
                   <button className="w-full p-4 text-left" aria-expanded={open} onClick={() => setOpenSym(open ? null : h.symbol)}>
@@ -211,7 +219,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                     {taxWait && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Tax tip: in {tax!.daysToLong} days this becomes a long-term gain, usually taxed less. If it isn't falling fast, waiting may save you money.</p>}
                     <div className="mt-1.5"><VsMarketLine v={vsMarket(h.symbol, a.ret3m, ins?.market)} /></div>
                     <p className="mt-2 text-sm text-slate-300">{crowd ? `The trend looks good, but not now. ${crowd.text}` : a.idea}</p>
-                    {a.action === 'BUY' && !crowd && marketNote(ins?.market, a.ret1m) && <p className="mt-1.5 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">⚠ {marketNote(ins?.market, a.ret1m)}</p>}
+                    {notes.map((n) => <p key={n} className="mt-1.5 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">⚠ {n}</p>)}
                   </button>
                   {open && (
                     <div className="space-y-3 border-t border-white/10 px-4 pb-4 pt-3">

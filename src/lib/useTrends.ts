@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Settings } from '../types';
 import { fetchTrendSeries } from './api';
 import { analyze, type Analysis } from './trend';
+import { PRESETS, type Rules } from './strictness';
 
-/** Loads ~6 months of prices for `symbols` and turns them into plain trend readings. */
-export function useTrends(symbols: string[], settings: Settings) {
-  const [rows, setRows] = useState<Analysis[]>([]);
+/**
+ * Loads ~6 months of prices for `symbols` and turns them into plain trend readings with the rules of the level in use
+ * (🎚️ How careful); changing the level re-reads them at once, without loading the prices again.
+ */
+export function useTrends(symbols: string[], settings: Settings, rules: Rules = PRESETS.balanced) {
+  const [series, setSeries] = useState<Record<string, { closes: number[]; dates?: string[] }>>({});
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [updated, setUpdated] = useState('');
@@ -14,7 +18,7 @@ export function useTrends(symbols: string[], settings: Settings) {
 
   const load = useCallback(async () => {
     if (!symbols.length) {
-      setRows([]);
+      setSeries({});
       return;
     }
     setLoading(true);
@@ -25,11 +29,8 @@ export function useTrends(symbols: string[], settings: Settings) {
       const r = await fetchTrendSeries(symbols);
       Object.assign(series, r.series);
       errors = r.errors;
-      const out = symbols
-        .map((s) => analyze(s, series[s]?.closes ?? [], settings.holdings.find((h) => h.symbol === s)))
-        .filter((a): a is Analysis => !!a)
-        .sort((a, b) => b.score - a.score || b.ret3m - a.ret3m);
-      setRows(out);
+      setSeries(series);
+      const out = symbols.filter((s) => (series[s]?.closes.length ?? 0) >= 55);
       setDates(Object.fromEntries(Object.entries(series).map(([k, v]) => [k, v.dates ?? []])));
       setUpdated(new Date().toLocaleTimeString());
       if (errors.length) setErr(`No data for: ${errors.map((e) => e.split(':')[0]).join(', ')}.`);
@@ -43,5 +44,10 @@ export function useTrends(symbols: string[], settings: Settings) {
   }, [key, settings.holdings]);
 
   useEffect(() => void load(), [load]);
-  return { rows, dates, loading, err, updated, reload: load };
+  const rkey = JSON.stringify(rules);
+  const rows = useMemo(() => symbols
+    .map((s) => analyze(s, series[s]?.closes ?? [], settings.holdings.find((h) => h.symbol === s), rules))
+    .filter((a): a is Analysis => !!a)
+    .sort((a, b) => b.score - a.score || b.ret3m - a.ret3m), [series, settings.holdings, rkey]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { rows, dates, loading, err, updated, reload: load, series };
 }

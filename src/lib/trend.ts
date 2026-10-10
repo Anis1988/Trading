@@ -1,4 +1,5 @@
 import type { Holding } from './holdings';
+import { PRESETS, trendBuy, type Rules } from './strictness';
 
 export interface Series {
   dates: string[];
@@ -22,6 +23,7 @@ export interface Analysis {
   idea: string; // plain-words takeaway
   ideaKind: 'buy' | 'wait' | 'hold' | 'sell' | 'avoid';
   action?: 'SELL' | 'HOLD' | 'BUY'; // only for stocks you own (BUY = add more)
+  half?: boolean; // 🚀 Risky: rising fast, so buy half now
   closes: number[];
 }
 
@@ -49,7 +51,8 @@ export function rsi(c: number[], n = 14): number {
   return loss === 0 ? 100 : 100 - 100 / (1 + gain / loss);
 }
 
-export function analyze(symbol: string, closes: number[], owned?: Holding): Analysis | null {
+/** The trend reading. `rules` = the level in use (🎚️ Settings → How careful); Balanced = the original rules. */
+export function analyze(symbol: string, closes: number[], owned?: Holding, rules: Rules = PRESETS.balanced): Analysis | null {
   if (closes.length < 55) return null;
   const price = closes[closes.length - 1];
   const at = (back: number) => closes[Math.max(0, closes.length - 1 - back)];
@@ -67,23 +70,34 @@ export function analyze(symbol: string, closes: number[], owned?: Holding): Anal
   let idea: string;
   let ideaKind: Analysis['ideaKind'];
   let action: Analysis['action'];
+  let half = false;
+  // Adding to a stock you own: Balanced = 5/5 and RSI 65 or less (the original rule); Careful 60; Risky 4/5 and 70.
+  const addScore = rules.buyScore === 3 ? 4 : 5;
+  const addRsi = rules.stretchedOn ? Math.min(70, rules.stretchedRsi - 5) : 70;
+  const tb = trendBuy({ score, price, sma50: s50, rsi: r }, rules);
   if (owned) {
     // For a stock you own the question is: sell, hold, or buy more.
     if (score <= 1) {
       action = 'SELL'; ideaKind = 'sell'; idea = 'Trend is weak. Think about selling some or all.';
-    } else if (score >= 5 && r <= 65) {
-      action = 'BUY'; ideaKind = 'buy'; idea = 'Strong, steady climb. Adding more is reasonable.';
-    } else if (score >= 4 && r > 70) {
+    } else if (score >= addScore && r <= addRsi) {
+      action = 'BUY'; ideaKind = 'buy'; idea = score >= 5 ? 'Strong, steady climb. Adding more is reasonable.' : 'Good climb. On Risky, adding a little more is OK.';
+    } else if (score >= 4 && r > (rules.stretchedOn ? rules.stretchedRsi : 70)) {
       action = 'HOLD'; ideaKind = 'hold'; idea = 'Rising fast and looks stretched. Keep holding, but do not add now.';
     } else {
       action = 'HOLD'; ideaKind = 'hold'; idea = 'No clear reason to act. Keep holding.';
     }
-  } else if (score >= 4 && r <= 70) {
+  } else if (tb.ok && !tb.stretched) {
     ideaKind = 'buy';
-    idea = 'Steady climb and not overheated. Worth a closer look to buy.';
-  } else if (score >= 4) {
+    half = tb.half;
+    idea = tb.half ? 'Rising fast. On Risky: buy half now and keep the rest for a dip.'
+      : score >= 4 ? 'Steady climb and not overheated. Worth a closer look to buy.'
+      : 'Leaning up and above its 50-day average. On Risky, a small buy is OK.';
+  } else if (tb.stretched) {
     ideaKind = 'wait';
     idea = 'Rising fast and looks stretched. Better to wait for a small dip.';
+  } else if (score >= 4) {
+    ideaKind = 'wait';
+    idea = 'Good trend, but not strong enough for Careful (it waits for 5 of 5).';
   } else if (score <= 1) {
     ideaKind = 'avoid';
     idea = 'Trend is weak. Better to stay away for now.';
@@ -95,7 +109,7 @@ export function analyze(symbol: string, closes: number[], owned?: Holding): Anal
 
   return {
     symbol, price: round(price, 2), prevClose: round(closes[closes.length - 2], 2), ret1m: round(ret1m), ret3m: round(ret3m), sma20: round(s20, 2), sma50: round(s50, 2),
-    rsi: round(r, 0), fromHigh: round(((price - high) / high) * 100), score, label, idea, ideaKind, action, closes,
+    rsi: round(r, 0), fromHigh: round(((price - high) / high) * 100), score, label, idea, ideaKind, action, closes, ...(half ? { half } : {}),
   };
 }
 

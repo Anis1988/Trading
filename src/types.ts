@@ -1,3 +1,4 @@
+import type { Level, Rules } from './lib/strictness';
 import type { Holding } from './lib/holdings';
 
 export type Side = 'BUY' | 'SELL';
@@ -25,6 +26,7 @@ export interface Review {
   simulated?: boolean;
   holdingNote?: string; // plain-words comparison with what the user owns
   suggestedQty?: number; // quantity after checking holdings
+  level?: string; // 🎚️ the level the review used (careful / balanced / risky / custom)
   volPct?: number; // typical daily move in %
   market?: 'up' | 'down' | 'mixed';
   earnings?: string;
@@ -93,6 +95,7 @@ export interface ScoreEntry {
   verdict?: Verdict;
   why?: string; // for WAIT/SKIP: which free rule (WaitRule) or 'ai'
   origin: 'app' | 'server';
+  level?: string; // 🎚️ the level in use when it was logged (careful / balanced / risky / custom)
 }
 
 export interface LogEntry {
@@ -138,6 +141,8 @@ export interface Settings {
   priceAlerts?: PriceAlert[];
   cash?: number; // cash in the account, ready to invest (optional)
   horizon?: 'short' | 'medium' | 'long'; // how long the user plans to keep the money invested
+  strictness?: Level; // 🎚️ how careful the app is before saying BUY (missing = Balanced, the original rules); synced
+  customRules?: Partial<Rules>; // 🎛️ Custom level: each rule on/off with its number; synced
   passphraseHash: string;
   passphraseSalt: string;
 }

@@ -15,6 +15,7 @@ import {
   type AlertStatus,
 } from '../lib/alerts';
 import { ActionChip, Change, Field, Icon, Section, Toggle } from '../components/ui';
+import { StrictnessSection } from '../components/Strictness';
 
 const Ready = ({ ok, label }: { ok: boolean; label: string }) => (
   <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] ${ok ? 'border-emerald-300/40 text-emerald-200' : 'border-white/15 text-slate-400'}`}>
@@ -230,6 +231,8 @@ export function Settings() {
       </Section>
 
       {/* ---------------- risk ---------------- */}
+      <StrictnessSection />
+
       <Section title="Risk & orders" subtitle={`Risk ${'$' + s.riskPerTrade} per trade · stop-loss ${s.smartStop ? 'smart' : s.stopLossPct + '%'}`} icon={Icon.shield}>
         <Field label="Most I want to lose on one trade ($)" hint="Used to suggest how many shares to buy.">
           <input className="input w-28" type="number" min={1} value={s.riskPerTrade} onChange={(e) => update({ riskPerTrade: Math.max(1, Number(e.target.value) || 100) })} />

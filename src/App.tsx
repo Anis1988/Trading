@@ -108,7 +108,7 @@ export default function App() {
       <main className="mx-auto max-w-[1600px] px-3 pb-12 pt-4 sm:px-4 lg:px-6" style={{ paddingBottom: 'calc(3rem + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))' }}>
         <AppUpdateCheck />
         {tab === 'Today' && <Today goTo={setTab} />}
-        {tab === 'Ideas' && <Ideas />}
+        {tab === 'Ideas' && <Ideas goTo={setTab} />}
         {tab === 'History' && <History />}
         {tab === 'Settings' && <Settings />}
         {tab === 'Guide' && <Guide />}

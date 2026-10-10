@@ -11,6 +11,8 @@ import { VsMarketLine } from '../components/Insight';
 import { taxText } from '../lib/holdings';
 import { fmtMoney } from '../components/ui';
 import { UpdateBanner } from '../components/AppUpdate';
+import { LevelBadge, PreviewBox, RuleRow, ruleLines } from '../components/Strictness';
+import { LEVEL, LOCKED, PRESETS, resolveRules } from '../lib/strictness';
 
 /* ------- made-up example data, only for pictures in this guide ------- */
 const wave = (start: number, drift: number, n = 60) => Array.from({ length: n }, (_, i) => Math.round((start + drift * i + Math.sin(i / 3) * start * 0.02) * 100) / 100);
@@ -109,7 +111,7 @@ export function Guide() {
                   ['BUY', 'Good time to buy (or add more). Green, arrow up.'],
                   ['SELL', 'Good time to sell some or all. Red, arrow down.'],
                   ['HOLD', 'You own it and nothing needs to change. Keep it.'],
-                  ['WAIT', 'Maybe, but not now: unclear news, earnings soon, or a falling market.'],
+                  ['WAIT', 'Maybe, but not now: unclear news, earnings soon, or a falling market. How strict this is: 🎚️ How careful (below).'],
                   ['SKIP', 'Do not do it. The AI or a safety rule said no; emailing is blocked.'],
                 ] as const
               ).map(([a, t]) => (
@@ -119,6 +121,115 @@ export function Guide() {
                 </div>
               ))}
             </div>
+          </Section>
+
+          <Section title="🎚️ How careful should the app be?" subtitle="Careful · Balanced · Risky · Custom · Auto" icon={Icon.shield}>
+            <P>Before the app says <b>BUY</b>, the stock must pass a few safety rules (a good trend, no earnings coming up, no falling market…). Getting a lot of <b>WAIT</b>? That’s these rules. In <b>Settings → How careful should the app be?</b> you choose how strict they are. Your choice is saved on the server, so your phone and computer use the same one, and it changes everything at once: the stock tiles on Today, Ideas, the AI review and the background alerts.</P>
+            <Example caption="The level in use always shows on Today and Ideas. Tap it to go to Settings.">
+              <div className="flex flex-wrap gap-2">
+                <LevelBadge r={resolveRules({ strictness: 'balanced' })} example />
+                <LevelBadge r={resolveRules({ strictness: 'risky' })} example />
+                <LevelBadge r={resolveRules({ strictness: 'auto' }, { trend: 'down', price: 0, ret1m: -4, ret3m: -6, closes: [] })} example />
+              </div>
+            </Example>
+
+            <p className="label pt-1">The five levels</p>
+            <div className="overflow-hidden rounded-xl border border-white/10">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-white/5 text-xs text-slate-400"><tr><th className="px-3 py-2 font-medium">Level</th><th className="px-3 py-2 font-medium">Who it’s for</th></tr></thead>
+                <tbody>
+                  {(['careful', 'balanced', 'risky', 'custom', 'auto'] as const).map((lv) => (
+                    <tr key={lv} className="border-t border-white/5 align-top">
+                      <td className="whitespace-nowrap px-3 py-2 font-display font-semibold">{LEVEL[lv].icon} {LEVEL[lv].name}</td>
+                      <td className="px-3 py-2 text-slate-300">{LEVEL[lv].who}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Tip>⚖️ Balanced is exactly how the app always worked, so nothing changes until you pick another level.</Tip>
+
+            <p className="label pt-1">What each level does, rule by rule</p>
+            <div className="-mx-1 overflow-x-auto px-1">
+              <table className="w-full min-w-[520px] text-left text-xs">
+                <thead className="bg-white/5 text-slate-400">
+                  <tr><th className="px-2 py-2 font-medium">Rule</th><th className="px-2 py-2 font-medium">🛡️ Careful</th><th className="px-2 py-2 font-medium">⚖️ Balanced</th><th className="px-2 py-2 font-medium">🚀 Risky</th></tr>
+                </thead>
+                <tbody>
+                  {ruleLines(PRESETS.balanced).map(([name], i) => (
+                    <tr key={name} className="border-t border-white/5 align-top">
+                      <td className="px-2 py-2 font-medium text-slate-200">{name}</td>
+                      {(['careful', 'balanced', 'risky'] as const).map((p) => <td key={p} className="px-2 py-2 text-slate-300">{ruleLines(PRESETS[p])[i][1]}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-slate-500">On a phone, slide the table sideways to see all three levels.</p>
+
+            <p className="label pt-1">Why each rule is there</p>
+            <div className="overflow-hidden rounded-xl border border-white/10">
+              <table className="w-full text-left text-sm">
+                <tbody>
+                  {(
+                    [
+                      ['Trend needed', 'Points for: price above its 50-day average, its 20-day average above its 50-day one, up over 1 month, up over 3 months, and RSI between 40 and 70 (not overheated). More points = a steadier climb.'],
+                      ['Rising too fast', 'RSI measures how hot a price is (0–100). Above 70 it often pauses or dips. On 🚀 Risky, between 70 and 78 you get “Buy half now” instead: half today, the rest on a dip.'],
+                      ['Earnings', 'On the day a company reports its results the price can jump or drop 10% or more. Waiting a few days avoids that coin flip.'],
+                      ['Falling market', 'When the whole market (the S&P 500) falls, most stocks fall with it, even good ones.'],
+                      ['Weak finances', 'Shrinking sales, losses or heavy debt: a struggling company can fall further.'],
+                      ['Reddit', 'A sudden crowd talking about a stock for a bad reason, or hype right after a big jump, often reverses.'],
+                      ['AI reviewer', 'The AI second opinion is told how strict to be. Relaxed approves more; strict rejects more.'],
+                      ['Shares to buy', 'Looser rules mean more buys that turn out wrong, so 🚀 Risky buys about 60% of the normal number of shares: the money at risk stays about the same.'],
+                    ] as const
+                  ).map(([k, v]) => (
+                    <tr key={k} className="border-t border-white/5 align-top first:border-0"><td className="w-28 px-3 py-2 font-medium text-slate-200">{k}</td><td className="px-3 py-2 text-slate-300">{v}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <p className="label pt-1">🔒 Always on, at every level</p>
+            <ul className="space-y-1 text-sm text-slate-300">{LOCKED.map((x) => <li key={x}>🔒 {x}</li>)}</ul>
+            <P>These can never be switched off, not even in Custom: they protect you from the mistakes that hurt the most.</P>
+
+            <p className="label pt-1">Before you switch: what would change</p>
+            <P>Tap a level in Settings and, before anything changes, the app shows how many of your stocks (and watchlist) would turn from WAIT into BUY, or the other way, with today’s prices. Tap <b>Use</b> to switch, or <b>Cancel</b>.</P>
+            <Example caption="Made up: switching from Balanced to Risky.">
+              <PreviewBox name="🚀 Risky" more={['NVDA', 'AMD']} fewer={[]} total={8} example />
+            </Example>
+
+            <p className="label pt-1">🎛️ Custom, step by step</p>
+            <Steps items={[
+              <>In Settings, tap <b>🎛️ Custom</b>. Your list starts from the level you’re on, so nothing jumps.</>,
+              <>Or tap <b>Copy 🛡️ Careful</b>, <b>Copy ⚖️ Balanced</b> or <b>Copy 🚀 Risky</b> to start from one of them.</>,
+              <>Switch each rule on or off, and change its number (for example: wait 2 days before earnings instead of 5).</>,
+              <>Under each rule you see the scoreboard’s answer to “was waiting worth it?”. <span className="text-red-300">Red</span> after 5 or more checks means that rule held you back more than it helped: a good one to loosen.</>,
+              <>Tap <b>Use 🎛️ Custom</b>. If 3 or more safety rules are off, a warning reminds you that you’ll see many more BUYs.</>,
+            ]} />
+            <Example caption="One rule in the Custom list (made-up score).">
+              <RuleRow name="Earnings WAIT" hint="Waits this many days before the company reports earnings." on onToggle={() => undefined} example
+                score={{ why: 'earnings', scored: 10, right: 3, ifBought: 2.1, waiting: 0 }}>
+                <input className="input w-20 !py-1.5 text-center" value={5} readOnly tabIndex={-1} aria-label="Days (example)" />
+              </RuleRow>
+            </Example>
+
+            <p className="label pt-1">🔄 Auto</p>
+            <div className="overflow-hidden rounded-xl border border-white/10">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-white/5 text-xs text-slate-400"><tr><th className="px-3 py-2 font-medium">The whole market is…</th><th className="px-3 py-2 font-medium">Auto uses</th></tr></thead>
+                <tbody>
+                  <tr className="border-t border-white/5"><td className="px-3 py-2">▼ Falling</td><td className="px-3 py-2">🛡️ Careful</td></tr>
+                  <tr className="border-t border-white/5"><td className="px-3 py-2">◆ Mixed</td><td className="px-3 py-2">⚖️ Balanced</td></tr>
+                  <tr className="border-t border-white/5"><td className="px-3 py-2">▲ Rising</td><td className="px-3 py-2">🚀 Risky</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <P>Most bad buys happen in a falling market, so Auto only loosens up when it’s safer. The label tells you what it picked and why, like “🔄 Auto → 🛡️ Careful (market falling)”.</P>
+
+            <p className="label pt-1">Did it work?</p>
+            <P>Every call is tagged with the level in use. Open <b>History → Scoreboard</b>: “By level” shows how often each level’s BUYs were right, and “Was waiting worth it?” shows each WAIT rule. Give it a few weeks (20+ calls) before judging.</P>
+            <Warn>Looser rules show more BUYs, and some will be the ones the rules would have protected you from, especially when the whole market falls. That’s why Risky buys smaller. The app never places orders: you always decide.</Warn>
           </Section>
 
           <Section title="What the AI looks at" subtitle="Everything it gets before it answers" icon={Icon.ideas}>
