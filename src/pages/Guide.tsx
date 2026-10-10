@@ -12,6 +12,7 @@ import { taxText } from '../lib/holdings';
 import { fmtMoney } from '../components/ui';
 import { UpdateBanner } from '../components/AppUpdate';
 import { LevelBadge, PreviewBox, RuleRow, ruleLines } from '../components/Strictness';
+import { ImportPreview } from '../components/FidelityImport';
 import { LEVEL, LOCKED, PRESETS, resolveRules } from '../lib/strictness';
 
 /* ------- made-up example data, only for pictures in this guide ------- */
@@ -417,6 +418,44 @@ export function Guide() {
               <li>Selling at a loss has no reason to wait for taxes.</li>
               <li>If you bought at different times, use your first purchase date. This is a rule of thumb, not tax advice.</li>
             </ul>
+          </Section>
+
+          <Section title="📥 Import from Fidelity" subtitle="Fill in your holdings from one file" icon={Icon.wallet}>
+            <P>Instead of typing each stock, let Fidelity’s own list fill in your holdings and your cash.</P>
+            <Steps items={[
+              <>On <b>fidelity.com</b> (a computer, or your phone’s browser): <b>Accounts &amp; Trade → Portfolio → Positions</b>, then the <b>Download</b> button. You get a file like <span className="font-mono text-xs">Portfolio_Positions_Oct-10-2026.csv</span>.</>,
+              <>In this app: <b>Settings → My holdings → 📥 Import from Fidelity</b>, and pick that file (or drag it in on a computer).</>,
+              <>Check the list: 🆕 new stocks, ✏️ changed shares or price, ➖ stocks the app has but Fidelity doesn’t (sold?), and your 💵 cash. Untick anything you don’t want, then tap <b>Import</b>.</>,
+            ]} />
+            <Example caption="Made-up example of the list you check before importing.">
+              <ImportPreview example ticked={new Set(['VTI', 'AAPL'])} cashOn cash={{ now: 1200, file: 2850.12 }}
+                changes={[
+                  { kind: 'new', symbol: 'VTI', after: { symbol: 'VTI', shares: 8, avgCost: 241.3 } },
+                  { kind: 'changed', symbol: 'AAPL', before: { symbol: 'AAPL', shares: 10, avgCost: 172 }, after: { symbol: 'AAPL', shares: 20, avgCost: 175.75 } },
+                  { kind: 'missing', symbol: 'DDD', before: { symbol: 'DDD', shares: 5, avgCost: 120 } },
+                  { kind: 'same', symbol: 'NVDA' },
+                ]} />
+            </Example>
+            <div className="overflow-hidden rounded-xl border border-white/10">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-white/5 text-xs text-slate-400"><tr><th className="px-3 py-2 font-medium">In Fidelity’s file</th><th className="px-3 py-2 font-medium">In the app</th></tr></thead>
+                <tbody>
+                  {(
+                    [
+                      ['Symbol', 'the stock or fund'],
+                      ['Quantity', 'shares (fractions are fine)'],
+                      ['Average Cost Basis', 'the average price you paid'],
+                      ['Money-market funds (SPAXX, FDRXX…)', 'your cash ready to invest'],
+                      ['Several accounts', 'the same stock is added up, with the right average price; untick an account to leave it out'],
+                      ['Options, bonds, pending activity', 'skipped'],
+                    ] as const
+                  ).map(([a, b]) => <tr key={a} className="border-t border-white/5 align-top"><td className="px-3 py-2 text-slate-200">{a}</td><td className="px-3 py-2 text-slate-300">{b}</td></tr>)}
+                </tbody>
+              </table>
+            </div>
+            <Tip>The dates you typed in (for the tax tips) are kept: Fidelity’s positions file doesn’t include them. Stocks missing from the file are not removed unless you tick them.</Tip>
+            <P>After you mark an order as executed in History, the app reminds you to re-import, and Today shows a small “Re-import from Fidelity” card until you do, so the advice always uses your real shares.</P>
+            <P>Privacy: the file is read on your phone or computer and never uploaded. Only the holdings are saved, like when you type them.</P>
           </Section>
 
           <Section title="Your cash & goal" subtitle="What you can afford, and for how long" icon={Icon.wallet}>

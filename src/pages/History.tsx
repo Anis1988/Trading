@@ -16,7 +16,7 @@ const STATUS: Record<HistoryStatus, { label: string; border: string; badge: stri
 const FILTERS = ['all', 'pending', 'executed', 'cancelled', 'failed'] as const;
 
 export function History() {
-  const { history, patchHistory, toast } = useStore();
+  const { history, patchHistory, toast, settings } = useStore();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('all');
   const [editing, setEditing] = useState<string | null>(null);
   const [orderId, setOrderId] = useState('');
@@ -38,6 +38,8 @@ export function History() {
     patchHistory(h.id, { status: 'executed', orderId: orderId.trim(), executedPrice: p, executedAt: h.executedAt ?? new Date().toISOString() });
     setEditing(null);
     toast('success', `${h.symbol} marked executed.`);
+    // 📥 Using the Fidelity import? A trade changes your positions: re-import so the app's advice stays right.
+    if (settings.importedAt) toast('info', `Re-import your Fidelity positions (Settings → My holdings) so the app knows about this ${h.side === 'BUY' ? 'buy' : 'sale'}.`);
   };
 
   const setStatus = (h: HistoryItem, status: HistoryStatus) => {

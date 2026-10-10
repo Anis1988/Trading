@@ -143,6 +143,7 @@ export interface Settings {
   horizon?: 'short' | 'medium' | 'long'; // how long the user plans to keep the money invested
   strictness?: Level; // 🎚️ how careful the app is before saying BUY (missing = Balanced, the original rules); synced
   customRules?: Partial<Rules>; // 🎛️ Custom level: each rule on/off with its number; synced
+  importedAt?: string; // 📥 last import of the Fidelity positions file (for the "re-import after a trade" reminder)
   passphraseHash: string;
   passphraseSalt: string;
 }

@@ -22,7 +22,9 @@ const ago = (iso: string) => {
 };
 
 export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
-  const { settings, signals, headlines, resume, watchlist, logWaits } = useStore();
+  const { settings, signals, headlines, resume, watchlist, logWaits, history } = useStore();
+  // 📥 Trades marked executed since the last Fidelity import: a reminder to re-import (only if you use the import).
+  const sinceImport = settings.importedAt ? history.filter((h) => !h.deleted && h.status === 'executed' && (h.executedAt ?? h.createdAt) > settings.importedAt!) : [];
   const [status, setStatus] = useState<AlertStatus | null>(null);
   useEffect(() => {
     if (getAccessToken()) getAlertStatus().then(setStatus).catch(() => undefined);
@@ -95,6 +97,13 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_320px] xl:items-start">
       {/* left rail: money */}
       <aside className="space-y-4 xl:sticky xl:top-20">
+      {sinceImport.length > 0 && (
+        <section className="card space-y-2 !border-cyan-300/40 !bg-cyan-500/10 text-sm">
+          <p className="label !text-cyan-200">📥 Re-import from Fidelity</p>
+          <p>You placed {sinceImport.length} trade{sinceImport.length > 1 ? 's' : ''} ({[...new Set(sinceImport.map((h) => h.symbol))].join(', ')}) since your last import. Re-import your positions so the app’s advice uses your real shares.</p>
+          <button className="btn !py-1.5 text-xs" onClick={() => goTo('Settings')}>Go to My holdings</button>
+        </section>
+      )}
       {(status?.backOn ?? []).filter((b) => Date.now() - Date.parse(b.at) < 3 * 86400_000).map((b) => (
         <section key={b.symbol + b.at} className="card space-y-1 !border-emerald-300/40 !bg-emerald-500/10 text-sm">
           <p className="label !text-emerald-200">Back on BUY · {new Date(b.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
