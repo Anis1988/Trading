@@ -17,6 +17,7 @@ import {
 import { ActionChip, Change, Field, Icon, Section, Toggle } from '../components/ui';
 import { StrictnessSection } from '../components/Strictness';
 import { FidelityImport } from '../components/FidelityImport';
+import { StopWatchPanel } from '../components/StopWatch';
 
 const Ready = ({ ok, label }: { ok: boolean; label: string }) => (
   <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] ${ok ? 'border-emerald-300/40 text-emerald-200' : 'border-white/15 text-slate-400'}`}>
@@ -323,6 +324,9 @@ export function Settings() {
           <Field label="Weekly summary" hint="Friday after the close: profit/loss, this week's alerts and the scoreboard.">
             <Toggle on={s.weeklySummary} onChange={(v) => update({ weeklySummary: v })} label="Weekly summary" />
           </Field>
+          <Field label="☀️ Morning brief" hint="Weekdays before the market opens (about 9am New York): market, your stocks, stop-losses, earnings this week, BUY ideas. Notification + email, and a card on Today. Free.">
+            <Toggle on={s.morningBrief !== false} onChange={(v) => update({ morningBrief: v })} label="Morning brief" />
+          </Field>
           {status && (
             <div className="space-y-2 text-xs">
               <div className="flex flex-wrap gap-1.5">
@@ -340,8 +344,14 @@ export function Settings() {
             <button className="btn" disabled={!!busy} onClick={() => void run('run', async () => { const r = await alertAction<{ ran: boolean; reason?: string; signals?: number; emailed?: number }>({ action: 'run-now' }); toast(r.ran ? 'success' : 'info', r.ran ? `Checked: ${r.signals ?? 0} signal(s), ${r.emailed ?? 0} email(s).` : r.reason ?? 'Did not run.'); void loadStatus(); })}>{busy === 'run' ? <><span className="spinner" /> Checking…</> : 'Run a check now'}</button>
             <button className="btn" disabled={!!busy || !s.toEmail} onClick={() => void run('mail', async () => { await alertAction({ action: 'test-email', to: s.toEmail }); toast('success', `Test email sent to ${s.toEmail}.`); })}>Test email</button>
             <button className="btn" disabled={!!busy} onClick={() => void run('weekly', async () => { const r = await alertAction<{ sent: boolean; reason?: string }>({ action: 'weekly-now' }); toast(r.sent ? 'success' : 'info', r.sent ? 'Weekly summary sent.' : r.reason ?? 'Not sent.'); })}>Send summary now</button>
+            <button className="btn" disabled={!!busy} onClick={() => void run('brief', async () => { const r = await alertAction<{ sent: boolean; reason?: string }>({ action: 'brief-now' }); toast(r.sent ? 'success' : 'info', r.sent ? 'Morning brief sent. It is also on Today.' : r.reason ?? 'Made, and shown on Today (no email or notification is set up).'); void loadStatus(); })}>{busy === 'brief' ? <><span className="spinner" /> Making…</> : 'Send brief now'}</button>
           </div>
         </div>
+
+        <StopWatchPanel settings={s} holdings={s.holdings} onChange={(stopWatch) => update({ stopWatch })}
+          price={(sym) => holdTrends.rows.find((r) => r.symbol === sym)?.price}
+          history={(sym) => holdTrends.series[sym] ?? {}} />
+        {!s.serverAlerts && (s.stopWatch?.on ?? true) && <p className="-mt-1 text-xs text-amber-200">⚠ Stop-loss warnings are only sent with Background alerts on (above). Today still shows each stop.</p>}
 
         <div className="panel space-y-2">
           <Field label="Notifications on this device" hint={pushSupported() ? 'A phone/computer alert when a background alert fires.' : isNative() ? 'This version was built without Firebase, so phone alerts are not available yet.' : isIos() && !isStandalone() ? 'On iPhone: add the app to your Home Screen first, then open it from there.' : 'Not supported in this browser.'}>

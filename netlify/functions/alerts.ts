@@ -8,7 +8,9 @@ import { firebaseKey, getFcmTokens, parseFirebaseKey, removeFcmToken, saveFcmTok
 import { aiUsage, reviewModel } from '../lib/aiBudget';
 import { redditReady } from '../lib/reddit';
 import { runWeekly } from '../lib/weeklyCore';
-import type { BackOn, PriceHit } from '../lib/extraAlerts';
+import type { BackOn, PriceHit, StopHit } from '../lib/extraAlerts';
+import { runBrief } from '../lib/briefCore';
+import type { Brief } from '../../src/lib/brief';
 import { textEmailParams } from '../../src/lib/emailParams';
 
 export const config = { path: '/api/alerts' };
@@ -24,10 +26,11 @@ const Post = z.discriminatedUnion('action', [
   z.object({ action: z.literal('test-email'), to: z.string().email().max(200) }),
   z.object({ action: z.literal('run-now') }),
   z.object({ action: z.literal('weekly-now') }),
+  z.object({ action: z.literal('brief-now') }),
 ]);
 
 // GET  /api/alerts -> status of background alerts, server email and notifications
-// POST /api/alerts {action: ...} -> subscribe / unsubscribe / test-push / test-email / run-now / weekly-now
+// POST /api/alerts {action: ...} -> subscribe / unsubscribe / test-push / test-email / run-now / weekly-now / brief-now
 export default async (req: Request): Promise<Response> => {
   const blocked = guard(req, 'alerts', 20);
   if (blocked) return blocked;
@@ -45,6 +48,8 @@ export default async (req: Request): Promise<Response> => {
         ai: { ...(await aiUsage()), model: reviewModel() },
         priceFired: await readServer<Record<string, PriceHit>>('priceFired', {}),
         backOn: (await readServer<BackOn[]>('backOn', [])).slice(0, 10),
+        stopFired: await readServer<Record<string, StopHit>>('stopFired', {}),
+        brief: await readServer<Brief | null>('brief', null),
       });
     }
     if (req.method !== 'POST') return json({ error: 'GET or POST only' }, 405);
@@ -85,6 +90,8 @@ export default async (req: Request): Promise<Response> => {
         return json(await runWatch({ force: true }));
       case 'weekly-now':
         return json(await runWeekly({ force: true }));
+      case 'brief-now':
+        return json(await runBrief({ force: true }));
     }
   } catch (e) {
     return json({ error: (e instanceof Error ? e.message : String(e)).slice(0, 300) }, 502);
