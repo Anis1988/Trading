@@ -186,11 +186,11 @@ export function StrictnessSection() {
                 </select>
               </RuleRow>
               <RuleRow name="“Rising too fast” WAIT" hint="Waits when the RSI (how hot the price is, 0–100) is above this." on={custom.stretchedOn} onToggle={(v) => setRule({ stretchedOn: v })}>
-                <input className={num} type="number" min={55} max={90} value={custom.stretchedRsi} disabled={!custom.stretchedOn} onChange={(e) => setRule({ stretchedRsi: Math.min(90, Math.max(55, Number(e.target.value) || 70)) })} aria-label="RSI limit" />
+                <NumField className={num} min={55} max={90} value={custom.stretchedRsi} fallback={70} disabled={!custom.stretchedOn} onSave={(v) => setRule({ stretchedRsi: v })} label="RSI limit" />
               </RuleRow>
               <RuleRow name="“Buy half now” zone" hint="Between RSI 70 and the limit above: a half-size BUY instead of a WAIT." on={custom.halfZone} onToggle={(v) => setRule({ halfZone: v })} />
               <RuleRow name="Earnings WAIT" hint="Waits this many days before the company reports earnings." on={custom.earningsOn} onToggle={(v) => setRule({ earningsOn: v })} score={sc('earnings')}>
-                <input className={num} type="number" min={1} max={14} value={custom.earningsDays} disabled={!custom.earningsOn} onChange={(e) => setRule({ earningsDays: Math.min(14, Math.max(1, Math.round(Number(e.target.value) || 5))) })} aria-label="Days before earnings" />
+                <NumField className={num} min={1} max={14} value={custom.earningsDays} fallback={5} disabled={!custom.earningsOn} onSave={(v) => setRule({ earningsDays: v })} label="Days before earnings" />
               </RuleRow>
               <RuleRow name="Falling market WAIT" hint="When the whole market (S&P 500) is falling." on={custom.marketOn} onToggle={(v) => setRule({ marketOn: v })} score={sc('market')}>
                 <select className="input !py-1.5" value={custom.marketMode} disabled={!custom.marketOn} onChange={(e) => setRule({ marketMode: e.target.value as Rules['marketMode'] })} aria-label="When">
@@ -200,7 +200,7 @@ export function StrictnessSection() {
               <RuleRow name="Weak finances WAIT" hint="Shrinking sales, losses or heavy debt. Off = a warning only." on={custom.weakOn} onToggle={(v) => setRule({ weakOn: v })} score={sc('weak')} />
               <RuleRow name="Bad Reddit buzz WAIT" hint="Sudden talk on Reddit for a bad reason." on={custom.redditBadOn} onToggle={(v) => setRule({ redditBadOn: v })} score={sc('reddit-bad')} />
               <RuleRow name="Reddit hype WAIT" hint="Sudden crowd hype after a jump this big this month (%)." on={custom.hypeOn} onToggle={(v) => setRule({ hypeOn: v })} score={sc('reddit-hype')}>
-                <input className={num} type="number" min={5} max={50} value={custom.hypeJump} disabled={!custom.hypeOn} onChange={(e) => setRule({ hypeJump: Math.min(50, Math.max(5, Number(e.target.value) || 15)) })} aria-label="Jump %" />
+                <NumField className={num} min={5} max={50} value={custom.hypeJump} fallback={15} disabled={!custom.hypeOn} onSave={(v) => setRule({ hypeJump: v })} label="Jump %" />
               </RuleRow>
               <RuleRow name="AI reviewer" hint="How strict the AI second opinion is." score={sc('ai')}>
                 <select className="input !py-1.5" value={custom.ai} onChange={(e) => setRule({ ai: e.target.value as Preset })} aria-label="AI reviewer">
@@ -208,10 +208,10 @@ export function StrictnessSection() {
                 </select>
               </RuleRow>
               <RuleRow name="Shares to buy (%)" hint="Of the normal amount for your risk limit. Smaller when you loosen the rules is wiser.">
-                <input className={num} type="number" min={25} max={200} step={5} value={custom.sizePct} onChange={(e) => setRule({ sizePct: Math.min(200, Math.max(25, Number(e.target.value) || 100)) })} aria-label="Shares %" />
+                <NumField className={num} min={25} max={200} step={5} value={custom.sizePct} fallback={100} onSave={(v) => setRule({ sizePct: v })} label="Shares %" />
               </RuleRow>
               <RuleRow name="Ideas: lowest score shown" hint="Ideas only lists stocks scoring at least this (0–100)." >
-                <input className={num} type="number" min={30} max={90} value={custom.minIdea} onChange={(e) => setRule({ minIdea: Math.min(90, Math.max(30, Number(e.target.value) || 60)) })} aria-label="Lowest idea score" />
+                <NumField className={num} min={30} max={90} value={custom.minIdea} fallback={60} onSave={(v) => setRule({ minIdea: v })} label="Lowest idea score" />
               </RuleRow>
             </div>
           </div>
@@ -223,5 +223,20 @@ export function StrictnessSection() {
         </div>
       </div>
     </Section>
+  );
+}
+
+/** A number box that saves (kept between min and max) when you leave it or press Enter, not on every key: typing "75" no longer passes through "7". */
+function NumField({ value, min, max, step, fallback, disabled, onSave, label, className }: { value: number; min: number; max: number; step?: number; fallback: number; disabled?: boolean; onSave: (v: number) => void; label: string; className?: string }) {
+  const [text, setText] = useState<string | null>(null);
+  const commit = () => {
+    if (text === null) return;
+    const v = Math.min(max, Math.max(min, Math.round(Number(text) || fallback)));
+    setText(null);
+    if (v !== value) onSave(v);
+  };
+  return (
+    <input className={className} type="number" inputMode="numeric" min={min} max={max} step={step} value={text ?? value} disabled={disabled} aria-label={label}
+      onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
   );
 }

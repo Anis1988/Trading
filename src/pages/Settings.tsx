@@ -18,6 +18,9 @@ import { ActionChip, Change, Field, Icon, Section, Toggle } from '../components/
 import { StrictnessSection } from '../components/Strictness';
 import { FidelityImport } from '../components/FidelityImport';
 import { StopWatchPanel } from '../components/StopWatch';
+import { useStopSeries } from '../lib/useStopSeries';
+import { useInsights } from '../lib/useInsights';
+import { resolveRules } from '../lib/strictness';
 
 const Ready = ({ ok, label }: { ok: boolean; label: string }) => (
   <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] ${ok ? 'border-emerald-300/40 text-emerald-200' : 'border-white/15 text-slate-400'}`}>
@@ -32,7 +35,10 @@ export function Settings() {
   const [pass, setPass] = useState('');
   const [pass2, setPass2] = useState('');
   const file = useRef<HTMLInputElement>(null);
-  const holdTrends = useTrends(s.holdings.map((h) => h.symbol), s);
+  // 🎚️ The level in use, so My holdings says the same BUY / HOLD as Today.
+  const holdIns = useInsights(s.holdings.map((h) => h.symbol));
+  const holdTrends = useTrends(s.holdings.map((h) => h.symbol), s, resolveRules(s, holdIns?.market).rules);
+  const holdStops = useStopSeries(s.holdings, holdTrends.series);
   const [hSym, setHSym] = useState('');
   const [hShares, setHShares] = useState('');
   const [hCost, setHCost] = useState('');
@@ -350,7 +356,7 @@ export function Settings() {
 
         <StopWatchPanel settings={s} holdings={s.holdings} onChange={(stopWatch) => update({ stopWatch })}
           price={(sym) => holdTrends.rows.find((r) => r.symbol === sym)?.price}
-          history={(sym) => holdTrends.series[sym] ?? {}} />
+          history={(sym) => holdStops[sym] ?? {}} />
         {!s.serverAlerts && (s.stopWatch?.on ?? true) && <p className="-mt-1 text-xs text-amber-200">⚠ Stop-loss warnings are only sent with Background alerts on (above). Today still shows each stop.</p>}
 
         <div className="panel space-y-2">

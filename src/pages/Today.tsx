@@ -17,6 +17,7 @@ import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken } from '../lib/api';
 import { stopFor, stopSettings } from '../lib/stopWatch';
 import { StopBadge } from '../components/StopWatch';
+import { useStopSeries } from '../lib/useStopSeries';
 import { BriefCard } from '../components/MorningBrief';
 
 const ago = (iso: string) => {
@@ -44,6 +45,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   // 🎚️ The level in use (Settings → How careful): the same rules on every tile, in Ideas and in the background.
   const level = resolveRules(settings, ins?.market);
   const { rows, dates, loading, err, series } = useTrends(held.map((h) => h.symbol), settings, level.rules);
+  const stopSeries = useStopSeries(held, series);
 
   // Portfolio totals in dollars (only holdings that have a price).
   const priced = held.map((h) => ({ h, r: rows.find((x) => x.symbol === h.symbol) })).filter((x) => x.r);
@@ -215,7 +217,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
               const gain = (a.price - h.avgCost) * h.shares;
               const gainPct = h.avgCost > 0 ? ((a.price - h.avgCost) / h.avgCost) * 100 : 0;
               const tax = taxInfo(h);
-              const stop = sw.on ? stopFor(h, a.price, sw, series[h.symbol]?.dates, series[h.symbol]?.closes) : null;
+              const stop = sw.on ? stopFor(h, a.price, sw, stopSeries[h.symbol]?.dates, stopSeries[h.symbol]?.closes) : null;
               const taxWait = a.action === 'SELL' && tax && !tax.longTerm && tax.daysToLong <= 60 && a.price > h.avgCost;
               const crowd = a.action === 'BUY' ? buyWait({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m, rsi: a.rsi, score: a.score }, level.rules) : null;
               const notes = a.action === 'BUY' && !crowd ? buyNotes({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m }, level.rules) : [];

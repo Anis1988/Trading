@@ -34,6 +34,7 @@ const num = (v: string | undefined): number | null => {
 };
 
 const CASH_WORDS = /money market|core position|cash|held in money market|fdic|sweep/i;
+// Only for rows without a share count: funds like "Pacer US Cash Cows" or "Free Cash Flow" ETFs are real holdings.
 
 export function parseFidelity(text: string): FidFile {
   const lines = text.replace(/^﻿/, '').split(/\r?\n/);
@@ -58,7 +59,7 @@ export function parseFidelity(text: string): FidFile {
     const sym = rawSym.replace(/\*+$/, '').toUpperCase();
     const qty = num(c[iQty]);
     // Money-market / core cash: "SPAXX**", or a cash description with no share count.
-    if (/\*\*$/.test(rawSym) || ((qty === null || CASH_WORDS.test(desc)) && CASH_WORDS.test(`${desc} ${c[iType] ?? ''}`) && value > 0)) {
+    if (/\*\*$/.test(rawSym) || (qty === null && CASH_WORDS.test(`${desc} ${c[iType] ?? ''}`) && value > 0)) {
       out.cash[account] = (out.cash[account] ?? 0) + value;
       continue;
     }
