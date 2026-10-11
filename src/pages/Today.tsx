@@ -15,6 +15,9 @@ import { resolveRules } from '../lib/strictness';
 import { LevelBadge } from '../components/Strictness';
 import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken } from '../lib/api';
+import { stopFor, stopSettings } from '../lib/stopWatch';
+import { StopBadge } from '../components/StopWatch';
+import { BriefCard } from '../components/MorningBrief';
 
 const ago = (iso: string) => {
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -29,13 +32,18 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   useEffect(() => {
     if (getAccessToken()) getAlertStatus().then(setStatus).catch(() => undefined);
   }, []);
+  // ☀️ Today's morning brief (made by the server before the open); ✕ hides it until tomorrow's.
+  const nyToday = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const [hiddenBrief, setHiddenBrief] = useState(() => { try { return localStorage.getItem('briefHidden') ?? ''; } catch { return ''; } });
+  const brief = status?.brief && status.brief.day === nyToday && hiddenBrief !== nyToday && settings.morningBrief !== false ? status.brief : null;
+  const sw = stopSettings(settings);
   const [openSym, setOpenSym] = useState<string | null>(null);
   const [showEarlier, setShowEarlier] = useState(false);
   const held = settings.holdings;
   const ins = useInsights(held.map((h) => h.symbol));
   // 🎚️ The level in use (Settings → How careful): the same rules on every tile, in Ideas and in the background.
   const level = resolveRules(settings, ins?.market);
-  const { rows, dates, loading, err } = useTrends(held.map((h) => h.symbol), settings, level.rules);
+  const { rows, dates, loading, err, series } = useTrends(held.map((h) => h.symbol), settings, level.rules);
 
   // Portfolio totals in dollars (only holdings that have a price).
   const priced = held.map((h) => ({ h, r: rows.find((x) => x.symbol === h.symbol) })).filter((x) => x.r);
@@ -97,6 +105,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_320px] xl:items-start">
       {/* left rail: money */}
       <aside className="space-y-4 xl:sticky xl:top-20">
+      {brief && <BriefCard b={brief} onClose={() => { try { localStorage.setItem('briefHidden', nyToday); } catch { /* ignore */ } setHiddenBrief(nyToday); }} />}
       {sinceImport.length > 0 && (
         <section className="card space-y-2 !border-cyan-300/40 !bg-cyan-500/10 text-sm">
           <p className="label !text-cyan-200">📥 Re-import from Fidelity</p>
@@ -206,6 +215,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
               const gain = (a.price - h.avgCost) * h.shares;
               const gainPct = h.avgCost > 0 ? ((a.price - h.avgCost) / h.avgCost) * 100 : 0;
               const tax = taxInfo(h);
+              const stop = sw.on ? stopFor(h, a.price, sw, series[h.symbol]?.dates, series[h.symbol]?.closes) : null;
               const taxWait = a.action === 'SELL' && tax && !tax.longTerm && tax.daysToLong <= 60 && a.price > h.avgCost;
               const crowd = a.action === 'BUY' ? buyWait({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m, rsi: a.rsi, score: a.score }, level.rules) : null;
               const notes = a.action === 'BUY' && !crowd ? buyNotes({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m }, level.rules) : [];
@@ -228,6 +238,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
                     {taxWait && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">Tax tip: in {tax!.daysToLong} days this becomes a long-term gain, usually taxed less. If it isn't falling fast, waiting may save you money.</p>}
                     <div className="mt-1.5"><VsMarketLine v={vsMarket(h.symbol, a.ret3m, ins?.market)} /></div>
                     <p className="mt-2 text-sm text-slate-300">{crowd ? `The trend looks good, but not now. ${crowd.text}` : a.idea}</p>
+                    {stop && <StopBadge l={stop} />}
                     {notes.map((n) => <p key={n} className="mt-1.5 rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">⚠ {n}</p>)}
                   </button>
                   {open && (

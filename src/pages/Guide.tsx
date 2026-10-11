@@ -12,6 +12,23 @@ import { taxText } from '../lib/holdings';
 import { fmtMoney } from '../components/ui';
 import { LevelBadge, PreviewBox, RuleRow, ruleLines } from '../components/Strictness';
 import { ImportPreview } from '../components/FidelityImport';
+import { StopBadge, StopRow } from '../components/StopWatch';
+import { BriefCard } from '../components/MorningBrief';
+import { stopFor, STOP_DEFAULT } from '../lib/stopWatch';
+import type { Brief } from '../lib/brief';
+
+/* made-up examples, only for this guide */
+const STOP_A = { symbol: 'AAPL', shares: 10, avgCost: 200 };
+const STOP_B = { symbol: 'NVDA', shares: 5, avgCost: 120, boughtAt: '2026-03-02' };
+const STOP_B_DATES = ['2026-03-02', '2026-06-01', '2026-09-01', '2026-10-09'];
+const STOP_B_CLOSES = [120, 150, 190, 176];
+const BRIEF: Brief = {
+  at: '2026-10-09T13:05:00Z', day: '2026-10-09', market: { trend: 'up', ret1m: 2.4 }, level: '⚖️ Balanced',
+  last: { value: 18450, change: 212, pct: 1.2 }, movers: [{ symbol: 'NVDA', pct: 3.1, dollars: 26 }, { symbol: 'TSLA', pct: -2.2, dollars: -48 }],
+  stops: [{ symbol: 'TSLA', price: 218.5, stop: 214.2, away: 2 }], alerts: [{ symbol: 'MSFT', price: 488, target: 500, away: 2.5 }],
+  earnings: [{ symbol: 'AAPL', inDays: 3, text: 'Earnings in 3 days (after the close), 2026-10-12' }],
+  buys: [{ symbol: 'COST', price: 912, owned: false, idea: 'Steady climb, not overheated.' }],
+};
 import { LEVEL, LOCKED, PRESETS, resolveRules } from '../lib/strictness';
 
 /* ------- made-up example data, only for pictures in this guide ------- */
@@ -581,6 +598,43 @@ export function Guide() {
               <li>It's only a price alert, not advice. When it fires, open the app to see what it says about that stock.</li>
               <li>Up to 20 alerts. Remove one with ✕. Needs <b>Background alerts</b> on.</li>
             </ul>
+          </Section>
+
+          <Section title="🛑 Stop-loss watch" subtitle="A warning when a stock you own falls too far" icon={Icon.bell}>
+            <P>A stop-loss is the price where you say “that's enough, I'd rather get out”. The app works it out for every stock you own and warns you (email + phone notification) the moment the price gets there. It never sells anything: you decide, and you sell in Fidelity if you want to.</P>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Below what you paid:</b> with 10%, a stock you bought at $200 warns you at $180.</li>
+              <li><b>Trailing (follows the price up):</b> it is also measured from the highest close since you bought, so when a stock has gone up, the stop goes up with it and protects your gain. It never goes back down. Needs the date you bought (My holdings).</li>
+              <li>The higher of the two is your stop. Each stock can have its own % ("Same" = the main setting).</li>
+              <li>Checked once an hour on weekdays with <b>Background alerts</b> on. One warning per stock; it starts watching again once the price climbs back 3% above the stop.</li>
+              <li>On Today, each stock shows its stop: grey = fine, <span className="text-amber-200">amber</span> = within 3%, <span className="text-red-300">red</span> = reached.</li>
+            </ul>
+            <Example caption="Made-up numbers. Settings → Alerts & email → Stop-loss watch (the list does nothing here).">
+              <ul className="divide-y divide-white/5">
+                <StopRow h={STOP_A} l={stopFor(STOP_A, 186, STOP_DEFAULT)} />
+                <StopRow h={STOP_B} l={stopFor(STOP_B, 176, STOP_DEFAULT, STOP_B_DATES, STOP_B_CLOSES)} custom={undefined} />
+              </ul>
+            </Example>
+            <Example caption="What the tile on Today shows: AAPL (paid $200) is fine; NVDA rose to $190 and slid back, so its trailing stop of $171 is close.">
+              <StopBadge l={stopFor(STOP_A, 186, STOP_DEFAULT)!} />
+              <StopBadge l={stopFor(STOP_B, 176, STOP_DEFAULT, STOP_B_DATES, STOP_B_CLOSES)!} />
+            </Example>
+            <Tip>Picking the %: about 8–10% suits most big stocks; very jumpy stocks need more room (15–20%) or you get warned on normal wiggles.</Tip>
+          </Section>
+
+          <Section title="☀️ Morning brief" subtitle="One look before the market opens" icon={Icon.today}>
+            <P>Every weekday at about 9am New York (before the 9:30 open), the app sends you a short brief: a phone notification with one line, an email with everything, and a card at the top of Today (✕ hides it until tomorrow).</P>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Market:</b> rising, falling or no clear direction, and your “How careful” level.</li>
+              <li><b>Your stocks:</b> how much you made or lost on the last trading day, and the biggest movers.</li>
+              <li><b>Stop-loss and price alerts</b> that are close (within 3%).</li>
+              <li><b>Earnings</b> in the next 7 days for your stocks and watchlist (prices can jump either way).</li>
+              <li><b>BUY now:</b> your stocks and watchlist that pass your rules today, the same rules as the tiles and Ideas.</li>
+              <li>Free (no AI). Turn it off, or send one now, in Settings → Alerts & email.</li>
+            </ul>
+            <Example caption="Made-up example of the card on Today.">
+              <BriefCard b={BRIEF} />
+            </Example>
           </Section>
 
           <Section title="Alerts, emails & notifications" subtitle="How the app reaches you" icon={Icon.bell}>

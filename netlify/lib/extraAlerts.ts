@@ -6,6 +6,7 @@ import { buyWait, type WaitRule } from '../../src/lib/waitRules';
 import { yahooHistory, yahooQuote } from './feeds';
 import { getInsights, getMarket } from './insights';
 import { readServer, writeServer } from './state';
+import { stopFor, stopSettings, stopWhy } from '../../src/lib/stopWatch';
 
 export type Notify = (title: string, body: string) => Promise<boolean>;
 export type Say = (level: 'info' | 'warn' | 'error', msg: string) => void;
@@ -114,5 +115,47 @@ export async function checkBackOn(s: Partial<Settings>, scoreLog: ScoreEntry[], 
     }
   }
   await writeServer('backOn', done.slice(0, 30));
+  return n;
+}
+
+export interface StopHit { at: string; price: number; stop: number }
+
+/**
+ * 🛑 Stop-loss watch: a stock you own fell to its stop (below what you paid, or below its highest close since you bought).
+ * One warning per stock; it re-arms when the price climbs back 3% above the stop. Never an order.
+ */
+export async function checkStops(s: Partial<Settings>, notify: Notify, say: Say): Promise<number> {
+  const sw = stopSettings(s);
+  const holdings = (s.holdings ?? []).slice(0, 20);
+  const fired = await readServer<Record<string, StopHit>>('stopFired', {});
+  let n = 0;
+  if (sw.on && holdings.length) {
+    for (const h of holdings) {
+      const [q, hist] = await Promise.all([yahooQuote(h.symbol).catch(() => null), sw.trailing && h.boughtAt ? yahooHistory(h.symbol).catch(() => null) : Promise.resolve(null)]);
+      if (!q?.price) continue;
+      const l = stopFor(h, q.price, sw, hist?.dates, hist?.closes);
+      if (!l) continue;
+      if (fired[h.symbol]) {
+        if (q.price > l.stop * 1.03) delete fired[h.symbol]; // back above: watch again
+        continue;
+      }
+      if (!l.hit) continue;
+      const site = process.env.URL ?? '';
+      const body = [
+        `${h.symbol} is $${q.price}, at or below your stop-loss of $${l.stop} (${stopWhy(l, h)}).`,
+        `You own ${h.shares} shares${h.avgCost ? `, paid $${h.avgCost}` : ''}: ${q.price >= h.avgCost ? 'still a gain' : 'a loss'} of about $${Math.abs(Math.round((q.price - h.avgCost) * h.shares)).toLocaleString('en-US')}.`,
+        '',
+        `This is a warning, not an order: the app never sells. If you want out, sell in Fidelity. If you keep it, the watch starts again once it climbs back above $${Math.round(l.stop * 1.03 * 100) / 100}.${site ? `\n${site}` : ''}`,
+      ].join('\n');
+      if (await notify(`🛑 ${h.symbol} hit your stop-loss ($${l.stop})`, body)) {
+        fired[h.symbol] = { at: new Date().toISOString(), price: q.price, stop: l.stop };
+        say('info', `Stop-loss: ${h.symbol} $${q.price} ≤ $${l.stop}.`);
+        n++;
+      }
+    }
+  }
+  // Forget stocks you no longer own.
+  const held = new Set(holdings.map((h) => h.symbol));
+  await writeServer('stopFired', Object.fromEntries(Object.entries(fired).filter(([sym]) => held.has(sym))));
   return n;
 }

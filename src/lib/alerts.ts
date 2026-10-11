@@ -1,4 +1,5 @@
 import { call } from './api';
+import type { Brief } from './brief';
 
 export interface AlertStatus {
   lastRun: string | null;
@@ -10,6 +11,8 @@ export interface AlertStatus {
   firebase?: string | null; // Firebase project of the uploaded key (the key itself stays on the server)
   ai?: { used: number; limit: number; model: string };
   priceFired?: Record<string, { at: string; price: number }>;
+  stopFired?: Record<string, { at: string; price: number; stop: number }>;
+  brief?: Brief | null;
   backOn?: { symbol: string; rule: string; at: string; price: number; text: string }[];
 }
 

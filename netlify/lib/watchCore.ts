@@ -12,7 +12,7 @@ import { reviewTrade } from './reviewCore';
 import { isAbout, profiles } from './relevance';
 import { sendServerEmail, serverEmailReady } from './mailer';
 import { pushAll } from './push';
-import { BACK_ON_EVERY_MS, checkBackOn, checkPriceAlerts } from './extraAlerts';
+import { BACK_ON_EVERY_MS, checkBackOn, checkPriceAlerts, checkStops } from './extraAlerts';
 import { textEmailParams } from '../../src/lib/emailParams';
 import { appendServerLog, readServer, readState, writeServer, writeState, type ServerLogEntry } from './state';
 
@@ -67,12 +67,13 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
     };
     try {
       if (s.priceAlerts?.length) await checkPriceAlerts(s.priceAlerts, notify, say);
+      await checkStops(s, notify, say);
       if (Date.now() - (await readServer<number>('backOnAt', 0)) > BACK_ON_EVERY_MS) {
         await writeServer('backOnAt', Date.now());
         await checkBackOn(s, state.data.scoreLog ?? [], notify, say);
       }
     } catch (e) {
-      say('error', `Price / back-on check failed: ${e instanceof Error ? e.message : String(e)}`);
+      say('error', `Price / stop-loss / back-on check failed: ${e instanceof Error ? e.message : String(e)}`);
     }
     await writeServer('emails', counter);
 
