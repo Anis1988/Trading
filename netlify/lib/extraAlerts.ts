@@ -131,8 +131,11 @@ export async function checkStops(s: Partial<Settings>, notify: Notify, say: Say)
   let n = 0;
   if (sw.on && holdings.length) {
     for (const h of holdings) {
-      const [q, hist] = await Promise.all([yahooQuote(h.symbol).catch(() => null), sw.trailing && h.boughtAt ? yahooHistory(h.symbol).catch(() => null) : Promise.resolve(null)]);
-      if (!q?.price) continue;
+      const trail = sw.trailing && !!h.boughtAt;
+      const range = trail && Date.parse(h.boughtAt!) < Date.now() - 150 * 86400_000 ? '2y' : '6mo'; // the highest close since you bought
+      const [q, hist] = await Promise.all([yahooQuote(h.symbol).catch(() => null), trail ? yahooHistory(h.symbol, range).catch(() => null) : Promise.resolve(null)]);
+      // No price, or no history for a trailing stop (a one-off failure would wrongly lower the stop): try next hour.
+      if (!q?.price || (trail && !hist)) continue;
       const l = stopFor(h, q.price, sw, hist?.dates, hist?.closes);
       if (!l) continue;
       if (fired[h.symbol]) {

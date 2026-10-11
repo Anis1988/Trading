@@ -28,11 +28,13 @@ export async function runBrief(opts: { force?: boolean } = {}): Promise<{ sent: 
   const holdings = (s.holdings ?? []).slice(0, 20);
   const watch = (state.data.watchlist ?? []).filter((x) => !holdings.some((h) => h.symbol === x)).slice(0, 15);
   const symbols = [...holdings.map((h) => h.symbol), ...watch];
+  // Bought more than ~5 months ago: 2 years of prices, so a trailing stop sees the highest close since you bought.
+  const longAgo = (sym: string) => { const b = holdings.find((h) => h.symbol === sym)?.boughtAt; return !!b && Date.parse(b) < Date.now() - 150 * 86400_000; };
   const series: Record<string, History> = {};
   const [market, info] = await Promise.all([
     getMarket().catch(() => null),
     symbols.length ? getInsights(symbols).catch(() => ({}) as Awaited<ReturnType<typeof getInsights>>) : Promise.resolve({} as Awaited<ReturnType<typeof getInsights>>),
-    Promise.all(symbols.map(async (sym) => { const h = await yahooHistory(sym).catch(() => null); if (h) series[sym] = h; })),
+    Promise.all(symbols.map(async (sym) => { const h = await yahooHistory(sym, longAgo(sym) ? '2y' : '6mo').catch(() => null); if (h) series[sym] = h; })),
   ]);
   const lv = resolveRules(s, market);
 
@@ -57,7 +59,9 @@ export async function runBrief(opts: { force?: boolean } = {}): Promise<{ sent: 
     return l && (l.hit || l.near) ? [{ symbol: h.symbol, price: price!, stop: l.stop, away: l.away }] : [];
   }) : [];
 
-  const alerts: Brief['alerts'] = (s.priceAlerts ?? []).flatMap((a) => {
+  // Alerts that already fired never fire again, so they are not "close to firing".
+  const firedAlerts = await readServer<Record<string, unknown>>('priceFired', {});
+  const alerts: Brief['alerts'] = (s.priceAlerts ?? []).filter((a) => !firedAlerts[a.id]).flatMap((a) => {
     const price = series[a.symbol]?.closes.slice(-1)[0];
     if (!price) return [];
     const away = Math.round((Math.abs(price - a.price) / price) * 1000) / 10;
