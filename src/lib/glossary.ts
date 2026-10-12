@@ -133,6 +133,24 @@ export const GROUPS: { name: string; emoji: string; terms: Term[] }[] = [
     ],
   },
   {
+    name: 'Options',
+    emoji: '🎯',
+    terms: [
+      { word: 'Option', also: 'contract', means: 'A deal about 100 shares: the right to buy or sell them at a set price until a set date. The buyer pays the seller for that right.', app: 'The app only suggests SELLING options that are fully backed by your shares or cash.' },
+      { word: 'Call', also: 'call option', means: 'The right to BUY 100 shares at the strike price until the date.' },
+      { word: 'Put', also: 'put option', means: 'The right to SELL 100 shares at the strike price until the date.' },
+      { word: 'Strike', also: 'strike price', means: 'The price written in the option: what the shares would be bought or sold at.', example: 'An AAPL $250 call: the right to buy AAPL at $250.' },
+      { word: 'Expiration', also: 'expiry, expiration date', means: 'The last day of the option. After it, the deal is over.' },
+      { word: 'Premium', means: 'What the option costs. When you sell one, you get the premium right away and keep it whatever happens.', example: '$3.40 premium × 100 shares = $340 for you.' },
+      { word: 'Covered call', means: 'Selling a call on shares you own (100 per contract). You get paid now; if the stock ends above the strike, your shares are sold at the strike.', app: 'Ideas → 🎯 Options → Covered calls on what you own.' },
+      { word: 'Cash-secured put', also: 'cash-covered put, CSP', means: 'Selling a put while keeping the cash to buy the shares. You get paid now; if the stock ends below the strike, you buy 100 shares at the strike.', app: 'Ideas → 🎯 Options → Buy cheaper.' },
+      { word: 'Assignment', also: 'assigned, called away, exercised', means: 'When the option is used: your shares are sold (call) or you buy the shares (put) at the strike. Fidelity does it for you automatically.' },
+      { word: 'Delta', means: 'Roughly the chance an option ends "in the money" (the shares change hands).', example: 'Delta 0.25 ≈ a 25% chance.', app: 'Shown as "Chance sold" or "Chance you buy".' },
+      { word: 'Sell to open', means: 'The order to sell a new option (and get the premium). "Buy to close" ends it early by buying it back.' },
+      { word: 'Implied volatility', also: 'IV', means: 'How much the market expects the stock to move. Higher IV = bigger premiums, but also bigger swings.' },
+    ],
+  },
+  {
     name: 'Words in this app',
     emoji: '🧭',
     terms: [

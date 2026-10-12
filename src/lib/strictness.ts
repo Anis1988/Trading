@@ -49,6 +49,7 @@ export const LOCKED = [
   'No buying on earnings day itself.',
   'No buying a stock in a downtrend that also has weak company finances.',
   'The app never places orders: you do.',
+  'Options: only selling fully backed ones (a call needs your 100 shares, a put needs the cash).',
 ];
 
 export interface Resolved { level: Level; preset: Preset | 'custom'; rules: Rules; reason?: string }
