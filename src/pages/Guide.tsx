@@ -16,6 +16,15 @@ import { StopBadge, StopRow } from '../components/StopWatch';
 import { BriefCard } from '../components/MorningBrief';
 import { stopFor, STOP_DEFAULT } from '../lib/stopWatch';
 import type { Brief } from '../lib/brief';
+import { OptionCard } from '../components/Options';
+import { coveredCall, estimateChain, type OptionIdea } from '../lib/options';
+
+/* Made-up example for the Options section: 300 shares bought at $150, the stock at $180. */
+const GUIDE_CALL = ((): OptionIdea | null => {
+  const now = new Date();
+  const x = coveredCall({ symbol: 'EXMPL', shares: 300, avgCost: 150 }, estimateChain('EXMPL', 180, 0.3, now), 'balanced', now);
+  return 'skip' in x ? null : x;
+})();
 
 /* made-up examples, only for this guide */
 const STOP_A = { symbol: 'AAPL', shares: 10, avgCost: 200 };
@@ -349,6 +358,22 @@ export function Guide() {
               <li><b>Shares to buy</b>: how many shares keep your possible loss within your risk limit.</li>
             </ul>
             <Warn>A high score means the stock has been doing well. It cannot promise the future; any stock can fall.</Warn>
+          </Section>
+
+          <Section title="🎯 Options: extra income" subtitle="Covered calls and cash-secured puts, explained" icon={Icon.ideas}>
+            <P>In <b>Ideas → 🎯 Options</b> the app suggests ways to <b>get paid now</b> using what you already have. It only suggests <b>selling</b> options that are fully backed, and it <b>never places the order</b>: you copy the order into Fidelity yourself.</P>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>📞 Covered call</b> (you own 100+ shares): someone pays you now for the right to buy your shares at a higher price (the <b>strike</b>) until a date. If the stock ends above the strike, your shares are sold at that price, plus you keep the payment. If not, you keep both.</li>
+              <li><b>💵 Cash-secured put</b> (a stock you’d like to own): someone pays you now for the right to sell you 100 shares at a lower price. If the stock ends below the strike, you buy them at that price, really a bit less thanks to the payment. If not, you just keep the payment. Keep the cash aside.</li>
+              <li><b>Chance</b>: how likely it is that the shares are sold (call) or bought (put) by the date. Your level in Settings decides: 🛡️ Careful about 15%, ⚖️ Balanced about 25%, 🚀 Risky about 35%. Careful and Balanced also pick a date that ends <b>before earnings</b>.</li>
+              <li><b>Never</b>: a call without the shares (unlimited risk), a put without the cash, or a call below what you paid (that would lock in a loss).</li>
+              <li><b>Try any option</b>: type a symbol, pick put or call, a date and a strike: you get the same numbers, chart and order.</li>
+            </ul>
+            <Example caption="Made-up covered call (estimated prices). The chart is your profit or loss on the date, for prices from −30% to +30%: green above zero, red below.">
+              {GUIDE_CALL && <OptionCard idea={GUIDE_CALL} example />}
+            </Example>
+            <P>Before your first one, Fidelity asks for <b>options approval</b> (a short form in your account; these two are the lowest level). Prices come from Cboe and are about 15 minutes old; when they can’t be reached the app estimates them and says <b>estimate</b>.</P>
+            <Warn>Options can still lose money: if the stock falls a lot, the payment only softens the loss. A covered call also caps your gain if the stock shoots up.</Warn>
           </Section>
 
           <Section title="History & Scoreboard" subtitle="Your record of every instruction" icon={Icon.history}>

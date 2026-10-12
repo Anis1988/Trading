@@ -135,3 +135,8 @@ export interface InsightsResult {
 }
 
 export const fetchInsights = (symbols: string[]) => call<InsightsResult>(`/api/insights?symbols=${encodeURIComponent(symbols.join(','))}`);
+
+/** 🎯 The option chain for one stock (Cboe delayed quotes, else an estimate): read-only, never an order. */
+export async function fetchOptions(symbol: string): Promise<import('./options').Chain> {
+  return call(`/api/options?symbol=${encodeURIComponent(symbol)}`);
+}

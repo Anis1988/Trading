@@ -27,7 +27,7 @@ export function getMarket(): Promise<Market | null> {
 }
 
 /** Upcoming earnings for the next 3 weeks, all US companies in one call. Cached 6 hours. */
-async function earningsMap(): Promise<Record<string, { date: string; hour?: string }>> {
+export async function earningsMap(): Promise<Record<string, { date: string; hour?: string }>> {
   const from = new Date();
   const to = new Date(Date.now() + 21 * 86400_000);
   return cached('insights-cache', `earnings-${day(from)}`, 6 * 3600_000, async () => {
