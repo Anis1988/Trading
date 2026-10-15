@@ -12,7 +12,7 @@ import { resolveRules, sizeQty, trendBuy } from '../lib/strictness';
 import { LevelBadge } from '../components/Strictness';
 import { MOOD_LABEL } from '../lib/insightTypes';
 import { shareAfterBuy } from '../lib/concentration';
-import { ActionChip, Change, Empty, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
+import { ActionChip, Change, Empty, Seg, Skeleton, Sparkline, Stat, fmtMoney } from '../components/ui';
 import { OptionsView } from '../components/Options';
 
 const cache = new Map<string, { at: number; data: ScanResult }>();
@@ -53,11 +53,7 @@ export function Ideas({ goTo }: { goTo?: (tab: 'Settings') => void }) {
   const pick = (m: 'stocks' | 'options') => { setMode(m); try { localStorage.setItem(MODE_KEY, m); } catch { /* ignore */ } };
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1" role="tablist" aria-label="Ideas">
-        {([['stocks', '📈 Stocks'], ['options', '🎯 Options']] as const).map(([m, l]) => (
-          <button key={m} role="tab" aria-selected={mode === m} onClick={() => pick(m)} className={`min-h-[40px] flex-1 rounded-xl px-3 text-sm font-semibold transition ${mode === m ? 'bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950' : 'text-slate-300 hover:bg-white/5'}`}>{l}</button>
-        ))}
-      </div>
+      <Seg label="Ideas" value={mode} onChange={pick} options={[['stocks', '📈 Stocks'], ['options', '🎯 Options']] as const} />
       {mode === 'stocks' ? <StockIdeas goTo={goTo} /> : <OptionsView goTo={goTo} />}
     </div>
   );

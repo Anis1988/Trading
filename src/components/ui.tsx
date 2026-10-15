@@ -1,11 +1,12 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 /* ---------- one action vocabulary for the whole app ---------- */
 export type Action = 'BUY' | 'SELL' | 'HOLD' | 'WAIT' | 'SKIP' | 'CHECKING';
 
 const ACTION: Record<Action, { cls: string; icon: string; label: string }> = {
-  BUY: { cls: 'border-emerald-300/50 bg-emerald-400/15 text-emerald-200', icon: '▲', label: 'BUY' },
-  SELL: { cls: 'border-red-300/50 bg-red-400/15 text-red-200', icon: '▼', label: 'SELL' },
+  BUY: { cls: 'border-emerald-300/50 bg-emerald-400/15 text-emerald-200 shadow-[0_0_14px_-2px_rgba(52,211,153,0.45)]', icon: '▲', label: 'BUY' },
+  SELL: { cls: 'border-red-300/50 bg-red-400/15 text-red-200 shadow-[0_0_14px_-2px_rgba(248,113,113,0.45)]', icon: '▼', label: 'SELL' },
   HOLD: { cls: 'border-slate-300/30 bg-slate-400/10 text-slate-200', icon: '●', label: 'HOLD' },
   WAIT: { cls: 'border-amber-300/50 bg-amber-400/15 text-amber-200', icon: '◆', label: 'WAIT' },
   SKIP: { cls: 'border-slate-400/30 bg-slate-500/10 text-slate-400', icon: '✕', label: 'SKIP' },
@@ -16,7 +17,7 @@ export function ActionChip({ action, size = 'md', suffix }: { action: Action; si
   const a = ACTION[action];
   const sz = size === 'lg' ? 'px-3 py-1 text-sm' : size === 'sm' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs';
   return (
-    <span className={`inline-flex items-center gap-1 rounded-lg border font-bold tracking-wider ${sz} ${a.cls}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-lg border font-mono font-bold tracking-wider ${sz} ${a.cls}`}>
       <span aria-hidden="true">{action === 'CHECKING' ? <span className="spinner !h-2.5 !w-2.5" /> : a.icon}</span>
       {a.label}
       {suffix && <span className="font-medium opacity-80">{suffix}</span>}
@@ -46,7 +47,7 @@ export function Stat({ label, value, tone }: { label: string; value: ReactNode; 
   return (
     <div className="panel !p-2">
       <p className="label !text-[10px]">{label}</p>
-      <p className={`num mt-0.5 text-sm font-semibold ${tone === 'up' ? 'text-emerald-300' : tone === 'down' ? 'text-red-300' : 'text-slate-100'}`}>{value}</p>
+      <p className={`num mt-0.5 text-[15px] font-semibold ${tone === 'up' ? 'text-emerald-300' : tone === 'down' ? 'text-red-300' : 'text-slate-100'}`}>{value}</p>
     </div>
   );
 }
@@ -59,16 +60,18 @@ export function Section({ title, subtitle, icon, defaultOpen = false, children, 
   const id = useId();
   return (
     <section className="card !p-0">
-      <button className="flex w-full items-center gap-3 px-4 py-3.5 text-left" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
-        {icon && <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-cyan-400/20 to-violet-500/20 text-cyan-200">{icon}</span>}
+      <button className="tap flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
+        {icon && <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-gradient-to-br from-cyan-400/20 to-violet-500/20 text-cyan-200 shadow-[0_0_16px_-4px_rgba(34,211,238,0.5)]">{icon}</span>}
         <span className="min-w-0 flex-1">
           <span className="block font-display font-semibold">{title}</span>
           {subtitle && <span className="block truncate text-xs text-slate-400">{subtitle}</span>}
         </span>
         {right}
-        <span aria-hidden="true" className={`text-slate-400 transition ${open ? 'rotate-180' : ''}`}>⌄</span>
+        <span aria-hidden="true" className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-400 transition-transform duration-300 ${open ? 'rotate-180 text-cyan-200' : ''}`}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+        </span>
       </button>
-      {open && <div id={id} className="space-y-3 border-t border-white/10 px-4 pb-4 pt-3">{children}</div>}
+      {open && <div id={id} className="qt-enter space-y-3 border-t border-white/[0.07] px-4 pb-4 pt-3">{children}</div>}
     </section>
   );
 }
@@ -98,11 +101,48 @@ export const Skeleton = ({ className = 'h-24' }: { className?: string }) => <div
 export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
     <div className="card flex flex-col items-center gap-2 py-8 text-center">
-      <div aria-hidden="true" className="mb-1 h-10 w-10 rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-cyan-400/20 to-violet-500/20" />
+      <div aria-hidden="true" className="relative mb-1 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-cyan-400/20 to-violet-500/20 text-cyan-200 shadow-[0_0_28px_-6px_rgba(34,211,238,0.6)]">{Icon.today}</div>
       <p className="font-display text-lg font-semibold">{title}</p>
       {children && <p className="max-w-sm text-sm text-slate-400">{children}</p>}
       {action}
     </div>
+  );
+}
+
+/* ---------- sliding segmented control (tabs inside a page) ---------- */
+export function Seg<T extends string>({ value, options, onChange, label, className = '' }: {
+  value: T; options: readonly (readonly [T, ReactNode])[]; onChange: (v: T) => void; label: string; className?: string;
+}) {
+  const i = Math.max(0, options.findIndex(([v]) => v === value));
+  const n = options.length;
+  return (
+    <div className={`seg ${className}`} style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }} role="tablist" aria-label={label}>
+      <span aria-hidden="true" className="seg-thumb" style={{ width: `calc((100% - 0.5rem) / ${n})`, transform: `translateX(${i * 100}%)` }} />
+      {options.map(([v, l]) => (
+        <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)}>{l}</button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- sheet: slides up from the bottom on phones, a centred panel on big screens; drawn over the page in a portal ---------- */
+export function Sheet({ children, onClose, labelledBy }: { children: ReactNode; onClose?: () => void; labelledBy?: string }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', key);
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', key); };
+  }, [onClose]);
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div className="qt-scrim absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div className="qt-sheet glass relative max-h-[90vh] w-full overflow-y-auto rounded-t-3xl px-4 pt-3 sm:max-w-sm sm:rounded-3xl">
+        <div aria-hidden="true" className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20 sm:hidden" />
+        {children}
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -120,6 +160,8 @@ export function Sparkline({ values, dates, height = 56, interactive = false, lab
   const up = values[values.length - 1] >= values[0];
   const stroke = up ? '#34d399' : '#f87171';
   const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const last = values.length - 1;
+  const baseY = y(values[0]);
   const gid = `g${label.replace(/\W/g, '')}${up ? 'u' : 'd'}`;
   const pick = (clientX: number, el: Element) => {
     const r = el.getBoundingClientRect();
@@ -135,12 +177,16 @@ export function Sparkline({ values, dates, height = 56, interactive = false, lab
       >
         <defs>
           <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={stroke} stopOpacity="0.28" />
+            <stop offset="0%" stopColor={stroke} stopOpacity="0.32" />
+            <stop offset="70%" stopColor={stroke} stopOpacity="0.05" />
             <stop offset="100%" stopColor={stroke} stopOpacity="0" />
           </linearGradient>
         </defs>
+        {/* faint guide lines and the starting price (dashed), so the move is easy to read */}
+        {[0.25, 0.5, 0.75].map((f) => <line key={f} x1="0" x2={w} y1={height * f} y2={height * f} stroke="rgba(148,163,184,0.08)" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+        <line x1="0" x2={w} y1={baseY} y2={baseY} stroke="rgba(148,163,184,0.28)" strokeWidth="1" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />
         <polygon points={`0,${height} ${pts} ${w},${height}`} fill={`url(#${gid})`} />
-        <polyline points={pts} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        <polyline className="spark-line" style={{ ['--spark' as string]: up ? 'rgba(52,211,153,0.55)' : 'rgba(248,113,113,0.55)' }} points={pts} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         {hover !== null && (
           <>
             <line x1={x(hover)} x2={x(hover)} y1="0" y2={height} stroke="rgba(226,232,240,0.35)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
@@ -148,8 +194,14 @@ export function Sparkline({ values, dates, height = 56, interactive = false, lab
           </>
         )}
       </svg>
+      {hover === null && (
+        <span aria-hidden="true" className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2" style={{ left: 'calc(100% - 4px)', top: y(values[last]) }}>
+          <span className="spark-ping absolute inset-0 rounded-full" style={{ background: stroke }} />
+          <span className="absolute inset-0 rounded-full border border-[#05070f]" style={{ background: stroke, boxShadow: `0 0 10px ${stroke}` }} />
+        </span>
+      )}
       {hover !== null && (
-        <div className="pointer-events-none absolute -top-1 right-0 rounded-lg border border-white/15 bg-ink-900/95 px-2 py-1 text-xs shadow-lg">
+        <div className="pointer-events-none absolute -top-1 right-0 rounded-lg border border-cyan-300/25 bg-ink-950/95 px-2 py-1 text-xs shadow-[0_0_18px_-4px_rgba(34,211,238,0.5)] backdrop-blur">
           <span className="num font-semibold text-slate-100">${values[hover].toFixed(2)}</span>
           {dates?.[hover] && <span className="ml-1.5 text-slate-400">{dates[hover]}</span>}
         </div>

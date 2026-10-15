@@ -223,13 +223,13 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
               const notes = a.action === 'BUY' && !crowd ? buyNotes({ info: ins?.stocks[h.symbol], market: ins?.market, ret1m: a.ret1m }, level.rules) : [];
               return (
                 <div key={h.symbol} className="card !p-0">
-                  <button className="w-full p-4 text-left" aria-expanded={open} onClick={() => setOpenSym(open ? null : h.symbol)}>
-                    <div className="flex items-center gap-2">
+                  <button className="tap w-full rounded-2xl p-4 text-left" aria-expanded={open} onClick={() => setOpenSym(open ? null : h.symbol)}>
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-display text-xl font-semibold">{h.symbol}</span>
                       {a.action && <ActionChip action={crowd ? 'WAIT' : a.action} size="sm" />}
                       <EarningsBadge e={ins?.stocks[h.symbol]?.earnings} />
                       <BuzzBadge b={ins?.stocks[h.symbol]?.buzz} />
-                      <span className="num ml-auto text-lg">${a.price}</span>
+                      <span className="num ml-auto text-lg font-semibold">${a.price}</span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-sm">
                       <span className="muted num">{h.shares} sh · paid ${h.avgCost}</span>
