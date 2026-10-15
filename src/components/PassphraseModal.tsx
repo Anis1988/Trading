@@ -1,12 +1,13 @@
 import { useState } from 'react';
+import { Sheet } from './ui';
 
 export function PassphraseModal(p: { reason: string; onSubmit: (pass: string) => Promise<boolean>; onCancel: () => void }) {
   const [pass, setPass] = useState('');
   const [err, setErr] = useState('');
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="pp-title">
+    <Sheet onClose={p.onCancel} labelledBy="pp-title">
       <form
-        className="card w-full max-w-sm space-y-3 !bg-ink-900/95"
+        className="space-y-3"
         onSubmit={async (e) => {
           e.preventDefault();
           if (!(await p.onSubmit(pass))) setErr('Wrong passphrase (or none set yet; see Settings).');
@@ -22,6 +23,6 @@ export function PassphraseModal(p: { reason: string; onSubmit: (pass: string) =>
           <button className="btn-primary">Confirm</button>
         </div>
       </form>
-    </div>
+    </Sheet>
   );
 }

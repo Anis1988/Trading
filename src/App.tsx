@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from './store';
 import { Toasts } from './components/Toasts';
 import { Icon } from './components/ui';
+import { TabBar, TopTabs } from './components/Nav';
 import { Today } from './pages/Today';
 import { Ideas } from './pages/Ideas';
 import { History } from './pages/History';
@@ -39,63 +40,52 @@ export default function App() {
     if (window.confirm('Stop alerts?\n\nThis stops checking the news and turns Auto-Email off on this device. Nothing is cancelled in Fidelity and nothing is deleted. You can resume any time.')) panic();
   };
 
+  const badge = { Today: newCount };
+
   return (
     <div className="min-h-screen">
+      <div className="qt-bg" aria-hidden="true">
+        <span className="qt-orb a" />
+        <span className="qt-orb b" />
+        <span className="qt-orb c" />
+        <span className="qt-scan" />
+      </div>
       <Toasts />
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/75 backdrop-blur-xl" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-3 px-3 sm:px-4">
+      <header className="qt-header sticky top-0 z-40 backdrop-blur-xl" style={{ paddingTop: 'var(--qt-safe-top)' }}>
+        <div className="mx-auto flex h-12 max-w-[1600px] items-center gap-2.5 px-3 sm:h-14 sm:gap-3 sm:px-4 lg:px-6">
           <Logo />
-          <span className="font-display text-lg font-semibold tracking-tight">Trading</span>
-          <nav className="ml-4 hidden gap-1 sm:flex" aria-label="Main">
-            {TABS.map(([t]) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                aria-current={tab === t ? 'page' : undefined}
-                className={`relative rounded-lg px-3 py-1.5 text-sm transition ${tab === t ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-100'}`}
-              >
-                {t}
-                {t === 'Today' && newCount > 0 && <span className="num ml-1.5 rounded-full bg-cyan-400 px-1.5 text-[10px] font-bold text-slate-950">{newCount}</span>}
-              </button>
-            ))}
-          </nav>
+          <span className="font-display text-[17px] font-semibold tracking-tight">
+            Trading<span className="ml-1.5 hidden font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-cyan-300/70 sm:inline">terminal</span>
+          </span>
+          <TopTabs tabs={TABS} current={tab} onPick={setTab} badge={badge} />
           <span
-            className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-wider ${settings.stopped ? 'border-red-300/40 bg-red-400/10 text-red-200' : 'border-emerald-300/40 bg-emerald-400/10 text-emerald-200'}`}
+            className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.14em] ${settings.stopped ? 'border-red-300/40 bg-red-400/10 text-red-200' : 'border-emerald-300/40 bg-emerald-400/10 text-emerald-200'}`}
             title={settings.stopped ? 'Alerts are stopped' : 'Watching the news for your stocks'}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${settings.stopped ? 'bg-red-300' : 'animate-pulse bg-emerald-300'}`} />
+            <span className="relative flex h-1.5 w-1.5">
+              {!settings.stopped && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-300 opacity-60" />}
+              <span className={`relative h-1.5 w-1.5 rounded-full ${settings.stopped ? 'bg-red-300' : 'bg-emerald-300'}`} />
+            </span>
             {settings.stopped ? 'PAUSED' : 'WATCHING'}
           </span>
-          <button className="btn-danger" onClick={stop} disabled={settings.stopped} title="Stop checking news and turn off auto-email">
+          <button className="btn-danger !min-h-[44px] !px-2.5 sm:!min-h-[38px] sm:!px-3" onClick={stop} disabled={settings.stopped} title="Stop checking news and turn off auto-email">
             {Icon.stop}
             <span className="hidden sm:inline">{settings.stopped ? 'Stopped' : 'Stop alerts'}</span>
             <span className="sm:hidden">{settings.stopped ? 'Off' : 'Stop'}</span>
           </button>
         </div>
-        <nav className="grid grid-cols-6 border-t border-white/5 sm:hidden" aria-label="Main">
-          {TABS.map(([t, icon]) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              aria-current={tab === t ? 'page' : undefined}
-              className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] transition ${tab === t ? 'text-cyan-200' : 'text-slate-400'}`}
-            >
-              {icon}
-              {t}
-              {tab === t && <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />}
-              {t === 'Today' && newCount > 0 && <span className="num absolute right-3 top-1 rounded-full bg-cyan-400 px-1.5 text-[10px] font-bold text-slate-950">{newCount}</span>}
-            </button>
-          ))}
-        </nav>
       </header>
-      <main className="mx-auto max-w-[1600px] px-3 pb-12 pt-4 sm:px-4 lg:px-6">
+      <main className="qt-main mx-auto max-w-[1600px] px-3 pt-4 sm:px-4 lg:px-6">
+        <div key={tab} className="qt-enter">
         {tab === 'Today' && <Today goTo={setTab} />}
         {tab === 'Ideas' && <Ideas goTo={setTab} />}
         {tab === 'History' && <History />}
         {tab === 'Settings' && <Settings />}
         {tab === 'Guide' && <Guide />}
         {tab === 'Words' && <Words />}
+        </div>
       </main>
+      <TabBar tabs={TABS} current={tab} onPick={setTab} badge={badge} />
     </div>
   );
 }

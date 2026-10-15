@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { ActionChip, Change, Section, Sparkline, Stat, Icon } from '../components/ui';
+import { ActionChip, Change, Section, Seg, Skeleton, Sparkline, Stat, Toggle, Icon } from '../components/ui';
+import { TabBar } from '../components/Nav';
 import { EarningsBadge, InsightLines, MarketCard } from '../components/Insight';
 import { BuzzBadge, RedditPanel } from '../components/Buzz';
 import type { Buzz } from '../lib/insightTypes';
@@ -110,6 +111,35 @@ export function Guide() {
               ]}
             />
             <Warn>This app is not a broker and not financial advice. Every decision and every order is yours.</Warn>
+          </Section>
+
+          <Section title="How it looks" subtitle="Find your way around, on a phone or a computer" icon={Icon.today}>
+            <P>On a phone the tabs sit in a bar at the bottom of the screen, where your thumb is: tap one and the glowing highlight slides over to it. A small number on Today means new signals are waiting. On a computer the same tabs are at the top.</P>
+            <P>Colours always mean the same thing, and every one comes with a word and an arrow, so you never have to rely on the colour alone: green ▲ = gain or BUY, red ▼ = loss or SELL, amber ◆ = WAIT, grey = HOLD or SKIP. Prices and money use an even-width font, so the numbers line up.</P>
+            <P>Buttons and tiles sink a little and glow when you tap them. Switches slide on and off. While something loads you see softly shimmering grey blocks. If your phone is set to reduce motion, all movement stops.</P>
+            <Example caption="Made-up numbers. Nothing here can be tapped.">
+              <div className="pointer-events-none space-y-3" aria-hidden="true">
+                <TabBar tabs={[['Today', Icon.today], ['Ideas', Icon.ideas], ['History', Icon.history], ['Settings', Icon.settings], ['Guide', Icon.guide], ['Words', Icon.words]] as const} current="Today" onPick={() => undefined} badge={{ Today: 2 }} inline />
+                <Seg label="Example" value="stocks" onChange={() => undefined} options={[['stocks', '📈 Stocks'], ['options', '🎯 Options']] as const} />
+                <div className="card space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-display text-xl font-semibold">EXMPL</span>
+                    <ActionChip action="BUY" size="sm" />
+                    <span className="num ml-auto text-lg font-semibold">$184.20</span>
+                  </div>
+                  <p className="text-sm"><Change value={312} pct={4.1} /> <span className="muted">on what you paid</span></p>
+                  <Sparkline values={UP} height={56} label="Example price line" />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <ActionChip action="SELL" size="sm" />
+                  <ActionChip action="WAIT" size="sm" />
+                  <ActionChip action="HOLD" size="sm" />
+                  <ActionChip action="SKIP" size="sm" />
+                  <span className="ml-auto"><Toggle on onChange={() => undefined} label="Example switch" /></span>
+                </div>
+                <div className="space-y-1.5"><Skeleton className="h-4 w-32" /><Skeleton className="h-8 w-48" /></div>
+              </div>
+            </Example>
           </Section>
 
           <Section title="Where the news comes from" subtitle="5 free sources, checked every few minutes" icon={Icon.today}>
