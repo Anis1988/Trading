@@ -5,5 +5,5 @@
     <string name="package_name">app.tradinganis</string>
     <string name="custom_url_scheme">app.tradinganis</string>
     <string name="widget_title">📈 Portfolio today</string>
-    <string name="widget_description">Portfolio today: value, today's change and the top mover</string>
+    <string name="widget_description">Portfolio today: value, change today and the top mover</string>
 </resources>
