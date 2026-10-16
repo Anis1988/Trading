@@ -1,4 +1,4 @@
-import { analyze } from '../../src/lib/trend';
+import { marketOf } from '../../src/lib/trend';
 import type { Health, Insight, Insiders, Market } from '../../src/lib/insightTypes';
 import { yahooHistory } from './feeds';
 import { cached } from './aiBudget';
@@ -19,10 +19,7 @@ async function finnhub<T>(path: string): Promise<T | null> {
 export function getMarket(): Promise<Market | null> {
   return cached('insights-cache', `market-${day(new Date())}-${new Date().getUTCHours()}`, 3600_000, async () => {
     const h = await yahooHistory('SPY');
-    const a = h && analyze('SPY', h.closes);
-    if (!a) return null;
-    const trend: Market['trend'] = a.price > a.sma50 && a.sma20 >= a.sma50 ? 'up' : a.price < a.sma50 && a.sma20 < a.sma50 ? 'down' : 'mixed';
-    return { trend, price: a.price, ret1m: a.ret1m, ret3m: a.ret3m, closes: a.closes.slice(-60) };
+    return h ? marketOf(h.closes) : null;
   }).catch(() => null);
 }
 

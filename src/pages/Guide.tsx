@@ -12,6 +12,15 @@ import { VsMarketLine } from '../components/Insight';
 import { taxText } from '../lib/holdings';
 import { fmtMoney } from '../components/ui';
 import { UpdateBanner } from '../components/AppUpdate';
+import { WidgetPicture } from '../components/Widget';
+import { widgetData } from '../lib/widget';
+
+/* Made-up numbers for the widget picture. */
+const GUIDE_WIDGET = widgetData([
+  { symbol: 'NVDA', shares: 20, price: 182.4, prevClose: 176.9 },
+  { symbol: 'KO', shares: 40, price: 69.1, prevClose: 69.5 },
+  { symbol: 'VTI', shares: 30, price: 301.2, prevClose: 299.8 },
+], new Date(2026, 9, 16, 15, 42))!;
 import { LevelBadge, PreviewBox, RuleRow, ruleLines } from '../components/Strictness';
 import { ImportPreview } from '../components/FidelityImport';
 import { StopBadge, StopRow } from '../components/StopWatch';
@@ -20,6 +29,34 @@ import { stopFor, STOP_DEFAULT } from '../lib/stopWatch';
 import type { Brief } from '../lib/brief';
 import { OptionCard } from '../components/Options';
 import { coveredCall, estimateChain, type OptionIdea } from '../lib/options';
+import { simulate } from '../lib/whatif';
+import { SimLimits, WhatIfReport } from '../components/WhatIf';
+import { DividendCard } from '../components/Dividends';
+import type { DivInfo } from '../lib/dividends';
+
+/* Made-up prices for the What if example: a stock that climbs for months, then falls 30%, and a calmer S&P 500. */
+const GUIDE_SIM = (() => {
+  const dates: string[] = [];
+  const d = new Date('2025-05-01T12:00:00Z');
+  while (dates.length < 400) { d.setUTCDate(d.getUTCDate() + 1); if (d.getUTCDay() % 6) dates.push(d.toISOString().slice(0, 10)); }
+  const wig = (i: number) => 2.5 * Math.sin(i / 6) + 4 * Math.sin(i / 23);
+  const stock = (i: number) => 100 * (1 + 0.0025 * Math.min(i, 320)) * (i > 320 ? 1 - 0.3 * Math.min(1, (i - 320) / 60) : 1) + wig(i);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  return simulate({
+    symbol: 'EXMPL', months: 12, amount: 10000, level: 'balanced', stop: STOP_DEFAULT,
+    series: { dates, closes: dates.map((_, i) => r2(stock(i))) },
+    spy: { dates, closes: dates.map((_, i) => r2(500 * (1 + 0.0005 * i) + 3 * wig(i))) },
+  });
+})();
+
+/* Made-up dividends for the Dividends example. */
+const DIV_HELD = [{ symbol: 'KO', shares: 40, avgCost: 58 }, { symbol: 'VTI', shares: 12, avgCost: 240 }, { symbol: 'JNJ', shares: 10, avgCost: 150 }, { symbol: 'TSLA', shares: 3, avgCost: 210 }];
+const DIV_INFO: Record<string, DivInfo> = {
+  KO: { symbol: 'KO', pays: true, annual: 2.04, yieldPct: 2.9, perYear: 4, next: { exDate: '2026-11-28', payDate: '2026-12-15', amount: 0.51 }, source: 'Nasdaq' },
+  VTI: { symbol: 'VTI', pays: true, annual: 3.6, yieldPct: 1.3, perYear: 4, next: { exDate: '2026-12-22', payDate: '2026-12-26', amount: 0.95 }, source: 'Nasdaq' },
+  JNJ: { symbol: 'JNJ', pays: true, annual: 3.8, perYear: 4, next: { exDate: '2027-01-19', amount: 0.96, estimated: true }, source: 'Yahoo Finance' },
+  TSLA: { symbol: 'TSLA', pays: false, annual: 0, source: 'Nasdaq' },
+};
 
 /* Made-up example for the Options section: 300 shares bought at $150, the stock at $180. */
 const GUIDE_CALL = ((): OptionIdea | null => {
@@ -120,7 +157,7 @@ export function Guide() {
             <P>Buttons and tiles sink a little and glow when you tap them. Switches slide on and off. While something loads you see softly shimmering grey blocks. If your phone is set to reduce motion, all movement stops.</P>
             <Example caption="Made-up numbers. Nothing here can be tapped.">
               <div className="pointer-events-none space-y-3" aria-hidden="true">
-                <TabBar tabs={[['Today', Icon.today], ['Ideas', Icon.ideas], ['History', Icon.history], ['Settings', Icon.settings], ['Guide', Icon.guide], ['Words', Icon.words]] as const} current="Today" onPick={() => undefined} badge={{ Today: 2 }} inline />
+                <TabBar tabs={[['Today', Icon.today], ['Ideas', Icon.ideas], ['What if', Icon.whatif], ['History', Icon.history], ['Settings', Icon.settings], ['Guide', Icon.guide], ['Words', Icon.words]] as const} current="Today" onPick={() => undefined} badge={{ Today: 2 }} inline />
                 <Seg label="Example" value="stocks" onChange={() => undefined} options={[['stocks', '📈 Stocks'], ['options', '🎯 Options']] as const} />
                 <div className="card space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -407,6 +444,27 @@ export function Guide() {
             <Warn>Options can still lose money: if the stock falls a lot, the payment only softens the loss. A covered call also caps your gain if the stock shoots up.</Warn>
           </Section>
 
+          <Section title="🔮 What if" subtitle="Would following the app have made money?" icon={Icon.whatif}>
+            <P>The <b>What if</b> tab answers: “if I had done every BUY and SELL the app gave, over the last 3, 6 or 12 months, what would my money be now?”. Pick a stock you own or watch (or <b>★ All</b>, or type any symbol), how far back, a starting amount, and a level (yours is picked). Tap <b>Run the test</b>.</P>
+            <Steps items={[
+              'The app goes back day by day over the past prices. On each day it only looks at the prices up to that day, never the ones that came after, so it can’t cheat.',
+              'It uses the very same rules as your stock tiles: the trend score, “rising too fast”, the falling-market rule, the share size of your level, and your 🛑 stop-loss watch. 🔄 Auto changes level with the market of each day.',
+              'When they say BUY, it buys at that day’s closing price. When they say SELL, or the stop-loss is reached, it sells everything.',
+              'At the end it compares with just keeping the stock the whole time, and with the S&P 500 (the whole market).',
+            ]} />
+            <Example caption="Made-up prices: a stock that climbed, then fell 30%. The chart shows your starting $10,000 over time: solid = following the rules, dashed = just holding, dotted = the S&P 500. In the app you can touch the chart to read a day.">
+              <div className="pointer-events-none">{GUIDE_SIM && <WhatIfReport r={GUIDE_SIM} example />}</div>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Win rate</b>: of the times it sold, how many made money.</li>
+              <li><b>Biggest drop</b>: the largest fall from a high along the way: how scary it would have felt.</li>
+              <li>Following the rules often makes <b>less</b> than just holding a stock that kept rising, but loses less when a stock keeps falling. That’s the trade-off.</li>
+            </ul>
+            <p className="label pt-1">What it can’t replay (skipped, not guessed)</p>
+            <SimLimits />
+            <Warn>A simulation on past prices: not advice, and no promise for the future. It never places an order. Free: no AI.</Warn>
+          </Section>
+
           <Section title="History & Scoreboard" subtitle="Your record of every instruction" icon={Icon.history}>
             <Example caption="Tap a status on the right to change it. Executed asks for the order number and the price you paid.">
               <div className="flex gap-3">
@@ -477,6 +535,20 @@ export function Guide() {
               <li><b>Insiders</b> are the company's own bosses and directors. When they buy their own stock with their own money, it's a good sign: they know the business best. When they sell, it's usually routine (taxes, a house, planned sales), so it means much less.</li>
               <li><b>Weak finances turn a BUY into <ActionChip action="WAIT" size="sm" /></b> everywhere: on alerts (before any paid AI check), on your stock tiles and on Ideas. Selling is not affected.</li>
               <li>Both are free and passed to the AI check. Funds (ETFs) and some banks don't have these numbers, so nothing is shown for them.</li>
+            </ul>
+          </Section>
+
+          <Section title="💵 Dividends" subtitle="When the next payments come, and about how much a year" icon={Icon.wallet}>
+            <P>Some companies pay you cash a few times a year just for owning their shares: a <b>dividend</b>. The <b>💵 Dividends</b> card on Today shows, for the stocks you own, the next dates and amounts, and about how much they pay you in a year (your shares × the yearly dividend per share).</P>
+            <Example caption="Made-up example of the card on Today (nothing here can be tapped).">
+              <div className="pointer-events-none"><DividendCard holdings={DIV_HELD} info={DIV_INFO} /></div>
+            </Example>
+            <ul className="space-y-1.5 text-sm text-slate-300">
+              <li><b>Ex-date</b>: you must own the shares <b>before</b> this day to get the next payment. Buying on the ex-date or later is too late for that one.</li>
+              <li><b>Paid</b>: the day the cash arrives in your Fidelity account.</li>
+              <li><b>Estimate</b>: the company hasn’t announced its next date yet, so the app guesses it from its usual rhythm (for example every 3 months) and its last amount.</li>
+              <li>A stock that pays nothing (many growth companies) is listed under “No dividend”.</li>
+              <li>The dates come from Nasdaq (free), or Yahoo Finance when Nasdaq has nothing; they are checked twice a day. Dates and amounts can change until the company announces them. The yearly total is before tax.</li>
             </ul>
           </Section>
 
@@ -713,17 +785,33 @@ export function Guide() {
                 <p><b className="font-display">Trading.apk</b> <span className="text-slate-400">· 4.1 MB</span></p>
               </section>
             </Example>
+            <Example caption="The home-screen widget (made-up numbers).">
+              <WidgetPicture d={GUIDE_WIDGET} />
+            </Example>
             <Example caption="The update banner (example numbers).">
               <UpdateBanner have={12} next={13} />
             </Example>
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li><b>Install</b>: on your phone, open the GitHub release called <b>android-latest</b> and tap <b>Trading.apk</b>. The first time, Android asks to allow installing apps from your browser: allow it once.</li>
-              <li><b>Update</b>: when a new version is ready, a banner shows at the top of the app. Tap <b>Update</b>: the new version downloads, then tap <b>Install</b>. It installs over the old one and keeps your data. <b>Later</b> hides it until the next version. You can also check in <b>Settings → App version</b>.</li>
+              <li><b>Update</b>: when a new version is ready, a banner shows at the top of the app. Tap <b>Update</b>: the app downloads the new version itself (you see the progress in your notifications) and then opens Android’s installer: tap <b>Update</b> there. It installs over the old one and keeps your data. The very first time, Android asks you to allow Trading to install updates: switch it on, come back and tap <b>Update</b> again. If that doesn’t work on your phone, the download opens in your browser instead: tap the downloaded file. <b>Later</b> hides the banner until the next version. You can also check in <b>Settings → App version</b>.</li>
+              <li><b>Home-screen widget</b>: press and hold an empty spot on your home screen → <b>Widgets</b> → <b>Trading</b> → drag “Portfolio today” onto the screen. It shows what your stocks are worth, today’s change in $ and % (with ▲ or ▼), and the biggest mover. It updates each time the app loads prices; tap it to open the app.</li>
               <li>Open <b>Settings → Sync &amp; access</b> and enter the same access token as on the website, so your data appears.</li>
               <li>The phone's back button goes back to Today, then closes the app.</li>
               <li><b>Phone notifications</b>: turn on <b>Settings → Notifications</b> inside the app. You get the same alerts as by email, even when the app is closed. While the app is open, they show as a message at the top.</li>
               <li><b>One-time Firebase setup</b> (Google's free notification service): 1. On <b>console.firebase.google.com</b>, create a project. 2. Add an <b>Android</b> app with the name <b>app.tradinganis</b> and download <b>google-services.json</b>: give it to Claude to add to the app (it only names your project, it is not a password). 3. In Project settings → <b>Service accounts</b>, tap <b>Generate new private key</b>: this file IS private. Upload it on the website in <b>Settings → Notifications → Android app notifications</b>, and never send it to anyone.</li>
             </ul>
+          </Section>
+
+          <Section title="📊 On your “My apps” page" subtitle="This app’s status, next to your other apps" icon={Icon.today}>
+            <P>Your “My apps” page shows a small card for this app: your portfolio today, the BUY signals right now, the next earnings or dividend date, and what the AI checks cost today, this week and this month.</P>
+            <Example caption="Made-up example of the three lines.">
+              <ul className="space-y-1 text-sm text-slate-200">
+                <li>📈 Portfolio ▲ +1.2% today (+$212), worth $18,450</li>
+                <li>🟢 BUY now: COST, NVDA</li>
+                <li>🗓️ Next: AAPL earnings in 3 days · KO ex-dividend Nov 28</li>
+              </ul>
+            </Example>
+            <P>It needs the same <b>access token</b> you typed in Settings → Sync &amp; access: enter it once on the My apps page. It only reads; it changes nothing and never places orders. AI cost counts from the day this was added; amounts are worked out from the AI’s own usage numbers at list prices.</P>
           </Section>
 
           <Section title="Saving AI credits" subtitle="What costs money and what is free" icon={Icon.shield}>

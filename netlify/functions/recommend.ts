@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import { guard, json } from '../lib/guard';
-import { BudgetError, cached, hashKey, refundAiCredit, reviewModel, takeAiCredit } from '../lib/aiBudget';
+import { BudgetError, cached, hashKey, recordAiCall, refundAiCredit, reviewModel, takeAiCredit } from '../lib/aiBudget';
 
 export const config = { path: '/api/recommend' };
 
@@ -72,6 +72,7 @@ export default async (req: Request): Promise<Response> => {
           messages: [{ role: 'user', content: `Today is ${new Date().toISOString().slice(0, 10)}.\n${table}` }],
           output_config: { effort: 'low', format: zodOutputFormat(Out) },
         });
+        await recordAiCall(model, res.usage); // 📊 cost history for the summary
         if (res.stop_reason === 'refusal' || !res.parsed_output) return { summary: 'The AI gave no usable answer. Try again.', picks: [] as z.infer<typeof Out>['picks'] };
         return res.parsed_output;
       } catch (e) {

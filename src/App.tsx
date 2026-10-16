@@ -13,10 +13,12 @@ import { History } from './pages/History';
 import { Settings } from './pages/Settings';
 import { Guide } from './pages/Guide';
 import { Words } from './pages/Words';
+import { WhatIf } from './pages/WhatIf';
 
 const TABS = [
   ['Today', Icon.today],
   ['Ideas', Icon.ideas],
+  ['What if', Icon.whatif],
   ['History', Icon.history],
   ['Settings', Icon.settings],
   ['Guide', Icon.guide],
@@ -72,7 +74,7 @@ export default function App() {
         <div className="mx-auto flex h-12 max-w-[1600px] items-center gap-2.5 px-3 sm:h-14 sm:gap-3 sm:px-4 lg:px-6">
           <Logo />
           <span className="font-display text-[17px] font-semibold tracking-tight">
-            Trading<span className="ml-1.5 hidden font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-cyan-300/70 sm:inline">terminal</span>
+            Trading<span className="ml-1.5 hidden font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-cyan-300/70 sm:inline lg:hidden xl:inline">terminal</span>
           </span>
           <TopTabs tabs={TABS} current={tab} onPick={setTab} badge={badge} />
           <span
@@ -97,6 +99,7 @@ export default function App() {
         <div key={tab} className="qt-enter">
         {tab === 'Today' && <Today goTo={setTab} />}
         {tab === 'Ideas' && <Ideas goTo={setTab} />}
+        {tab === 'What if' && <WhatIf />}
         {tab === 'History' && <History />}
         {tab === 'Settings' && <Settings />}
         {tab === 'Guide' && <Guide />}

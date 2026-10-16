@@ -141,3 +141,8 @@ export const fetchInsights = (symbols: string[]) => call<InsightsResult>(`/api/i
 export async function fetchOptions(symbol: string): Promise<import('./options').Chain> {
   return call(`/api/options?symbol=${encodeURIComponent(symbol)}`);
 }
+
+/** 💵 Dividends for the stocks you own (Nasdaq, else Yahoo; cached 12 hours on the server). Free. */
+export async function fetchDividends(symbols: string[]): Promise<{ info: Record<string, import('./dividends').DivInfo>; errors: string[] }> {
+  return call(`/api/dividends?symbols=${encodeURIComponent(symbols.join(','))}`);
+}

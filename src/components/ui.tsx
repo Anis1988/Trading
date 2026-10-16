@@ -226,5 +226,6 @@ export const Icon = {
   wrench: P(<><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-2.6-.4-.4-2.6 2.4-2.4Z" /></>),
   stop: P(<><rect x="6" y="6" width="12" height="12" rx="2" /></>),
   words: P(<><path d="M4 19V6a2 2 0 0 1 2-2h12v15H6a2 2 0 0 0-2 2" /><path d="M8 15l2.5-7 2.5 7M9 12.5h3" /></>),
+  whatif: P(<><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5" /><path d="M8 15l3-3 2 2 3-4" /></>),
   guide: P(<><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5Z" /><path d="M4 19a2 2 0 0 1 2-2h13M9 7h6M9 11h4" /></>),
 };

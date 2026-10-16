@@ -9,7 +9,7 @@ import { useTrends } from '../lib/useTrends';
 import { taxInfo, taxText } from '../lib/holdings';
 import { getAccessToken, setAccessToken } from '../lib/api';
 import { isNative } from '../lib/native';
-import { APP_BUILD, downloadApp, latestApp } from '../components/AppUpdate';
+import { APP_BUILD, installUpdate, latestApp } from '../components/AppUpdate';
 import {
   alertAction, appPushOn, disableAppPush, enableAppPush, canPromptInstall, currentSubscription, disablePush, enablePush, getAlertStatus, isIos, isStandalone, onInstallAvailable, promptInstall, pushSupported,
   type AlertStatus,
@@ -389,7 +389,7 @@ export function Settings() {
                 const r = await latestApp();
                 if (!r) throw new Error('Could not reach the download page. Try again in a minute.');
                 if (r.build <= APP_BUILD) toast('success', 'You have the latest version.');
-                else await downloadApp(r.url);
+                else await installUpdate(r.url, (m) => toast('info', m));
               })}>{busy === 'upd' ? <><span className="spinner" /> Checking…</> : 'Check for updates'}</button>
             </Field>
           )}

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { App as NativeApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
+import { registerPlugin } from '@capacitor/core';
 import { isNative } from '../lib/native';
+import { useStore } from '../store';
 
 /** The Android app's build number (GitHub run number), set when GitHub builds the app. 0 on the website. */
 export const APP_BUILD = Number(import.meta.env.VITE_APP_BUILD ?? 0) || 0;
@@ -21,8 +23,22 @@ export async function latestApp(): Promise<AppRelease | null> {
   return build && typeof url === 'string' ? { build, url } : null;
 }
 
-/** Downloads the new APK in the phone's browser; Android then offers to install it over this one. */
-export const downloadApp = (url: string) => Browser.open({ url });
+/**
+ * ⬆️ Update: the app downloads the new version itself and opens Android's installer (UpdatePlugin.java). Opening the
+ * .apk link in the in-app browser did nothing on many phones. Older app versions without the plugin: the browser.
+ * `say` shows the next step as a message at the top (the store's toast).
+ */
+const Updater = registerPlugin<{ install(o: { url: string }): Promise<{ status: 'downloading' | 'allow' | 'browser' }> }>('Update');
+export async function installUpdate(url: string, say: (msg: string) => void): Promise<void> {
+  try {
+    const r = await Updater.install({ url });
+    if (r.status === 'downloading') say('Downloading the update (see the notification). The installer opens when it’s ready: tap Update there.');
+    else if (r.status === 'allow') say('Allow Trading to install updates (switch it on), come back, and tap Update again.');
+    else say('The update opens in your browser: tap the downloaded file to install it.');
+  } catch {
+    await Browser.open({ url });
+  }
+}
 
 export function UpdateBanner({ have, next, onUpdate, onLater }: { have: number; next: number; onUpdate?: () => void; onLater?: () => void }) {
   return (
@@ -41,6 +57,7 @@ export function UpdateBanner({ have, next, onUpdate, onLater }: { have: number; 
 
 /** In the Android app: looks for a newer version when the app opens or comes back (at most every 30 minutes). */
 export function AppUpdateCheck() {
+  const { toast } = useStore();
   const [next, setNext] = useState<AppRelease | null>(null);
   useEffect(() => {
     if (!isNative() || !APP_BUILD) return;
@@ -65,7 +82,7 @@ export function AppUpdateCheck() {
     <UpdateBanner
       have={APP_BUILD}
       next={next.build}
-      onUpdate={() => void downloadApp(next.url)}
+      onUpdate={() => void installUpdate(next.url, (m) => toast('info', m))}
       onLater={() => {
         try { localStorage.setItem(SKIP_KEY, String(next.build)); } catch { /* ignore */ }
         setNext(null);
