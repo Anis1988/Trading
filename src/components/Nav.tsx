@@ -44,7 +44,7 @@ export function TopTabs<T extends string>({ tabs, current, onPick, badge }: {
   const i = Math.max(0, tabs.findIndex(([t]) => t === current));
   return (
     <nav className="relative ml-4 hidden rounded-2xl border border-white/[0.08] bg-black/30 p-1 lg:flex" aria-label="Main">
-      <span aria-hidden="true" className="qt-pill bottom-1 left-1 top-1 w-[96px]" style={{ transform: `translateX(${i * 96}px)` }} />
+      <span aria-hidden="true" className="qt-pill bottom-1 left-1 top-1 w-[88px]" style={{ transform: `translateX(${i * 88}px)` }} />
       {tabs.map(([t, icon]) => {
         const on = t === current;
         const b = badge?.[t] ?? 0;
@@ -54,7 +54,7 @@ export function TopTabs<T extends string>({ tabs, current, onPick, badge }: {
             type="button"
             onClick={() => onPick(t)}
             aria-current={on ? 'page' : undefined}
-            className={`relative z-10 flex h-9 w-[96px] items-center justify-center gap-1.5 rounded-xl text-sm transition-colors ${on ? 'text-cyan-50' : 'text-slate-400 hover:text-slate-100'}`}
+            className={`relative z-10 flex h-9 w-[88px] items-center justify-center gap-1.5 rounded-xl text-sm transition-colors ${on ? 'text-cyan-50' : 'text-slate-400 hover:text-slate-100'}`}
           >
             <span className="scale-[0.85]">{icon}</span>
             {t}

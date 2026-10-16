@@ -1,5 +1,6 @@
 import type { Holding } from './holdings';
 import { PRESETS, trendBuy, type Rules } from './strictness';
+import type { Market } from './insightTypes';
 
 export interface Series {
   dates: string[];
@@ -111,6 +112,17 @@ export function analyze(symbol: string, closes: number[], owned?: Holding, rules
     symbol, price: round(price, 2), prevClose: round(closes[closes.length - 2], 2), ret1m: round(ret1m), ret3m: round(ret3m), sma20: round(s20, 2), sma50: round(s50, 2),
     rsi: round(r, 0), fromHigh: round(((price - high) / high) * 100), score, label, idea, ideaKind, action, closes, ...(half ? { half } : {}),
   };
+}
+
+/**
+ * The whole market's mood from S&P 500 (SPY) daily closes (~6 months), the backdrop for every BUY. Shared by the server's
+ * market check (netlify/lib/insights.ts) and the 🔮 What if back-test, so both read the market the same way.
+ */
+export function marketOf(closes: number[]): Market | null {
+  const a = analyze('SPY', closes);
+  if (!a) return null;
+  const trend: Market['trend'] = a.price > a.sma50 && a.sma20 >= a.sma50 ? 'up' : a.price < a.sma50 && a.sma20 < a.sma50 ? 'down' : 'mixed';
+  return { trend, price: a.price, ret1m: a.ret1m, ret3m: a.ret3m, closes: a.closes.slice(-60) };
 }
 
 export const POPULAR = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'AVGO', 'JPM', 'V', 'UNH', 'XOM', 'LLY', 'COST', 'WMT', 'NFLX', 'AMD', 'ORCL', 'KO', 'PEP', 'HD', 'PG', 'MA', 'BAC'];

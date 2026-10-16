@@ -19,6 +19,7 @@ import { stopFor, stopSettings } from '../lib/stopWatch';
 import { StopBadge } from '../components/StopWatch';
 import { useStopSeries } from '../lib/useStopSeries';
 import { BriefCard } from '../components/MorningBrief';
+import { DividendCard, useDividends } from '../components/Dividends';
 
 const ago = (iso: string) => {
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -46,6 +47,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
   const level = resolveRules(settings, ins?.market);
   const { rows, dates, loading, err, series } = useTrends(held.map((h) => h.symbol), settings, level.rules);
   const stopSeries = useStopSeries(held, series);
+  const divs = useDividends(held.map((h) => h.symbol));
 
   // Portfolio totals in dollars (only holdings that have a price).
   const priced = held.map((h) => ({ h, r: rows.find((x) => x.symbol === h.symbol) })).filter((x) => x.r);
@@ -166,6 +168,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
           )}
         </section>
       )}
+      <DividendCard holdings={held} info={divs.info} loading={divs.loading} errors={divs.errors} />
       {alloc.length + (cash > 0 ? 1 : 0) > 1 && (
         <section className="card hidden space-y-2 md:block">
           <p className="label">Where your money is</p>

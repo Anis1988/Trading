@@ -12,7 +12,7 @@ import { assessHolding, type Holding } from '../../src/lib/holdings';
 import type { Side } from '../../src/types';
 import { getInsights, getMarket } from './insights';
 import { MARKET_TEXT, analystText, buzzText, earningsText, healthText, insiderText } from '../../src/lib/insightTypes';
-import { BudgetError, cached, hashKey, refundAiCredit, reviewModel, takeAiCredit } from './aiBudget';
+import { BudgetError, cached, hashKey, recordAiCall, refundAiCredit, reviewModel, takeAiCredit } from './aiBudget';
 
 const Review = z.object({
   verdict: z.enum(['APPROVE', 'CAUTION', 'REJECT']),
@@ -198,6 +198,7 @@ async function askClaude(model: string, prompt: string, hold: { note: string; qt
       messages: [{ role: 'user', content: prompt }],
       output_config: { effort: 'low', format: zodOutputFormat(Review) },
     });
+    await recordAiCall(model, res.usage); // 📊 cost history for the summary
     if (res.stop_reason === 'refusal' || !res.parsed_output) {
       return { verdict: 'CAUTION', confidence: 0, rationale: 'The AI reviewer gave no usable answer, so treat this as not checked.', risks: [], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model };
     }

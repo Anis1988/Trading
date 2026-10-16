@@ -1,7 +1,9 @@
 import type { Settings } from '../../src/types';
 import type { Brief } from '../../src/lib/brief';
 import { briefLine, briefText } from '../../src/lib/brief';
-import { levelText, resolveRules } from '../../src/lib/strictness';
+import { levelText, resolveRules, type Rules } from '../../src/lib/strictness';
+import type { Holding } from '../../src/lib/holdings';
+import type { Insight, Market } from '../../src/lib/insightTypes';
 import { analyze } from '../../src/lib/trend';
 import { buyWait } from '../../src/lib/waitRules';
 import { earningsText } from '../../src/lib/insightTypes';
@@ -15,6 +17,20 @@ import { appendServerLog, readServer, readState, writeServer } from './state';
 
 /** Today's date in New York (the brief is "for" the US trading day). */
 export const nyDay = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
+/** Your stocks and watchlist that are a BUY right now: the same rules as the stock tiles, Ideas and the morning brief. */
+export function buyNow(symbols: string[], holdings: Holding[], series: Record<string, History>, info: Record<string, Insight>, market: Market | null, rules: Rules): Brief['buys'] {
+  const buys: Brief['buys'] = [];
+  for (const sym of symbols) {
+    const owned = holdings.find((h) => h.symbol === sym);
+    const ser = series[sym];
+    const a = ser ? analyze(sym, ser.closes, owned, rules) : null;
+    if (!a || !(owned ? a.action === 'BUY' : a.ideaKind === 'buy')) continue;
+    if (buyWait({ info: info[sym], market, ret1m: a.ret1m, rsi: a.rsi, score: a.score }, rules)) continue;
+    buys.push({ symbol: sym, price: a.price, owned: !!owned, idea: a.idea });
+  }
+  return buys;
+}
 
 /** ☀️ The weekday morning brief: market, your stocks, stop-loss, earnings, BUY ideas. Free (no AI). */
 export async function runBrief(opts: { force?: boolean } = {}): Promise<{ sent: boolean; reason?: string; brief?: Brief }> {
@@ -75,15 +91,7 @@ export async function runBrief(opts: { force?: boolean } = {}): Promise<{ sent: 
   }).sort((a, b) => a.inDays - b.inDays);
 
   // BUY now: the same rules as the stock tiles and Ideas (Settings → How careful).
-  const buys: Brief['buys'] = [];
-  for (const sym of symbols) {
-    const owned = holdings.find((h) => h.symbol === sym);
-    const ser = series[sym];
-    const a = ser ? analyze(sym, ser.closes, owned, lv.rules) : null;
-    if (!a || !(owned ? a.action === 'BUY' : a.ideaKind === 'buy')) continue;
-    if (buyWait({ info: info[sym], market, ret1m: a.ret1m, rsi: a.rsi, score: a.score }, lv.rules)) continue;
-    buys.push({ symbol: sym, price: a.price, owned: !!owned, idea: a.idea });
-  }
+  const buys = buyNow(symbols, holdings, series, info, market, lv.rules);
 
   const brief: Brief = {
     at: new Date().toISOString(), day,

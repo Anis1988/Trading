@@ -70,3 +70,58 @@ export async function refundAiCredit(): Promise<void> {
     /* ignore */
   }
 }
+
+/* ---------- 📊 AI cost history (for the "My apps" summary, /api/summary) ---------- */
+
+/**
+ * Anthropic list prices in $ per million tokens (input, output), October 2026. Matched on the model name; an unknown
+ * model is priced like Sonnet. Cache writes cost 1.25× input, cache reads 0.1× input.
+ */
+const PRICES: [RegExp, number, number, string][] = [
+  [/fable|mythos/, 10, 50, 'Claude Fable'],
+  [/opus-5-5/, 4, 20, 'Claude Opus 5.5'],
+  [/opus/, 5, 25, 'Claude Opus'],
+  [/sonnet-4/, 3, 15, 'Claude Sonnet 4.6'],
+  [/sonnet/, 2, 10, 'Claude Sonnet'],
+  [/haiku-4/, 1, 5, 'Claude Haiku 4.5'],
+  [/haiku/, 0.1, 0.5, 'Claude Haiku'],
+];
+const priceOf = (model: string) => PRICES.find(([re]) => re.test(model)) ?? [/./, 2, 10, model] as const;
+export const modelName = (model: string) => priceOf(model)[3];
+/** Estimate for a call without token counts: a review is about 3,000 tokens in and 400 out (≈ 1 cent on Sonnet). */
+export const estimateCall = (model: string) => (3000 * priceOf(model)[1] + 400 * priceOf(model)[2]) / 1e6;
+
+export interface Usage { input_tokens?: number | null; output_tokens?: number | null; cache_creation_input_tokens?: number | null; cache_read_input_tokens?: number | null }
+export interface AiDay { calls: number; usd: number; est: number; models: Record<string, { calls: number; usd: number }> }
+const AI_DAYS = 'ai-days';
+
+/** $ for one call from its exact token counts (null when the API sent none). */
+export function costOf(model: string, u?: Usage | null): number | null {
+  if (!u || typeof u.input_tokens !== 'number' || typeof u.output_tokens !== 'number') return null;
+  const [, pin, pout] = priceOf(model);
+  return (u.input_tokens * pin + (u.cache_creation_input_tokens ?? 0) * pin * 1.25 + (u.cache_read_input_tokens ?? 0) * pin * 0.1 + u.output_tokens * pout) / 1e6;
+}
+
+/** Remembers one paid AI call and its cost, one entry per day, kept 90 days. Never throws. */
+export async function recordAiCall(model: string, usage?: Usage | null): Promise<void> {
+  try {
+    const days = await readServer<Record<string, AiDay>>(AI_DAYS, {});
+    const d = today();
+    const exact = costOf(model, usage);
+    const usd = exact ?? estimateCall(model);
+    const e = days[d] ?? { calls: 0, usd: 0, est: 0, models: {} };
+    e.calls++;
+    e.usd += usd;
+    if (exact === null) e.est++;
+    const m = (e.models[model] ??= { calls: 0, usd: 0 });
+    m.calls++;
+    m.usd += usd;
+    days[d] = e;
+    const cut = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10);
+    await writeServer(AI_DAYS, Object.fromEntries(Object.entries(days).filter(([k]) => k >= cut)));
+  } catch {
+    /* no storage (local dev) */
+  }
+}
+
+export const readAiDays = () => readServer<Record<string, AiDay>>(AI_DAYS, {});
