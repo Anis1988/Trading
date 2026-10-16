@@ -182,7 +182,7 @@ function StockIdeas({ goTo }: { goTo?: (tab: 'Settings') => void }) {
       )}
 
       <div className="grid gap-4 xl:grid-cols-[340px_1fr] xl:items-start">
-      <aside className="space-y-4 xl:sticky xl:top-20">
+      <aside className="space-y-4 qt-rail">
       {filters}
       {data && data.scanned > 0 && (
         <section className="card space-y-3 !border-violet-300/30">

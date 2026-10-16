@@ -14,6 +14,7 @@ import { Settings } from './pages/Settings';
 import { Guide } from './pages/Guide';
 import { Words } from './pages/Words';
 import { WhatIf } from './pages/WhatIf';
+import { useRailFit } from './lib/rails';
 
 const TABS = [
   ['Today', Icon.today],
@@ -40,6 +41,7 @@ function Logo() {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('Today');
+  useRailFit(tab);
   const { panic, settings, signals, toast } = useStore();
   // Android app: an alert that arrives while the app is open shows as a message at the top.
   useEffect(() => startAppPush((title, body) => toast('info', body ? `${title}: ${body}` : title)), []); // eslint-disable-line react-hooks/exhaustive-deps
