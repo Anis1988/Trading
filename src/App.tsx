@@ -10,6 +10,7 @@ import { Settings } from './pages/Settings';
 import { Guide } from './pages/Guide';
 import { Words } from './pages/Words';
 import { WhatIf } from './pages/WhatIf';
+import { useRailFit } from './lib/rails';
 
 const TABS = [
   ['Today', Icon.today],
@@ -36,6 +37,7 @@ function Logo() {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('Today');
+  useRailFit(tab);
   const { panic, settings, signals } = useStore();
   const newCount = signals.filter((s) => s.status === 'new' && s.review?.verdict !== 'REJECT').length;
   const stop = () => {

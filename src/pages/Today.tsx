@@ -108,7 +108,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
 
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_320px] xl:items-start">
       {/* left rail: money */}
-      <aside className="space-y-4 xl:sticky xl:top-20">
+      <aside className="space-y-4 qt-rail">
       {brief && <BriefCard b={brief} onClose={() => { try { localStorage.setItem('briefHidden', nyToday); } catch { /* ignore */ } setHiddenBrief(nyToday); }} />}
       {sinceImport.length > 0 && (
         <section className="card space-y-2 !border-cyan-300/40 !bg-cyan-500/10 text-sm">
@@ -277,7 +277,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
       </div>
 
       {/* right rail: context */}
-      <aside className="space-y-4 xl:sticky xl:top-20">
+      <aside className="space-y-4 qt-rail">
         {status && (
           <section className="card space-y-1.5 text-sm">
             <p className="label">Background alerts</p>

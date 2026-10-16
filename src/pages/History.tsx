@@ -131,7 +131,7 @@ export function History() {
         }) : <p className="text-sm text-slate-500">{items.length ? 'Nothing with this status.' : 'No instructions yet. Emailing or copying a signal creates an entry.'}</p>}
       </div>
       </div>
-      <aside className="order-1 space-y-4 xl:sticky xl:top-20 xl:order-2">
+      <aside className="order-1 space-y-4 qt-rail xl:order-2">
         <Scoreboard />
         <Backtest />
         <section className="card grid grid-cols-3 gap-2 text-center">

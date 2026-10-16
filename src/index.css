@@ -132,6 +132,28 @@
 /* room under the page for the floating bar on phones and tablets */
 .qt-main { padding-bottom: calc(6.5rem + var(--qt-safe-bottom)); }
 @media (min-width: 1024px) { .qt-main { padding-bottom: calc(3rem + var(--qt-safe-bottom)); } }
+/* Side columns on wide screens (Today, Ideas, History): they stay in view under the header and scroll on their own
+   (wheel/trackpad over them), so nothing at their bottom is cut off. Short ones just sit there. Phones/tablets: stacked, unchanged. */
+@media (min-width: 1280px) {
+  .qt-rail {
+    position: sticky;
+    top: calc(var(--qt-safe-top) + 4.5rem);
+    /* --qt-rail-top = where the rail starts in the window right now (useRailFit in src/lib/rails.ts) */
+    max-height: calc(100vh - var(--qt-rail-top, calc(var(--qt-safe-top) + 4.5rem)) - 1rem);
+    max-height: calc(100dvh - var(--qt-rail-top, calc(var(--qt-safe-top) + 4.5rem)) - 1rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* room so card shadows and the tap glow aren't clipped by the scroll box */
+    margin: -0.5rem -0.5rem 0;
+    padding: 0.5rem 0.5rem 1rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(103, 232, 249, 0.22) transparent;
+  }
+  .qt-rail:hover { scrollbar-color: rgba(103, 232, 249, 0.45) transparent; }
+  .qt-rail::-webkit-scrollbar { width: 6px; }
+  .qt-rail::-webkit-scrollbar-track { background: transparent; }
+  .qt-rail::-webkit-scrollbar-thumb { border-radius: 999px; background: linear-gradient(180deg, rgba(103, 232, 249, 0.35), rgba(139, 92, 246, 0.35)); }
+}
 
 /* ---------- bottom sheet / dialog (Sheet in ui.tsx, rendered in a portal) ---------- */
 .qt-scrim { animation: qt-fade 220ms var(--qt-ease) both; }
