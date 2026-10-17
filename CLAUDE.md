@@ -1,5 +1,7 @@
 # Working on this repo
 
+- 🪨 **Caveman mode (owner's request): always on.** Chat replies short, caveman style ("Me fix bug. Push done."), few words, same meaning. Code, commands, paths, commit messages, the Guide tab and app text stay normal. Owner says "caveman off" → stop for that chat.
+
 - **Keep the Guide tab up to date.** Every change that adds or changes a user-visible feature must also update `src/pages/Guide.tsx` in the same commit: plain everyday words, and a live example built from the app's own components (made-up numbers, no working buttons).
 - Push directly to `main` (the owner deploys from it via Netlify).
 - Do not add automated tests unless asked.
