@@ -44,8 +44,11 @@ export function parseRss(xml: string, source: string, symbol: string): ServerHea
 }
 
 async function get(url: string, headers: Record<string, string> = {}): Promise<Response> {
-  const res = await fetch(url, { headers: { 'User-Agent': UA, ...headers }, signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`${new URL(url).hostname}: HTTP ${res.status}`);
+  const host = new URL(url).hostname;
+  // Name the source in errors, so the app's log says which feed was slow instead of a bare "aborted due to timeout".
+  const res = await fetch(url, { headers: { 'User-Agent': UA, ...headers }, signal: AbortSignal.timeout(8000) })
+    .catch((e) => { throw new Error(e instanceof Error && e.name === 'TimeoutError' ? `${host}: no answer in 8 s (skipped this time)` : `${host}: ${e instanceof Error ? e.message : e}`); });
+  if (!res.ok) throw new Error(`${host}: HTTP ${res.status}`);
   return res;
 }
 

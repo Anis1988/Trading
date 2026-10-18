@@ -84,8 +84,9 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
     // 1. fresh news only (not seen before, not older than 24h)
     const seen = new Set(await readServer<string[]>('seen', []));
     const key = process.env.FINNHUB_KEY;
-    const jobs = symbols.flatMap((sym) => [yahooNews(sym), googleNews(sym), nasdaqNews(sym), secFilings(sym), ...(key ? [finnhubNews(sym, key)] : [])]);
     const prof = await profiles(symbols).catch(() => ({}) as Awaited<ReturnType<typeof profiles>>);
+    // Finnhub's free plan refuses funds (HTTP 403), so only ask it about companies.
+    const jobs = symbols.flatMap((sym) => [yahooNews(sym), googleNews(sym), nasdaqNews(sym), secFilings(sym), ...(key && !prof[sym]?.etf ? [finnhubNews(sym, key)] : [])]);
     // Only headlines really about the stock: a feed searched for VTI also returns stories about other companies.
     const got = (await Promise.allSettled(jobs)).flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
       .filter((h) => isAbout(h.title, h.symbol, prof[h.symbol])) as ServerHeadline[];
