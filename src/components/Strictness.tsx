@@ -115,10 +115,10 @@ export function StrictnessSection() {
   const showCustom = current === 'custom' || pick === 'custom';
   useEffect(() => {
     if (!showCustom) return;
-    const syms = [...new Set(scoreLog.filter((e) => e.verdict === 'CAUTION').slice(0, 300).map((e) => e.symbol))].slice(0, 40);
-    if (syms.length) fetchTrendSeries(syms).then((r) => setScoreSeries(r.series)).catch(() => undefined);
+    const syms = [...new Set(scoreLog.filter((e) => (e.verdict === 'CAUTION' || e.verdict === 'REJECT')).slice(0, 300).map((e) => e.symbol))].slice(0, 40);
+    if (syms.length) fetchTrendSeries([...syms, 'SPY']).then((r) => setScoreSeries(r.series)).catch(() => undefined);
   }, [showCustom, scoreLog.length]); // eslint-disable-line react-hooks/exhaustive-deps
-  const scores = useMemo(() => Object.fromEntries(scoreWaits(scoreLog, scoreSeries).map((w) => [w.why, w])), [scoreLog, scoreSeries]);
+  const scores = useMemo(() => Object.fromEntries(scoreWaits(scoreLog, scoreSeries, { bench: scoreSeries.SPY }).map((w) => [w.why, w])), [scoreLog, scoreSeries]);
   const sc = (k: WaitRule | 'ai'): WaitScore => scores[k] ?? { why: k, scored: 0, right: 0, ifBought: 0, waiting: 0 };
 
   const preview = useMemo(() => {

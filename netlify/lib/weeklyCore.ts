@@ -18,7 +18,7 @@ export async function runWeekly(opts: { force?: boolean } = {}): Promise<{ sent:
 
   const holdings = s.holdings ?? [];
   const scoreLog = state.data.scoreLog ?? [];
-  const symbols = [...new Set([...holdings.map((h) => h.symbol), ...scoreLog.slice(0, 40).map((e) => e.symbol)])].slice(0, 30);
+  const symbols = [...new Set([...holdings.map((h) => h.symbol), ...scoreLog.slice(0, 40).map((e) => e.symbol)])].slice(0, 30).concat('SPY');
   const series: Record<string, History> = {};
   await Promise.all(symbols.map(async (sym) => { try { const h = await yahooHistory(sym); if (h) series[sym] = h; } catch { /* skip */ } }));
 
@@ -34,7 +34,7 @@ export async function runWeekly(opts: { force?: boolean } = {}): Promise<{ sent:
   }
   const since = Date.now() - 7 * 86400_000;
   const recent = (state.data.history ?? []).filter((x) => !x.deleted && new Date(x.createdAt).getTime() >= since);
-  const sc = scoreSignals(entriesToSignals(scoreLog), series);
+  const sc = scoreSignals(entriesToSignals(scoreLog), series, { bench: series.SPY });
 
   const text = [
     'Your week',
@@ -46,7 +46,7 @@ export async function runWeekly(opts: { force?: boolean } = {}): Promise<{ sent:
     ...recent.slice(0, 10).map((x) => `- ${x.side} ${x.qty} ${x.symbol} · ${x.status}`),
     '',
     sc.scored.length
-      ? `Scoreboard: ${sc.winRate!.toFixed(0)}% of ${sc.scored.length} calls were right after ${HORIZON_TRADING_DAYS} trading days (average ${sc.avgEdge!.toFixed(1)}%).${sc.scored.length < 20 ? ' Still too few to trust.' : ''}`
+      ? `Scoreboard: ${sc.winRate!.toFixed(0)}% of ${sc.scored.length} calls beat the market after ${HORIZON_TRADING_DAYS} trading days (average ${sc.avgEdge!.toFixed(1)}% vs the market).${sc.scored.length < 20 ? ' Still too few to trust.' : ''}`
       : 'Scoreboard: nothing old enough to score yet.',
     '',
     'Ideas only, not financial advice. You place every order yourself.',

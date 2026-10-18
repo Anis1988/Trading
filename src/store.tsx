@@ -31,6 +31,7 @@ interface Store {
   signals: Signal[];
   history: HistoryItem[];
   scoreLog: ScoreEntry[];
+  addScoreLog: (entries: ScoreEntry[]) => void; // merged by id (backup import)
   setHistory: (h: HistoryItem[]) => void;
   patchHistory: (id: string, patch: Partial<HistoryItem>) => void;
   logs: LogEntry[];
@@ -586,7 +587,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: Store = {
-    settings, update, watchlist, setWatchlist, signals, history, scoreLog, setHistory, patchHistory, logs,
+    settings, update, watchlist, setWatchlist, signals, history, scoreLog, addScoreLog: (e) => setScoreLog((l) => mergeScoreLog(e, l)), setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, setAutoEmail, setUseMcp, panic, resume,
     emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s), setSignalQty: (id, qty) => patchSignal(id, { qty }), addIdeaSignal, logWaits,

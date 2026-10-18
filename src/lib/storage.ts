@@ -1,4 +1,4 @@
-import type { HistoryItem, Settings } from '../types';
+import type { HistoryItem, ScoreEntry, Settings } from '../types';
 
 export const KEYS = {
   settings: 'ta.settings',
@@ -67,12 +67,13 @@ export interface Backup {
   settings: Omit<Settings, 'passphraseHash' | 'passphraseSalt' | 'stopped' | 'autoEmail'>;
   watchlist: string[];
   history: HistoryItem[];
+  scoreLog?: ScoreEntry[]; // the scoreboard's calls and WAITs (older backups don't have it)
 }
 
-export function buildBackup(settings: Settings, watchlist: string[], history: HistoryItem[]): Backup {
+export function buildBackup(settings: Settings, watchlist: string[], history: HistoryItem[], scoreLog: ScoreEntry[] = []): Backup {
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const { passphraseHash, passphraseSalt, stopped, autoEmail, ...safe } = settings;
-  return { version: 1, exportedAt: new Date().toISOString(), settings: safe, watchlist, history };
+  return { version: 1, exportedAt: new Date().toISOString(), settings: safe, watchlist, history, scoreLog };
 }
 
 export function download(filename: string, text: string, mime: string): void {

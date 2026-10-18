@@ -312,7 +312,7 @@ export function Guide() {
             <P>Most bad buys happen in a falling market, so Auto only loosens up when it’s safer. The label tells you what it picked and why, like “🔄 Auto → 🛡️ Careful (market falling)”.</P>
 
             <p className="label pt-1">Did it work?</p>
-            <P>Every call is tagged with the level in use. Open <b>History → Scoreboard</b>: “By level” shows how often each level’s BUYs were right, and “Was waiting worth it?” shows each WAIT rule. Give it a few weeks (20+ calls) before judging.</P>
+            <P>Every call is tagged with the level in use. Open <b>History → Scoreboard</b>: “By level” shows how often each level’s BUYs beat the market, and “Which rules helped?” marks each WAIT rule ✓ Helped or ✕ Held you back. Give it a few weeks (20+ calls) before judging.</P>
             <Warn>Looser rules show more BUYs, and some will be the ones the rules would have protected you from, especially when the whole market falls. That’s why Risky buys smaller. The app never places orders: you always decide.</Warn>
           </Section>
 
@@ -470,14 +470,15 @@ export function Guide() {
               </div>
             </Example>
             <P><b>Pending</b> = not done yet. <b>Executed</b> = you placed it in Fidelity. <b>Cancelled</b> = you decided not to.</P>
-            <P><b>Scoreboard</b> checks old calls: was the price higher (for a BUY) or lower (for a SELL) five trading days later? It shows the percentage that were right, split by what the AI said.</P>
+            <P><b>Scoreboard</b> checks old calls after <b>1 week</b> or <b>1 month</b> (tap to switch). A BUY counts as right only if it did <b>better than the whole market</b> (S&amp;P 500): when everything rises, a rising pick is not skill. A SELL is right if it did worse than the market. A BUY repeated day after day for the same stock counts once.</P>
             <Tip>Do not trust the scoreboard until it has 20 or more calls. If "AI said skip" does as well as "AI said go", the AI is not helping.</Tip>
-            <P><b>Were the WAITs worth it?</b> Every WAIT is remembered with its reason: from alerts, your stock tiles and Ideas (once per stock, per day). Five trading days later the app checks: if the price was <b>not higher</b>, waiting was right (it cost you nothing). It also shows what you would have made on average by buying anyway.</P>
-            <Example caption="Example after a few weeks. Green = that rule usually saved you money. Red = it held you back more than it helped, so it may be worth turning off.">
+            <P><b>Which rules helped?</b> Every WAIT is remembered with its reason (from alerts, your stock tiles and Ideas, once per stock, per day), and so is every BUY the AI said to skip. Later the app checks: if buying would <b>not</b> have beaten the market, holding back was right. After 10 checks each rule gets a verdict: <b>✓ Helped</b> (it mostly stopped losers), <b>✕ Held you back</b> (it mostly stopped winners, so it may be worth turning off in Custom), or <b>◆ No clear effect</b>. It also shows what you would have made on average by buying anyway.</P>
+            <Example caption="Example after a few weeks (made-up numbers).">
               <WaitBlock rows={[
                 { why: 'earnings', scored: 12, right: 8, ifBought: -1.4, waiting: 2 },
-                { why: 'market', scored: 9, right: 6, ifBought: -2.1, waiting: 0 },
-                { why: 'reddit-bad', scored: 5, right: 2, ifBought: 1.8, waiting: 1 },
+                { why: 'market', scored: 10, right: 5, ifBought: 0.2, waiting: 0 },
+                { why: 'reddit-bad', scored: 11, right: 3, ifBought: 1.8, waiting: 1 },
+                { why: 'ai-skip', scored: 4, right: 3, ifBought: -0.9, waiting: 2 },
               ]} />
             </Example>
           </Section>

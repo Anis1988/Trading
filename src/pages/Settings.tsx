@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { config, emailConfigured, mcpConfigured } from '../lib/config';
 import { buildBackup, download } from '../lib/storage';
-import type { HistoryItem } from '../types';
+import type { HistoryItem, ScoreEntry } from '../types';
 import { cleanSymbol, fmtInterval } from '../lib/util';
 import { Logs } from './Logs';
 import { useTrends } from '../lib/useTrends';
@@ -140,6 +140,7 @@ export function Settings() {
       if (b.settings) update({ ...b.settings, passphraseHash: s.passphraseHash, passphraseSalt: s.passphraseSalt, stopped: s.stopped, autoEmail: false });
       if (Array.isArray(b.watchlist)) st.setWatchlist(b.watchlist.map(cleanSymbol).filter(Boolean));
       if (Array.isArray(b.history)) st.setHistory(b.history as HistoryItem[]);
+      if (Array.isArray(b.scoreLog)) st.addScoreLog(b.scoreLog as ScoreEntry[]);
       toast('success', 'Backup imported. Auto-email was left off.');
     } catch (e) {
       toast('error', `Import failed: ${e instanceof Error ? e.message : e}`);
@@ -436,7 +437,7 @@ export function Settings() {
 
         <p className="label pt-2">Backup</p>
         <div className="flex flex-wrap gap-2">
-          <button className="btn" onClick={() => download('trading-assistant-backup.json', JSON.stringify(buildBackup(s, st.watchlist, st.history), null, 2), 'application/json')}>Export (JSON)</button>
+          <button className="btn" onClick={() => download('trading-assistant-backup.json', JSON.stringify(buildBackup(s, st.watchlist, st.history, st.scoreLog), null, 2), 'application/json')}>Export (JSON)</button>
           <button className="btn" onClick={() => file.current?.click()}>Import</button>
           <input ref={file} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && void importBackup(e.target.files[0])} />
         </div>
