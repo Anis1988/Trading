@@ -481,6 +481,13 @@ export function Guide() {
                 { why: 'ai-skip', scored: 4, right: 3, ifBought: -0.9, waiting: 2 },
               ]} />
             </Example>
+            <P><b>Export everything</b> (Settings → Backup) saves one file with all of it: your settings and holdings, history, the scoreboard, the rules in use and every level’s rules, the activity log, current signals and headlines, and the background check’s log. Your passphrase is never in it. Send the file to Claude after a few weeks to see which rules to change.</P>
+            <Example caption="The button in Settings → Backup (this one does nothing).">
+              <div className="flex flex-wrap gap-2">
+                <span className="btn pointer-events-none">Export everything (JSON)</span>
+                <span className="btn pointer-events-none">Import</span>
+              </div>
+            </Example>
           </Section>
         </div>
 
