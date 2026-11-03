@@ -138,7 +138,7 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
           signal: { symbol: sig.symbol, side: sig.side, confidence: sig.confidence, reason: sig.reason, qty: sig.qty },
           headlines: fresh.filter((h) => h.symbol === sig.symbol).slice(0, 15).map((h) => ({ title: h.title, source: h.source, publishedAt: h.publishedAt })),
           holdings,
-          risk: { riskPerTrade: s.riskPerTrade ?? 100, stopLossPct: s.stopLossPct ?? 5, smartStop: s.smartStop ?? true, cash: s.cash, horizon: s.horizon, strictness: s.strictness, customRules: s.customRules },
+          risk: { riskPerTrade: s.riskPerTrade ?? 100, stopLossPct: s.stopLossPct ?? 5, smartStop: s.smartStop ?? true, cash: s.cash, horizon: s.horizon, strictness: s.strictness, customRules: s.customRules, aiMode: s.aiMode },
         }),
       ),
     );
@@ -148,7 +148,7 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
         if (rv.status === 'rejected') throw rv.reason;
         const r = rv.value;
         const price = r.quote?.price;
-        if (price) newScores.push({ id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: price, verdict: r.verdict, why: r.verdict === 'APPROVE' ? undefined : r.rule ?? 'ai', origin: 'server', ...(r.level ? { level: r.level } : {}) });
+        if (price) newScores.push({ id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: price, verdict: r.verdict, why: r.verdict === 'APPROVE' ? undefined : r.rule ?? 'ai', ...(r.aiVerdict ? { ai: r.aiVerdict } : {}), origin: 'server', ...(r.level ? { level: r.level } : {}) });
         say('info', `${sig.side} ${sig.symbol}: AI ${r.verdict}. ${r.rationale}`);
         if (r.verdict !== 'APPROVE' || sig.confidence < (s.autoEmailMinConfidence ?? 0.85)) continue;
 

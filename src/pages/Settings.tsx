@@ -12,7 +12,7 @@ import {
   alertAction, canPromptInstall, currentSubscription, disablePush, enablePush, getAlertStatus, isIos, isStandalone, onInstallAvailable, promptInstall, pushSupported,
   type AlertStatus,
 } from '../lib/alerts';
-import { ActionChip, Change, Field, Icon, Section, Toggle } from '../components/ui';
+import { ActionChip, Change, Field, Icon, Section, Seg, Toggle } from '../components/ui';
 import { StrictnessSection } from '../components/Strictness';
 import { FidelityImport } from '../components/FidelityImport';
 import { StopWatchPanel } from '../components/StopWatch';
@@ -299,6 +299,9 @@ export function Settings() {
         </Field>
         <Field label="AI check on every signal" hint="Claude reviews each signal against your holdings. SKIP blocks the email.">
           <Toggle on={s.useAiReview} onChange={(v) => update({ useAiReview: v })} label="AI check" />
+        </Field>
+        <Field label="Who decides a BUY" hint={(s.aiMode ?? 'notes') === 'notes' ? 'The free rules (trend, market, earnings, finances, Reddit) decide; the AI only adds notes. The scoreboard still tracks what the AI would have said.' : 'The AI\u2019s GO / WAIT / SKIP decides, after the free rules.'}>
+          <Seg label="Who decides a BUY" value={s.aiMode ?? 'notes'} onChange={(v) => update({ aiMode: v })} options={[['notes', 'Free rules'], ['decide', 'AI']] as const} />
         </Field>
         <div className="panel space-y-2">
           <p className="label">Save AI credits</p>

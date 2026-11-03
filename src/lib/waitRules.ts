@@ -4,7 +4,7 @@ import { PRESETS, type Rules } from './strictness';
 export type WaitRule = 'earnings' | 'market' | 'reddit-bad' | 'reddit-hype' | 'weak';
 
 /** Short names for the scoreboard. */
-export const RULE_LABEL: Record<WaitRule | 'ai' | 'ai-skip', string> = {
+export const RULE_LABEL: Record<WaitRule | 'ai' | 'ai-skip' | 'trend', string> = {
   earnings: 'Earnings coming up',
   market: 'Market falling',
   'reddit-bad': 'Bad buzz on Reddit',
@@ -12,6 +12,7 @@ export const RULE_LABEL: Record<WaitRule | 'ai' | 'ai-skip', string> = {
   weak: 'Weak company finances',
   ai: 'The AI said wait',
   'ai-skip': 'The AI said skip',
+  trend: 'Trend not strong enough',
 };
 
 /** The two Reddit rules (null = no reason to wait). Balanced = the original thresholds (15% jump or RSI over 70). */

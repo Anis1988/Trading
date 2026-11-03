@@ -86,14 +86,15 @@ export function entriesToSignals(log: ScoreEntry[]): Signal[] {
   const last = new Map<string, number>();
   const out: Signal[] = [];
   for (const e of [...log].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
-    const k = `${e.symbol}|${e.side}|${e.why ?? ''}|${e.verdict ?? ''}`;
+    const k = `${e.symbol}|${e.side}|${e.why ?? ''}|${e.ai ?? e.verdict ?? ''}`;
     const t = new Date(e.createdAt).getTime();
     const prev = last.get(k);
     last.set(k, t);
     if (prev !== undefined && t - prev <= STREAK_GAP_MS) continue;
     out.push({
       id: e.id, symbol: e.symbol, side: e.side, confidence: 0, reason: e.why ?? '', qty: 0, createdAt: e.createdAt, status: 'new', source: 'local', entryPrice: e.entryPrice,
-      review: e.verdict ? { verdict: e.verdict, confidence: 0, rationale: '', risks: [] } : undefined,
+      // The AI's own answer (in notes mode `verdict` is the free rules' decision and `ai` what the AI would have said).
+      review: e.ai ?? e.verdict ? { verdict: (e.ai ?? e.verdict)!, confidence: 0, rationale: '', risks: [] } : undefined,
     });
   }
   return out.reverse();
@@ -113,7 +114,9 @@ export interface WaitScore {
  * days later? Grouped by reason. With a benchmark, right = buying would not have beaten the market.
  */
 export function scoreWaits(log: ScoreEntry[], series: Record<string, Series>, opts: ScoreOpts = {}): WaitScore[] {
-  const waits = entriesToSignals(log.filter((e) => (e.verdict === 'CAUTION' || e.verdict === 'REJECT') && e.side === 'BUY'));
+  const held = (e: ScoreEntry) => e.verdict === 'CAUTION' || e.verdict === 'REJECT';
+  // Held back by a free rule, or (notes mode) a BUY the AI would have held back.
+  const waits = entriesToSignals(log.filter((e) => e.side === 'BUY' && (held(e) || e.ai === 'CAUTION' || e.ai === 'REJECT')).map((e) => (held(e) && e.why !== 'ai' ? { ...e, ai: undefined } : e)));
   const groups = new Map<string, Signal[]>();
   for (const s of waits) {
     const k = s.review?.verdict === 'REJECT' ? 'ai-skip' : s.reason || 'ai';
