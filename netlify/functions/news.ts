@@ -12,12 +12,14 @@ export default async (req: Request): Promise<Response> => {
   if (!symbols.length) return json({ error: 'Provide ?symbols=AAPL,MSFT' }, 400);
 
   const key = process.env.FINNHUB_KEY;
+  const prof = await profiles(symbols).catch(() => ({}) as Awaited<ReturnType<typeof profiles>>);
   const jobs: Promise<ServerHeadline[]>[] = [];
   for (const s of symbols) {
     jobs.push(yahooNews(s), googleNews(s), nasdaqNews(s), secFilings(s));
-    if (key) jobs.push(finnhubNews(s, key));
+    // Finnhub's free plan refuses funds (HTTP 403), so only ask it about companies.
+    if (key && !prof[s]?.etf) jobs.push(finnhubNews(s, key));
   }
-  const [settled, prof] = await Promise.all([Promise.allSettled(jobs), profiles(symbols).catch(() => ({}) as Awaited<ReturnType<typeof profiles>>)]);
+  const settled = await Promise.allSettled(jobs);
   const errors = new Set<string>();
   const seen = new Set<string>();
   const headlines: ServerHeadline[] = [];

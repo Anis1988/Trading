@@ -50,7 +50,7 @@ export async function fetchServerHeadlines(symbols: string[]): Promise<{ headlin
   return call(`/api/news?symbols=${encodeURIComponent(symbols.join(','))}`);
 }
 
-export interface ReviewRisk { riskPerTrade: number; stopLossPct: number; smartStop: boolean; cash?: number; horizon?: 'short' | 'medium' | 'long'; strictness?: Level; customRules?: Partial<Rules> }
+export interface ReviewRisk { riskPerTrade: number; stopLossPct: number; smartStop: boolean; cash?: number; horizon?: 'short' | 'medium' | 'long'; strictness?: Level; customRules?: Partial<Rules>; aiMode?: 'decide' | 'notes' }
 
 export async function fetchReview(sig: Signal, headlines: Headline[], holdings: Holding[], risk?: ReviewRisk): Promise<Review> {
   const rel = headlines.filter((h) => h.symbol === sig.symbol || h.title.includes(sig.symbol)).slice(0, 15);
@@ -81,6 +81,7 @@ export async function fetchReview(sig: Signal, headlines: Headline[], holdings: 
     analysts: r.analysts,
     reddit: r.reddit,
     rule: r.rule,
+    aiVerdict: r.aiVerdict,
     health: r.health,
     insiders: r.insiders,
   };

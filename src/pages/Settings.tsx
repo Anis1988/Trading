@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { config, emailConfigured, mcpConfigured } from '../lib/config';
 import { buildBackup, download } from '../lib/storage';
-import type { HistoryItem } from '../types';
+import type { HistoryItem, ScoreEntry } from '../types';
 import { cleanSymbol, fmtInterval } from '../lib/util';
 import { Logs } from './Logs';
 import { useTrends } from '../lib/useTrends';
@@ -14,13 +14,14 @@ import {
   alertAction, appPushOn, disableAppPush, enableAppPush, canPromptInstall, currentSubscription, disablePush, enablePush, getAlertStatus, isIos, isStandalone, onInstallAvailable, promptInstall, pushSupported,
   type AlertStatus,
 } from '../lib/alerts';
-import { ActionChip, Change, Field, Icon, Section, Toggle } from '../components/ui';
+import { ActionChip, Change, Field, Icon, Section, Seg, Toggle } from '../components/ui';
 import { StrictnessSection } from '../components/Strictness';
 import { FidelityImport } from '../components/FidelityImport';
 import { StopWatchPanel } from '../components/StopWatch';
 import { useStopSeries } from '../lib/useStopSeries';
 import { useInsights } from '../lib/useInsights';
-import { resolveRules } from '../lib/strictness';
+import { AI_RULE, AUTO_DOWN, AUTO_RULES, LOCKED, PRESETS, resolveRules } from '../lib/strictness';
+import { OPT_RULES } from '../lib/options';
 
 const Ready = ({ ok, label }: { ok: boolean; label: string }) => (
   <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] ${ok ? 'border-emerald-300/40 text-emerald-200' : 'border-white/15 text-slate-400'}`}>
@@ -150,10 +151,24 @@ export function Settings() {
       if (b.settings) update({ ...b.settings, passphraseHash: s.passphraseHash, passphraseSalt: s.passphraseSalt, stopped: s.stopped, autoEmail: false });
       if (Array.isArray(b.watchlist)) st.setWatchlist(b.watchlist.map(cleanSymbol).filter(Boolean));
       if (Array.isArray(b.history)) st.setHistory(b.history as HistoryItem[]);
+      if (Array.isArray(b.scoreLog)) st.addScoreLog(b.scoreLog as ScoreEntry[]);
       toast('success', 'Backup imported. Auto-email was left off.');
     } catch (e) {
       toast('error', `Import failed: ${e instanceof Error ? e.message : e}`);
     }
+  };
+
+  /** Everything for later analysis: the backup plus the rules in use, all presets, logs, signals and the server's status. */
+  const exportAll = async () => {
+    const server = await getAlertStatus().catch((e) => ({ error: e instanceof Error ? e.message : String(e) }));
+    const now = resolveRules(s, holdIns?.market);
+    const analysis = {
+      rulesInUse: { ...now, market: holdIns?.market ? { trend: holdIns.market.trend, ret1m: holdIns.market.ret1m, ret3m: holdIns.market.ret3m } : null },
+      autoRules: AUTO_RULES, autoDownRules: AUTO_DOWN, presets: PRESETS, locked: LOCKED, aiRule: AI_RULE, optionRules: OPT_RULES,
+      appLog: st.logs, signals: st.signals, headlines: st.headlines, server,
+      device: { userAgent: navigator.userAgent, lastSync: st.lastSync, syncStatus: st.syncStatus },
+    };
+    download(`trading-assistant-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(buildBackup(s, st.watchlist, st.history, st.scoreLog, analysis), null, 2), 'application/json');
   };
 
   const limitSymbols = [...new Set([...s.holdings.map((h) => h.symbol), ...st.watchlist])];
@@ -294,6 +309,9 @@ export function Settings() {
         </Field>
         <Field label="AI check on every signal" hint="Claude reviews each signal against your holdings. SKIP blocks the email.">
           <Toggle on={s.useAiReview} onChange={(v) => update({ useAiReview: v })} label="AI check" />
+        </Field>
+        <Field label="Who decides a BUY" hint={(s.aiMode ?? 'notes') === 'notes' ? 'The free rules (trend, market, earnings, finances, Reddit) decide; the AI only adds notes. The scoreboard still tracks what the AI would have said.' : 'The AI\u2019s GO / WAIT / SKIP decides, after the free rules.'}>
+          <Seg label="Who decides a BUY" value={s.aiMode ?? 'notes'} onChange={(v) => update({ aiMode: v })} options={[['notes', 'Free rules'], ['decide', 'AI']] as const} />
         </Field>
         <div className="panel space-y-2">
           <p className="label">Save AI credits</p>
@@ -456,10 +474,11 @@ export function Settings() {
 
         <p className="label pt-2">Backup</p>
         <div className="flex flex-wrap gap-2">
-          <button className="btn" onClick={() => download('trading-assistant-backup.json', JSON.stringify(buildBackup(s, st.watchlist, st.history), null, 2), 'application/json')}>Export (JSON)</button>
+          <button className="btn" onClick={() => void exportAll()}>Export everything (JSON)</button>
           <button className="btn" onClick={() => file.current?.click()}>Import</button>
           <input ref={file} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && void importBackup(e.target.files[0])} />
         </div>
+        <p className="text-xs text-slate-500">One file with everything: settings, holdings, history, scoreboard, the rules in use (and every level's rules), the activity log, current signals and headlines, and the background check's log. Your passphrase is never included. Import restores settings, watchlist, history and scoreboard.</p>
 
         <p className="label pt-2">Activity log</p>
         <Logs />

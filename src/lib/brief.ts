@@ -8,7 +8,7 @@ export interface Brief {
   at: string; // when it was made
   day: string; // YYYY-MM-DD in New York
   market?: { trend: Market['trend']; ret1m: number };
-  level: string; // "⚖️ Balanced", "🔄 Auto → 🛡️ Careful (market falling)"
+  level: string; // "🔄 Auto", "🔄 Auto · stricter (market falling)"
   last?: { value: number; change: number; pct: number }; // your stocks on the last trading day
   movers: { symbol: string; pct: number; dollars: number }[]; // biggest moves among your stocks
   earnings: { symbol: string; inDays: number; text: string }[]; // in the next 7 days (yours and your watchlist)

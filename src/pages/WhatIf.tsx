@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import { fetchTrendSeries } from '../lib/api';
 import { simulate, type PriceSeries, type SimMonths, type SimResult } from '../lib/whatif';
-import { LEVEL, type Level } from '../lib/strictness';
+import { CHOICES, LEVEL, type Level } from '../lib/strictness';
 import { stopSettings } from '../lib/stopWatch';
 import { Seg, Skeleton } from '../components/ui';
 import { SimLimits, WhatIfReport, WhatIfRow } from '../components/WhatIf';
 
 const ALL = '★ All';
-const LEVELS: Level[] = ['careful', 'balanced', 'risky', 'custom', 'auto'];
 
 // 2 years of daily closes per symbol, kept for this visit (the same free Yahoo prices as the rest of the app).
 const cache = new Map<string, { at: number; s: PriceSeries }>();
@@ -31,7 +30,7 @@ export function WhatIf() {
   const [typed, setTyped] = useState('');
   const [months, setMonths] = useState<SimMonths>(6);
   const [amount, setAmount] = useState('10000');
-  const [level, setLevel] = useState<Level>(settings.strictness ?? 'balanced');
+  const [level, setLevel] = useState<Level>(settings.strictness === 'custom' ? 'custom' : 'auto');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [results, setResults] = useState<SimResult[] | null>(null);
@@ -104,7 +103,7 @@ export function WhatIf() {
         <div>
           <p className="label mb-1.5">How careful (your level is picked)</p>
           <div className="flex flex-wrap gap-1.5">
-            {LEVELS.map((l) => <Chip key={l} on={level === l} onClick={() => setLevel(l)}>{`${LEVEL[l].icon} ${LEVEL[l].name}${l === (settings.strictness ?? 'balanced') ? ' · yours' : ''}`}</Chip>)}
+            {CHOICES.map((l) => <Chip key={l} on={level === l} onClick={() => setLevel(l)}>{`${LEVEL[l].icon} ${LEVEL[l].name}${l === (settings.strictness === 'custom' ? 'custom' : 'auto') ? ' · yours' : ''}`}</Chip>)}
           </div>
         </div>
         <button className="btn-primary w-full sm:w-auto" disabled={busy || !symbols.length || !moneyOk} onClick={() => void run()}>

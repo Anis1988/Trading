@@ -28,6 +28,7 @@ const Body = z.object({
     // 🎚️ How careful (Settings): the level and, for Custom, its rules (numbers clamped to sane ranges).
     strictness: z.enum(['careful', 'balanced', 'risky', 'custom', 'auto']).optional(),
     customRules: CustomRules.optional(),
+    aiMode: z.enum(['decide', 'notes']).optional(),
   }).optional(),
 });
 

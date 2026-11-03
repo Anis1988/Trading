@@ -1,5 +1,5 @@
 import webpush, { type PushSubscription } from 'web-push';
-import { readServer, writeServer } from './state';
+import { isStopped, readServer, writeServer } from './state';
 import { fcmAll } from './fcm';
 
 export const pushReady = () => !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
@@ -21,6 +21,7 @@ export async function removeSubscription(endpoint: string): Promise<void> {
 
 /** Sends to every registered device (browsers and the Android app); drops revoked ones. Returns how many were delivered. */
 export async function pushAll(payload: { title: string; body: string; tag?: string }): Promise<number> {
+  if (await isStopped()) return 0; // ⛔ Stop pressed: no notifications
   const phones = await fcmAll(payload).catch(() => 0);
   return phones + (await webPushAll(payload));
 }

@@ -1,4 +1,4 @@
-import { readServer, readState, writeServer } from './state';
+import { STOPPED_TEXT, isStopped, readServer, readState, writeServer } from './state';
 
 /** Cheapest model that still writes good plain-language reviews. Override with REVIEW_MODEL. */
 export const reviewModel = () => process.env.REVIEW_MODEL || 'claude-sonnet-5-5';
@@ -26,6 +26,7 @@ export async function aiUsage(): Promise<{ used: number; limit: number }> {
 
 /** Counts one paid AI call against today's limit (shared by the app, background alerts and Ideas). */
 export async function takeAiCredit(): Promise<void> {
+  if (await isStopped()) throw new BudgetError(STOPPED_TEXT);
   let u: { day: string; n: number };
   try {
     u = await readServer('ai-usage', { day: today(), n: 0 });

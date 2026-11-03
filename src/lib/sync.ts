@@ -2,8 +2,9 @@ import type { HistoryItem, ScoreEntry, Settings } from '../types';
 import { getAccessToken } from './api';
 import { apiUrl } from './native';
 
-// Settings that stay per-device on purpose: the switches that stop or automate emailing must never be flipped by another device.
-const LOCAL_ONLY = ['stopped', 'autoEmail', 'useMcp'] as const;
+// Settings that stay per-device on purpose: auto-email and MCP must never be switched on by another device.
+// ⛔ `stopped` is synced: Stop on any device stops everything, everywhere (the server's background checks, AI, email and notifications too).
+const LOCAL_ONLY = ['autoEmail', 'useMcp'] as const;
 
 export interface SyncData {
   settings: Partial<Settings>;

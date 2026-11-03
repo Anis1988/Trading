@@ -31,6 +31,7 @@ interface Store {
   signals: Signal[];
   history: HistoryItem[];
   scoreLog: ScoreEntry[];
+  addScoreLog: (entries: ScoreEntry[]) => void; // merged by id (backup import)
   setHistory: (h: HistoryItem[]) => void;
   patchHistory: (id: string, patch: Partial<HistoryItem>) => void;
   logs: LogEntry[];
@@ -226,11 +227,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const panic = () => {
     update({ stopped: true, autoEmail: false });
     lock();
-    log('error', 'STOP ALERTS: news checking and auto-email switched off, session locked.');
+    log('error', 'STOP ALL: no AI, email, notifications or background checks on any device until Resume. Session locked.');
   };
   const resume = () => {
     update({ stopped: false });
-    log('info', 'Polling resumed. Auto-email remains OFF until re-enabled.');
+    log('info', 'Resumed on all your devices. Auto-email stays OFF until you turn it back on.');
   };
 
   const setSignalStatus = (id: string, status: Signal['status']) =>
@@ -256,7 +257,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     patchSignal(sig.id, { reviewStatus: 'pending', reviewError: undefined });
     try {
       const cs = ref.current.settings;
-      const r = await fetchReview(sig, context ?? ref.current.headlines, cs.holdings, { riskPerTrade: cs.riskPerTrade, stopLossPct: cs.stopLossPct, smartStop: cs.smartStop, cash: cs.cash, horizon: cs.horizon, strictness: cs.strictness, customRules: cs.customRules });
+      const r = await fetchReview(sig, context ?? ref.current.headlines, cs.holdings, { riskPerTrade: cs.riskPerTrade, stopLossPct: cs.stopLossPct, smartStop: cs.smartStop, cash: cs.cash, horizon: cs.horizon, strictness: cs.strictness, customRules: cs.customRules, aiMode: cs.aiMode });
       const qty = r.suggestedQty && r.suggestedQty > 0 ? r.suggestedQty : sig.qty;
       if (qty !== sig.qty) log('info', `${sig.symbol}: quantity changed ${sig.qty} -> ${qty} to match what you own.`);
       const st = ref.current.settings;
@@ -265,7 +266,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const risk = risk0 ? { ...risk0, suggestedQty: sizeQty(risk0.suggestedQty, rulesOf(r.level, st)) } : null;
       patchSignal(sig.id, { review: r, reviewStatus: undefined, qty, entryPrice: r.price, stopPrice: risk?.stop, suggestedQty: risk?.suggestedQty });
       if (r.price) {
-        const entry: ScoreEntry = { id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: r.price, verdict: r.verdict, why: r.verdict === 'APPROVE' ? undefined : r.rule ?? 'ai', origin: 'app', ...(r.level ? { level: r.level } : {}) };
+        const entry: ScoreEntry = { id: sig.id, symbol: sig.symbol, side: sig.side, createdAt: sig.createdAt, entryPrice: r.price, verdict: r.verdict, why: r.verdict === 'APPROVE' ? undefined : r.rule ?? 'ai', ...(r.aiVerdict ? { ai: r.aiVerdict } : {}), origin: 'app', ...(r.level ? { level: r.level } : {}) };
         setScoreLog((l) => mergeScoreLog([{ ...entry }], l));
       }
       log(r.verdict === 'REJECT' ? 'warn' : 'info', `AI review ${sig.symbol}: ${r.verdict} - ${r.rationale}`);
@@ -586,7 +587,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: Store = {
-    settings, update, watchlist, setWatchlist, signals, history, scoreLog, setHistory, patchHistory, logs,
+    settings, update, watchlist, setWatchlist, signals, history, scoreLog, addScoreLog: (e) => setScoreLog((l) => mergeScoreLog(e, l)), setHistory, patchHistory, logs,
     clearLogs: () => setLogs([]), headlines, mcpLast, unlocked, lastPoll, polling, log, setPassphrase,
     requestUnlock, setAutoEmail, setUseMcp, panic, resume,
     emailSignal: (s) => emailSignal(s, false), copySignal, dismissSignal, toast, syncStatus, syncMessage, lastSync, syncNow, sending, toasts, dismissToast, reviewSignal: (s) => reviewSignal(s), setSignalQty: (id, qty) => patchSignal(id, { qty }), addIdeaSignal, logWaits,

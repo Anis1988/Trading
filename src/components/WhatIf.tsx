@@ -89,7 +89,9 @@ export function WhatIfReport({ r, example = false }: { r: SimResult; example?: b
   const beat = r.final - r.hold.final;
   const trades = [...r.trades].reverse();
   const shown = all || example ? trades : trades.slice(0, 8);
-  const lv = Object.entries(r.presets).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${LEVEL[k as keyof typeof LEVEL].icon} ${LEVEL[k as keyof typeof LEVEL].name} ${Math.round((n / r.days) * 100)}%`);
+  // Auto is stricter on days the market fell (internally the Careful preset), normal otherwise.
+  const name = (k: string) => (k === 'careful' ? `${LEVEL.auto.icon} Auto stricter (market falling)` : k === 'custom' ? `${LEVEL.custom.icon} ${LEVEL.custom.name}` : `${LEVEL.auto.icon} Auto normal`);
+  const lv = Object.entries(r.presets).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${name(k)} ${Math.round((n / r.days) * 100)}%`);
   return (
     <div className="space-y-3">
       <p className="text-[15px] leading-relaxed text-slate-200">

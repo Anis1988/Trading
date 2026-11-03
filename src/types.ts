@@ -34,6 +34,7 @@ export interface Review {
   analysts?: string;
   reddit?: string;
   rule?: string; // set when a free rule decided, not the AI
+  aiVerdict?: Verdict; // notes mode: what the AI would have said
   health?: string;
   insiders?: string;
 }
@@ -97,6 +98,7 @@ export interface ScoreEntry {
   why?: string; // for WAIT/SKIP: which free rule (WaitRule) or 'ai'
   origin: 'app' | 'server';
   level?: string; // 🎚️ the level in use when it was logged (careful / balanced / risky / custom)
+  ai?: Verdict; // notes mode: what the AI would have said (verdict is then the free rules' decision)
 }
 
 export interface LogEntry {
@@ -121,6 +123,7 @@ export interface Settings {
   useNewsApi: boolean;
   useServerFeeds: boolean; // fetch news via the Netlify function (/api/news) - avoids CORS blocks
   useAiReview: boolean; // AI second opinion; REJECT blocks emails
+  aiMode?: 'decide' | 'notes'; // missing = 'notes': on a BUY the free rules decide, the AI only adds notes (owner's choice after grading Oct 2026)
   holdings: Holding[]; // what the user actually owns (entered manually)
   useRss: boolean;
   rssFeeds: string[]; // may contain {SYMBOL}

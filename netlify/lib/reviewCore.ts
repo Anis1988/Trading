@@ -50,8 +50,11 @@ export interface ReviewInput {
   headlines: { title: string; source: string; publishedAt: string }[];
   holdings: Holding[];
   /** The user's risk settings (optional): used to size the stop-loss and shares in the AI's context. */
-  risk?: { riskPerTrade: number; stopLossPct: number; smartStop: boolean; cash?: number; horizon?: 'short' | 'medium' | 'long'; strictness?: Level; customRules?: Partial<Rules> };
+  risk?: { riskPerTrade: number; stopLossPct: number; smartStop: boolean; cash?: number; horizon?: 'short' | 'medium' | 'long'; strictness?: Level; customRules?: Partial<Rules>; aiMode?: AiMode };
 }
+
+/** 'notes' (default): on a BUY the free rules decide and the AI only adds notes; 'decide': the AI's verdict decides. */
+export type AiMode = 'decide' | 'notes';
 
 export interface ReviewResult {
   verdict: 'APPROVE' | 'CAUTION' | 'REJECT';
@@ -70,6 +73,7 @@ export interface ReviewResult {
   health?: string;
   insiders?: string;
   level?: string; // 🎚️ the level used (careful / balanced / risky / custom)
+  aiVerdict?: 'APPROVE' | 'CAUTION' | 'REJECT'; // notes mode: what the AI would have said (kept for the scoreboard)
 }
 
 export class ReviewError extends Error {
@@ -112,14 +116,37 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
   };
   // 🎚️ The level in use (Auto follows the market): the same free rules as the app's tiles, then the AI with its strictness.
   const lv = resolveRules(risk, market);
-  const rule = (rationale: string, risk: string, key: WaitRule): ReviewResult => ({
-    verdict: 'CAUTION', confidence: 0.9, rationale, risks: [risk], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: 'rule-check', rule: key, level: lv.preset, ...extra,
+  const rule = (rationale: string, risk: string, key: WaitRule | 'trend'): ReviewResult => ({
+    verdict: 'CAUTION', confidence: 0.9, rationale, risks: [risk], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: 'rule-check', rule: key, level: lv.tag, ...extra,
   });
+  const notes = signal.side === 'BUY' && (risk?.aiMode ?? 'notes') === 'notes';
   if (signal.side === 'BUY') {
     // No trend = unknown: treated as doing no better than the market (fails closed).
     const w = buyWait({ info, market, ret1m: trend?.ret1m ?? -999, rsi: trend?.rsi ?? 50, score: trend?.score }, lv.rules);
     if (w) return rule(w.text, RULE_LABEL[w.rule], w.rule);
+    if (notes) {
+      // Notes mode: the BUY needs the same trend as the stock tiles (it is the free rules that decide, not the AI).
+      const a = hist ? analyze(signal.symbol, hist.closes, holdings.find((h) => h.symbol === signal.symbol), lv.rules) : null;
+      const good = a && (a.action ? a.action === 'BUY' : a.ideaKind === 'buy');
+      if (!good) return rule(a ? `The price trend is not strong enough for a BUY at this level: ${a.idea}` : 'No price history, so the trend is unknown. Wait.', RULE_LABEL.trend, 'trend');
+    }
   }
+  if (notes) {
+    // Free rules passed: it's a BUY. The AI only adds notes; if it can't (no key, daily limit, error), the BUY stands.
+    const ok = (r: Partial<ReviewResult>, note: string): ReviewResult => ({
+      confidence: 0.9, risks: [], ...r, verdict: 'APPROVE', rationale: note, holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: r.model ?? 'rule-check', level: lv.tag, ...extra,
+    });
+    if (!process.env.ANTHROPIC_API_KEY) return ok({}, 'The free rules say BUY (trend, market, earnings, finances, Reddit all fine). No AI note: ANTHROPIC_API_KEY is not set.');
+    try {
+      const r = await askAi();
+      return ok({ ...r, aiVerdict: r.verdict }, `The free rules say BUY. AI note (it would have said ${r.verdict === 'APPROVE' ? 'GO' : r.verdict === 'CAUTION' ? 'WAIT' : 'SKIP'}): ${r.rationale}`);
+    } catch (e) {
+      return ok({}, `The free rules say BUY. No AI note this time: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+  return askAi();
+
+  async function askAi(): Promise<ReviewResult> {
   if (!process.env.ANTHROPIC_API_KEY) throw new ReviewError('ANTHROPIC_API_KEY is not set in Netlify.', 503);
 
   // Portfolio share and the user's own risk settings, so the AI weighs the trade the way the app shows it.
@@ -180,12 +207,13 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
       throw new ReviewError(e instanceof Error ? e.message : String(e), e instanceof BudgetError ? 429 : 502);
     }
     try {
-      return { ...(await askClaude(model, prompt, hold, priceInfo, systemFor(lv.rules.ai))), ...extra, level: lv.preset };
+      return { ...(await askClaude(model, prompt, hold, priceInfo, systemFor(lv.rules.ai))), ...extra, level: lv.tag };
     } catch (e) {
       await refundAiCredit();
       throw e;
     }
   });
+  }
 }
 
 async function askClaude(model: string, prompt: string, hold: { note: string; qty: number }, priceInfo: ReviewResult['quote'], system: string): Promise<ReviewResult> {
