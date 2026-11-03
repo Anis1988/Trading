@@ -1,8 +1,11 @@
+import { STOPPED_TEXT, isStopped } from './state';
+
 /** Server-side EmailJS (REST). Needs EMAILJS_PRIVATE_KEY and "Allow EmailJS API for non-browser applications" in EmailJS. */
 export const serverEmailReady = () =>
   !!(process.env.EMAILJS_SERVICE_ID && process.env.EMAILJS_TEMPLATE_ID && process.env.EMAILJS_USER_ID && process.env.EMAILJS_PRIVATE_KEY);
 
 export async function sendServerEmail(params: Record<string, string | number>): Promise<void> {
+  if (await isStopped()) throw new Error(STOPPED_TEXT);
   if (!serverEmailReady()) throw new Error('Server email needs EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_USER_ID and EMAILJS_PRIVATE_KEY in Netlify.');
   const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
     method: 'POST',

@@ -19,6 +19,17 @@ export async function readState(): Promise<StoredState | null> {
   return (await syncStore().get('state', { type: 'json' })) as StoredState | null;
 }
 
+/** ⛔ Stop pressed in the app (synced): no AI, no email, no notifications, no background checks. Unreadable = not stopped. */
+export async function isStopped(): Promise<boolean> {
+  try {
+    return !!(await readState())?.data.settings.stopped;
+  } catch {
+    return false;
+  }
+}
+
+export const STOPPED_TEXT = 'Everything is stopped (the Stop button in the app). Tap Resume to turn it back on.';
+
 export async function writeState(next: StoredState['data']): Promise<string> {
   const updatedAt = new Date().toISOString();
   await syncStore().setJSON('state', { updatedAt, data: next });

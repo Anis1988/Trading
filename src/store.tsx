@@ -227,11 +227,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const panic = () => {
     update({ stopped: true, autoEmail: false });
     lock();
-    log('error', 'STOP ALERTS: news checking and auto-email switched off, session locked.');
+    log('error', 'STOP ALL: no AI, email, notifications or background checks on any device until Resume. Session locked.');
   };
   const resume = () => {
     update({ stopped: false });
-    log('info', 'Polling resumed. Auto-email remains OFF until re-enabled.');
+    log('info', 'Resumed on all your devices. Auto-email stays OFF until you turn it back on.');
   };
 
   const setSignalStatus = (id: string, status: Signal['status']) =>

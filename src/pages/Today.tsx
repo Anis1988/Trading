@@ -101,7 +101,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
     <div className="space-y-5">
       {settings.stopped && (
         <div className="card flex items-center justify-between gap-3 !border-red-400/40 !bg-red-500/10">
-          <span className="text-sm">Alerts are stopped: no news checking and no auto-email.</span>
+          <span className="text-sm">Everything is stopped on all your devices: no AI, no email, no notifications, no news or background checks. Prices still show while you look.</span>
           <button className="btn-primary" onClick={resume}>Resume</button>
         </div>
       )}

@@ -1,9 +1,12 @@
+import { isStopped } from '../lib/state';
 import { runBrief } from '../lib/briefCore';
 
 // ☀️ Weekdays 13:05 UTC: 9:05am New York in summer, 8:05am in winter, before the 9:30 open.
 export const config = { schedule: '5 13 * * 1-5' };
 
 export default async (): Promise<Response> => {
+  // ⛔ Stop pressed in the app: the background check doesn't run at all.
+  if (await isStopped()) return new Response(null, { status: 204 });
   try {
     const r = await runBrief();
     console.log('brief', r.sent, r.reason ?? '');

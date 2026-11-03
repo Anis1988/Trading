@@ -64,7 +64,7 @@ export default function App() {
           <TopTabs tabs={TABS} current={tab} onPick={setTab} badge={badge} />
           <span
             className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.14em] ${settings.stopped ? 'border-red-300/40 bg-red-400/10 text-red-200' : 'border-emerald-300/40 bg-emerald-400/10 text-emerald-200'}`}
-            title={settings.stopped ? 'Alerts are stopped' : 'Watching the news for your stocks'}
+            title={settings.stopped ? 'Everything is stopped: no AI, no email, no notifications, no background checks' : 'Watching the news for your stocks'}
           >
             <span className="relative flex h-1.5 w-1.5">
               {!settings.stopped && <span className="absolute inset-0 animate-ping rounded-full bg-emerald-300 opacity-60" />}
@@ -72,9 +72,9 @@ export default function App() {
             </span>
             {settings.stopped ? 'PAUSED' : 'WATCHING'}
           </span>
-          <button className="btn-danger !min-h-[44px] !px-2.5 sm:!min-h-[38px] sm:!px-3" onClick={stop} disabled={settings.stopped} title="Stop checking news and turn off auto-email">
+          <button className="btn-danger !min-h-[44px] !px-2.5 sm:!min-h-[38px] sm:!px-3" onClick={stop} disabled={settings.stopped} title="Stop everything on all your devices: news checks, AI, email, notifications and the background checks">
             {Icon.stop}
-            <span className="hidden sm:inline">{settings.stopped ? 'Stopped' : 'Stop alerts'}</span>
+            <span className="hidden sm:inline">{settings.stopped ? 'Stopped' : 'Stop all'}</span>
             <span className="sm:hidden">{settings.stopped ? 'Off' : 'Stop'}</span>
           </button>
         </div>

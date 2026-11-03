@@ -763,8 +763,14 @@ export function Guide() {
               <li><b>Notifications</b>: a phone alert for background alerts. On iPhone, first add the app to your Home Screen (Safari → Share → Add to Home Screen) and open it from there.</li>
               <li><b>Android app notifications</b>: the Android app gets the same alerts as phone notifications through Google's free Firebase service. One-time setup: upload your Firebase key file in <b>Settings → Notifications → Android app notifications</b> (from your computer), then turn on Notifications inside the app.</li>
               <li><b>Weekly summary</b>: every Friday after the market closes: your profit/loss, the week's instructions and the scoreboard.</li>
-              <li><b>Stop alerts</b> (top right): stops checking the news and turns auto-email off on that device. It does not touch Fidelity and deletes nothing. Press Resume to start again.</li>
+              <li><b>Stop all</b> (top right): everything stops, on all your devices and on the server: no AI checks (no AI cost), no emails, no phone notifications, no news checks, no hourly background check, no morning brief, no weekly email. Prices still show while you look at the app. It does not touch Fidelity and deletes nothing. Press <b>Resume</b> on Today to start again (auto-email stays off until you turn it back on).</li>
             </ul>
+            <Example caption="What Today shows while everything is stopped (this Resume does nothing).">
+              <div className="card flex items-center justify-between gap-3 !border-red-400/40 !bg-red-500/10">
+                <span className="text-sm">Everything is stopped on all your devices: no AI, no email, no notifications, no news or background checks. Prices still show while you look.</span>
+                <span className="btn-primary pointer-events-none">Resume</span>
+              </div>
+            </Example>
           </Section>
 
           <Section title="📊 On your “My apps” page" subtitle="This app’s status, next to your other apps" icon={Icon.today}>
