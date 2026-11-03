@@ -18,7 +18,7 @@ import { FidelityImport } from '../components/FidelityImport';
 import { StopWatchPanel } from '../components/StopWatch';
 import { useStopSeries } from '../lib/useStopSeries';
 import { useInsights } from '../lib/useInsights';
-import { AI_RULE, LOCKED, PRESETS, resolveRules } from '../lib/strictness';
+import { AI_RULE, AUTO_DOWN, AUTO_RULES, LOCKED, PRESETS, resolveRules } from '../lib/strictness';
 import { OPT_RULES } from '../lib/options';
 
 const Ready = ({ ok, label }: { ok: boolean; label: string }) => (
@@ -154,7 +154,7 @@ export function Settings() {
     const now = resolveRules(s, holdIns?.market);
     const analysis = {
       rulesInUse: { ...now, market: holdIns?.market ? { trend: holdIns.market.trend, ret1m: holdIns.market.ret1m, ret3m: holdIns.market.ret3m } : null },
-      presets: PRESETS, locked: LOCKED, aiRule: AI_RULE, optionRules: OPT_RULES,
+      autoRules: AUTO_RULES, autoDownRules: AUTO_DOWN, presets: PRESETS, locked: LOCKED, aiRule: AI_RULE, optionRules: OPT_RULES,
       appLog: st.logs, signals: st.signals, headlines: st.headlines, server,
       device: { userAgent: navigator.userAgent, lastSync: st.lastSync, syncStatus: st.syncStatus },
     };

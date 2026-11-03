@@ -3,9 +3,11 @@ import type { Market } from './insightTypes';
 /**
  * 🎚️ How careful the app is before it says BUY. One setting (Settings → How careful), synced to every device and used
  * everywhere the same way: stock tiles, Ideas, the AI review and the background check (phone notifications).
- * - 🛡️ Careful: stricter than before. ⚖️ Balanced: the original rules, unchanged. 🚀 Risky: looser, smaller buys.
- * - 🎛️ Custom: every rule on/off with its number. 🔄 Auto: Careful when the market falls, Balanced when mixed, Risky when it rises.
- * A few rules are locked at every level (see LOCKED).
+ * Two choices (owner's choice, Nov 2026):
+ * - 🔄 Auto: the rules tuned from the owner's graded history (AUTO_RULES), stricter when the whole market falls (AUTO_DOWN).
+ * - 🎛️ Custom: every rule on/off with its number, starting from Auto's.
+ * Careful / Balanced / Risky stay as internal presets (options helper, AI strictness lines) and old saved levels read as
+ * Auto. ⚖️ Balanced = the original rules, unchanged. A few rules are locked at every level (see LOCKED).
  */
 export type Preset = 'careful' | 'balanced' | 'risky';
 export type Level = Preset | 'custom' | 'auto';
@@ -35,12 +37,23 @@ export const PRESETS: Record<Preset, Rules> = {
   risky: { buyScore: 3, stretchedOn: true, stretchedRsi: 78, halfZone: true, earningsOn: true, earningsDays: 2, marketOn: true, marketMode: 'falling', weakOn: false, redditBadOn: true, hypeOn: true, hypeJump: 25, ai: 'risky', sizePct: 60, minIdea: 50 },
 };
 
+/**
+ * 🔄 Auto, tuned from October 2026's graded calls: Balanced (the original rules, earnings WAIT 5 days) with the Reddit
+ * hype WAIT at a 10% jump (it was the rule that helped most: 3 of 3 right, about 11% saved).
+ */
+export const AUTO_RULES: Rules = { ...PRESETS.balanced, hypeJump: 10 };
+/** 🔄 Auto when the whole market falls: no new buys until it turns, only 5/5 trends, a stricter AI. */
+export const AUTO_DOWN: Rules = { ...AUTO_RULES, buyScore: 5, stretchedRsi: 65, marketMode: 'all', ai: 'careful' };
+
+/** The two levels you can pick. */
+export const CHOICES: Level[] = ['auto', 'custom'];
+
 export const LEVEL: Record<Level, { icon: string; name: string; who: string }> = {
   careful: { icon: '🛡️', name: 'Careful', who: 'Fewer, safer buys. For when you would rather miss a gain than take a loss.' },
   balanced: { icon: '⚖️', name: 'Balanced', who: 'The app’s original rules: a middle way.' },
   risky: { icon: '🚀', name: 'Risky', who: 'More buys, smaller amounts. For when you accept more misses to catch more runs.' },
-  custom: { icon: '🎛️', name: 'Custom', who: 'You choose each rule yourself.' },
-  auto: { icon: '🔄', name: 'Auto', who: 'Follows the market: Careful when it falls, Balanced when mixed, Risky when it rises.' },
+  custom: { icon: '🎛️', name: 'Custom', who: 'Override any rule yourself. Starts from Auto’s rules.' },
+  auto: { icon: '🔄', name: 'Auto', who: 'Rules tuned from your own history. Stricter when the whole market falls.' },
 };
 
 /** Rules that stay on at every level, even Custom. */
@@ -52,30 +65,31 @@ export const LOCKED = [
   'Options: only selling fully backed ones (a call needs your 100 shares, a put needs the cash).',
 ];
 
-export interface Resolved { level: Level; preset: Preset | 'custom'; rules: Rules; reason?: string }
+/**
+ * `level`: what is picked (old Careful / Balanced / Risky read as Auto). `preset`: the internal preset closest to the rules
+ * (options helper; Auto = Careful when the market falls, else Balanced). `tag`: what score entries are labelled with.
+ */
+export interface Resolved { level: Level; preset: Preset | 'custom'; tag: 'auto' | 'custom'; rules: Rules; down?: boolean; reason?: string }
 
-/** The rules in use now (Auto looks at the market; missing settings = Balanced, the original rules). */
+/** The rules in use now (Auto looks at the market; missing or old settings = Auto). */
 export function resolveRules(s: { strictness?: Level; customRules?: Partial<Rules> } | undefined, market?: Market | null): Resolved {
-  const level = s?.strictness ?? 'balanced';
-  if (level === 'custom') return { level, preset: 'custom', rules: { ...PRESETS.balanced, ...(s?.customRules ?? {}) } };
-  if (level === 'auto') {
-    const t = market?.trend;
-    const p: Preset = t === 'down' ? 'careful' : t === 'up' ? 'risky' : 'balanced';
-    return { level, preset: p, rules: PRESETS[p], reason: t === 'down' ? 'market falling' : t === 'up' ? 'market rising' : t === 'mixed' ? 'market mixed' : 'market unknown' };
-  }
-  return { level, preset: level, rules: PRESETS[level] };
+  if (s?.strictness === 'custom') return { level: 'custom', preset: 'custom', tag: 'custom', rules: { ...AUTO_RULES, ...(s?.customRules ?? {}) } };
+  const t = market?.trend;
+  const down = t === 'down';
+  return { level: 'auto', preset: down ? 'careful' : 'balanced', tag: 'auto', rules: down ? AUTO_DOWN : AUTO_RULES, down, reason: down ? 'market falling' : t === 'up' ? 'market rising' : t === 'mixed' ? 'market mixed' : 'market unknown' };
 }
 
-/** The rules of a level a review or the background check reported (custom = the user's Custom list). */
+/** The rules of a level a review or the background check reported (custom = the user's Custom list; old presets as saved). */
 export function rulesOf(level: string | undefined, s?: { customRules?: Partial<Rules> }): Rules {
-  if (level === 'custom') return { ...PRESETS.balanced, ...(s?.customRules ?? {}) };
-  return PRESETS[(level as Preset) in PRESETS ? (level as Preset) : 'balanced'];
+  if (level === 'custom') return { ...AUTO_RULES, ...(s?.customRules ?? {}) };
+  if ((level as Preset) in PRESETS) return PRESETS[level as Preset];
+  return AUTO_RULES;
 }
 
-/** "🔄 Auto → 🛡️ Careful (market falling)", "🚀 Risky", "🎛️ Custom". */
+/** "🔄 Auto · stricter (market falling)", "🔄 Auto", "🎛️ Custom". */
 export function levelText(r: Resolved): string {
-  const now = r.preset === 'custom' ? LEVEL.custom : LEVEL[r.preset];
-  return r.level === 'auto' ? `${LEVEL.auto.icon} Auto → ${now.icon} ${now.name} (${r.reason})` : `${now.icon} ${now.name}`;
+  if (r.level === 'custom') return `${LEVEL.custom.icon} ${LEVEL.custom.name}`;
+  return `${LEVEL.auto.icon} Auto${r.down ? ' · stricter (market falling)' : ''}`;
 }
 
 /**

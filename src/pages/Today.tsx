@@ -81,7 +81,7 @@ export function Today({ goTo }: { goTo: (tab: 'Settings' | 'Ideas') => void }) {
     : [];
   const waitKey = waits.map((w) => `${w.symbol}:${w.rule}`).join(',');
   useEffect(() => {
-    if (waits.length) logWaits(waits, level.preset);
+    if (waits.length) logWaits(waits, level.tag);
   }, [waitKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const mine = new Set([...held.map((h) => h.symbol), ...watchlist]);
   const news = headlines.filter((x) => x.symbol && mine.has(x.symbol)).slice(0, 10);

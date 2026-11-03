@@ -7,11 +7,11 @@ import { useTrends } from '../lib/useTrends';
 import { analyze } from '../lib/trend';
 import { buyWait, type WaitRule } from '../lib/waitRules';
 import { scoreWaits, type WaitScore } from '../lib/scoreboard';
-import { LEVEL, LOCKED, PRESETS, SWITCHABLE, levelText, resolveRules, rulesOff, type Level, type Preset, type Resolved, type Rules } from '../lib/strictness';
+import { AUTO_RULES, CHOICES, LEVEL, LOCKED, SWITCHABLE, levelText, resolveRules, rulesOff, type Level, type Preset, type Resolved, type Rules } from '../lib/strictness';
 import type { InsightsResult } from '../lib/api';
 import { Icon, Section, Toggle } from './ui';
 
-/** 🎚️ The level in use, always shown on Today and Ideas ("🔄 Auto → 🛡️ Careful (market falling)"). Tap: Settings. */
+/** 🎚️ The level in use, always shown on Today and Ideas ("🔄 Auto · stricter (market falling)"). Tap: Settings. */
 export function LevelBadge({ r, onClick, example = false }: { r: Resolved; onClick?: () => void; example?: boolean }) {
   const tone = r.preset === 'careful' ? 'border-sky-300/40 bg-sky-400/10 text-sky-100' : r.preset === 'risky' ? 'border-amber-300/40 bg-amber-400/10 text-amber-100' : r.preset === 'custom' ? 'border-violet-300/40 bg-violet-400/10 text-violet-100' : 'border-white/15 bg-white/5 text-slate-200';
   return (
@@ -22,7 +22,6 @@ export function LevelBadge({ r, onClick, example = false }: { r: Resolved; onCli
   );
 }
 
-const ORDER: Level[] = ['careful', 'balanced', 'risky', 'custom', 'auto'];
 const MODE_TEXT = { all: 'on every buy', beat: 'unless the stock beats the market', falling: 'only if the stock is falling too' } as const;
 const AI_TEXT: Record<Preset, string> = { careful: 'Strict: “when unsure, reject”', balanced: 'Normal: “when unsure, caution”', risky: 'Relaxed: “approve when the evidence is decent”' };
 
@@ -101,14 +100,14 @@ const num = 'input w-20 !py-1.5 text-center';
 /** ⚙️ Settings → 🎚️ How careful should the app be? */
 export function StrictnessSection() {
   const { settings: s, update, watchlist, scoreLog, toast } = useStore();
-  const current = s.strictness ?? 'balanced';
+  const current: Level = s.strictness === 'custom' ? 'custom' : 'auto';
   const symbols = useMemo(() => [...new Set([...s.holdings.map((h) => h.symbol), ...watchlist])].slice(0, 25), [s.holdings, watchlist]);
   const ins = useInsights(symbols);
   const now = resolveRules(s, ins?.market);
   const { series } = useTrends(symbols, s);
   const [pick, setPick] = useState<Level | null>(null);
   // Custom starts from the rules in use now (so nothing jumps) until you change it.
-  const custom: Rules = { ...(s.customRules ? PRESETS.balanced : now.rules), ...(s.customRules ?? {}) };
+  const custom: Rules = { ...(s.customRules ? AUTO_RULES : now.rules), ...(s.customRules ?? {}) };
 
   // Per-rule "was waiting worth it?" (the scoreboard's numbers), loaded when the Custom list is shown.
   const [scoreSeries, setScoreSeries] = useState<Record<string, { dates: string[]; closes: number[] }>>({});
@@ -141,14 +140,14 @@ export function StrictnessSection() {
   return (
     <Section title="How careful should the app be?" subtitle={`${levelText(now)} · tap to change`} icon={Icon.shield}>
       <div className="space-y-3">
-        <p className="text-sm text-slate-400">How many safety rules a BUY must pass. It changes the stock tiles, Ideas, the AI review and the background alerts, on all your devices.</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5" role="radiogroup" aria-label="How careful">
-          {ORDER.map((lv) => {
+        <p className="text-sm text-slate-400">Which safety rules a BUY must pass. It changes the stock tiles, Ideas, the AI review and the background alerts, on all your devices.</p>
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="How careful">
+          {CHOICES.map((lv) => {
             const on = current === lv;
             const sel = pick === lv;
             return (
               <button key={lv} type="button" role="radio" aria-checked={on} onClick={() => (on ? setPick(null) : setPick(lv))}
-                className={`rounded-xl border p-2.5 text-left transition active:scale-[0.98] ${on ? 'border-cyan-300/60 bg-cyan-400/15' : sel ? 'border-violet-300/60 bg-violet-400/10' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'} ${lv === 'auto' ? 'col-span-2 sm:col-span-1' : ''}`}>
+                className={`rounded-xl border p-2.5 text-left transition active:scale-[0.98] ${on ? 'border-cyan-300/60 bg-cyan-400/15' : sel ? 'border-violet-300/60 bg-violet-400/10' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
                 <span className="block font-display font-semibold">{LEVEL[lv].icon} {LEVEL[lv].name}{on && <span className="ml-1 text-[10px] font-normal uppercase tracking-wider text-cyan-200">· on</span>}</span>
                 <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">{LEVEL[lv].who}</span>
               </button>
@@ -173,9 +172,7 @@ export function StrictnessSection() {
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <p className="label mr-auto">🎛️ Your Custom rules</p>
-              {(['careful', 'balanced', 'risky'] as Preset[]).map((p) => (
-                <button key={p} type="button" className="btn !px-2.5 !py-1.5 text-xs" onClick={() => (update({ customRules: { ...PRESETS[p] } }), toast('info', `Custom copied from ${LEVEL[p].name}.`))}>Copy {LEVEL[p].icon} {LEVEL[p].name}</button>
-              ))}
+              <button type="button" className="btn !px-2.5 !py-1.5 text-xs" onClick={() => (update({ customRules: { ...AUTO_RULES } }), toast('info', 'Custom reset to Auto’s rules.'))}>Reset to {LEVEL.auto.icon} Auto</button>
             </div>
             {current !== 'custom' && <p className="text-xs text-amber-200">You’re editing Custom, but it isn’t in use yet: tap “Use” above to switch to it.</p>}
             {off >= 3 && <p className="rounded-lg border border-amber-300/40 bg-amber-400/10 px-2 py-1.5 text-xs text-amber-100">⚠ {off} of {SWITCHABLE} safety rules are off: you’ll see a lot more BUYs, and more of them will be wrong. That’s your call; the scoreboard will tell you how it goes.</p>}

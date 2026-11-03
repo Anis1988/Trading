@@ -81,7 +81,7 @@ export function analyze(symbol: string, closes: number[], owned?: Holding, rules
     if (score <= 1) {
       action = 'SELL'; ideaKind = 'sell'; idea = 'Trend is weak. Think about selling some or all.';
     } else if (score >= addScore && r <= addRsi) {
-      action = 'BUY'; ideaKind = 'buy'; idea = score >= 5 ? 'Strong, steady climb. Adding more is reasonable.' : 'Good climb. On Risky, adding a little more is OK.';
+      action = 'BUY'; ideaKind = 'buy'; idea = score >= 5 ? 'Strong, steady climb. Adding more is reasonable.' : 'Good climb. Your rules allow adding a little more.';
     } else if (score >= 4 && r > (rules.stretchedOn ? rules.stretchedRsi : 70)) {
       action = 'HOLD'; ideaKind = 'hold'; idea = 'Rising fast and looks stretched. Keep holding, but do not add now.';
     } else {
@@ -90,15 +90,15 @@ export function analyze(symbol: string, closes: number[], owned?: Holding, rules
   } else if (tb.ok && !tb.stretched) {
     ideaKind = 'buy';
     half = tb.half;
-    idea = tb.half ? 'Rising fast. On Risky: buy half now and keep the rest for a dip.'
+    idea = tb.half ? 'Rising fast. Your rules say: buy half now and keep the rest for a dip.'
       : score >= 4 ? 'Steady climb and not overheated. Worth a closer look to buy.'
-      : 'Leaning up and above its 50-day average. On Risky, a small buy is OK.';
+      : 'Leaning up and above its 50-day average. Your rules allow a small buy.';
   } else if (tb.stretched) {
     ideaKind = 'wait';
     idea = 'Rising fast and looks stretched. Better to wait for a small dip.';
   } else if (score >= 4) {
     ideaKind = 'wait';
-    idea = 'Good trend, but not strong enough for Careful (it waits for 5 of 5).';
+    idea = 'Good trend, but your rules want 5 of 5 right now (Auto does when the whole market falls).';
   } else if (score <= 1) {
     ideaKind = 'avoid';
     idea = 'Trend is weak. Better to stay away for now.';

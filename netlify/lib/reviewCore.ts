@@ -117,7 +117,7 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
   // 🎚️ The level in use (Auto follows the market): the same free rules as the app's tiles, then the AI with its strictness.
   const lv = resolveRules(risk, market);
   const rule = (rationale: string, risk: string, key: WaitRule | 'trend'): ReviewResult => ({
-    verdict: 'CAUTION', confidence: 0.9, rationale, risks: [risk], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: 'rule-check', rule: key, level: lv.preset, ...extra,
+    verdict: 'CAUTION', confidence: 0.9, rationale, risks: [risk], holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: 'rule-check', rule: key, level: lv.tag, ...extra,
   });
   const notes = signal.side === 'BUY' && (risk?.aiMode ?? 'notes') === 'notes';
   if (signal.side === 'BUY') {
@@ -134,7 +134,7 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
   if (notes) {
     // Free rules passed: it's a BUY. The AI only adds notes; if it can't (no key, daily limit, error), the BUY stands.
     const ok = (r: Partial<ReviewResult>, note: string): ReviewResult => ({
-      confidence: 0.9, risks: [], ...r, verdict: 'APPROVE', rationale: note, holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: r.model ?? 'rule-check', level: lv.preset, ...extra,
+      confidence: 0.9, risks: [], ...r, verdict: 'APPROVE', rationale: note, holdingNote: hold.note, suggestedQty: hold.qty, quote: priceInfo, model: r.model ?? 'rule-check', level: lv.tag, ...extra,
     });
     if (!process.env.ANTHROPIC_API_KEY) return ok({}, 'The free rules say BUY (trend, market, earnings, finances, Reddit all fine). No AI note: ANTHROPIC_API_KEY is not set.');
     try {
@@ -207,7 +207,7 @@ export async function reviewTrade({ signal, headlines, holdings, risk }: ReviewI
       throw new ReviewError(e instanceof Error ? e.message : String(e), e instanceof BudgetError ? 429 : 502);
     }
     try {
-      return { ...(await askClaude(model, prompt, hold, priceInfo, systemFor(lv.rules.ai))), ...extra, level: lv.preset };
+      return { ...(await askClaude(model, prompt, hold, priceInfo, systemFor(lv.rules.ai))), ...extra, level: lv.tag };
     } catch (e) {
       await refundAiCredit();
       throw e;

@@ -119,7 +119,7 @@ function StockIdeas({ goTo }: { goTo?: (tab: 'Settings') => void }) {
     : [];
   const waitKey = waits.map((w) => `${w.symbol}:${w.rule}`).join(',');
   useEffect(() => {
-    if (waits.length) logWaits(waits, level.preset);
+    if (waits.length) logWaits(waits, level.tag);
   }, [waitKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const rangeLabel = range[0] || range[1] ? `${range[0] ? `$${range[0]}` : '$0'}–${range[1] ? `$${range[1]}` : 'any'}` : 'any price';
 

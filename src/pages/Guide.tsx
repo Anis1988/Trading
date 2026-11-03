@@ -61,13 +61,13 @@ const STOP_B = { symbol: 'NVDA', shares: 5, avgCost: 120, boughtAt: '2026-03-02'
 const STOP_B_DATES = ['2026-03-02', '2026-06-01', '2026-09-01', '2026-10-09'];
 const STOP_B_CLOSES = [120, 150, 190, 176];
 const BRIEF: Brief = {
-  at: '2026-10-09T13:05:00Z', day: '2026-10-09', market: { trend: 'up', ret1m: 2.4 }, level: '⚖️ Balanced',
+  at: '2026-10-09T13:05:00Z', day: '2026-10-09', market: { trend: 'up', ret1m: 2.4 }, level: '🔄 Auto',
   last: { value: 18450, change: 212, pct: 1.2 }, movers: [{ symbol: 'NVDA', pct: 3.1, dollars: 26 }, { symbol: 'TSLA', pct: -2.2, dollars: -48 }],
   stops: [{ symbol: 'TSLA', price: 218.5, stop: 214.2, away: 2 }], alerts: [{ symbol: 'MSFT', price: 488, target: 500, away: 2.5 }],
   earnings: [{ symbol: 'AAPL', inDays: 3, text: 'Earnings in 3 days (after the close), 2026-10-12' }],
   buys: [{ symbol: 'COST', price: 912, owned: false, idea: 'Steady climb, not overheated.' }],
 };
-import { LEVEL, LOCKED, PRESETS, resolveRules } from '../lib/strictness';
+import { AUTO_DOWN, AUTO_RULES, LEVEL, LOCKED, resolveRules } from '../lib/strictness';
 
 /* ------- made-up example data, only for pictures in this guide ------- */
 const wave = (start: number, drift: number, n = 60) => Array.from({ length: n }, (_, i) => Math.round((start + drift * i + Math.sin(i / 3) * start * 0.02) * 100) / 100);
@@ -207,22 +207,22 @@ export function Guide() {
             </div>
           </Section>
 
-          <Section title="🎚️ How careful should the app be?" subtitle="Careful · Balanced · Risky · Custom · Auto" icon={Icon.shield}>
-            <P>Before the app says <b>BUY</b>, the stock must pass a few safety rules (a good trend, no earnings coming up, no falling market…). Getting a lot of <b>WAIT</b>? That’s these rules. In <b>Settings → How careful should the app be?</b> you choose how strict they are. Your choice is saved on the server, so your phone and computer use the same one, and it changes everything at once: the stock tiles on Today, Ideas, the AI review and the background alerts.</P>
+          <Section title="🎚️ How careful should the app be?" subtitle="🔄 Auto · 🎛️ Custom" icon={Icon.shield}>
+            <P>Before the app says <b>BUY</b>, the stock must pass a few safety rules (a good trend, no earnings coming up, no falling market…). Getting a lot of <b>WAIT</b>? That’s these rules. In <b>Settings → How careful should the app be?</b> there are just two choices. Your choice is saved on the server, so your phone and computer use the same one, and it changes everything at once: the stock tiles on Today, Ideas, the AI review and the background alerts.</P>
             <Example caption="The level in use always shows on Today and Ideas. Tap it to go to Settings.">
               <div className="flex flex-wrap gap-2">
-                <LevelBadge r={resolveRules({ strictness: 'balanced' })} example />
-                <LevelBadge r={resolveRules({ strictness: 'risky' })} example />
+                <LevelBadge r={resolveRules({ strictness: 'auto' }, { trend: 'up', price: 0, ret1m: 3, ret3m: 6, closes: [] })} example />
                 <LevelBadge r={resolveRules({ strictness: 'auto' }, { trend: 'down', price: 0, ret1m: -4, ret3m: -6, closes: [] })} example />
+                <LevelBadge r={resolveRules({ strictness: 'custom' })} example />
               </div>
             </Example>
 
-            <p className="label pt-1">The five levels</p>
+            <p className="label pt-1">The two choices</p>
             <div className="overflow-hidden rounded-xl border border-white/10">
               <table className="w-full text-left text-sm">
-                <thead className="bg-white/5 text-xs text-slate-400"><tr><th className="px-3 py-2 font-medium">Level</th><th className="px-3 py-2 font-medium">Who it’s for</th></tr></thead>
+                <thead className="bg-white/5 text-xs text-slate-400"><tr><th className="px-3 py-2 font-medium">Choice</th><th className="px-3 py-2 font-medium">What it does</th></tr></thead>
                 <tbody>
-                  {(['careful', 'balanced', 'risky', 'custom', 'auto'] as const).map((lv) => (
+                  {(['auto', 'custom'] as const).map((lv) => (
                     <tr key={lv} className="border-t border-white/5 align-top">
                       <td className="whitespace-nowrap px-3 py-2 font-display font-semibold">{LEVEL[lv].icon} {LEVEL[lv].name}</td>
                       <td className="px-3 py-2 text-slate-300">{LEVEL[lv].who}</td>
@@ -231,25 +231,26 @@ export function Guide() {
                 </tbody>
               </table>
             </div>
-            <Tip>⚖️ Balanced is exactly how the app always worked, so nothing changes until you pick another level.</Tip>
+            <P><b>🔄 Auto</b> comes from checking your own past calls (October 2026) against the market: it keeps the app’s original rules, waits 5 days before earnings, and waits when Reddit hypes a stock after a 10% jump (the rule that helped most). When the whole market falls it gets <b>stricter</b>: no new buys until the market turns, and only the strongest trends (5 of 5).</P>
 
-            <p className="label pt-1">What each level does, rule by rule</p>
+            <p className="label pt-1">What Auto does, rule by rule</p>
             <div className="-mx-1 overflow-x-auto px-1">
-              <table className="w-full min-w-[520px] text-left text-xs">
+              <table className="w-full min-w-[420px] text-left text-xs">
                 <thead className="bg-white/5 text-slate-400">
-                  <tr><th className="px-2 py-2 font-medium">Rule</th><th className="px-2 py-2 font-medium">🛡️ Careful</th><th className="px-2 py-2 font-medium">⚖️ Balanced</th><th className="px-2 py-2 font-medium">🚀 Risky</th></tr>
+                  <tr><th className="px-2 py-2 font-medium">Rule</th><th className="px-2 py-2 font-medium">Market rising or mixed</th><th className="px-2 py-2 font-medium">Market falling</th></tr>
                 </thead>
                 <tbody>
-                  {ruleLines(PRESETS.balanced).map(([name], i) => (
+                  {ruleLines(AUTO_RULES).map(([name, v], i) => (
                     <tr key={name} className="border-t border-white/5 align-top">
                       <td className="px-2 py-2 font-medium text-slate-200">{name}</td>
-                      {(['careful', 'balanced', 'risky'] as const).map((p) => <td key={p} className="px-2 py-2 text-slate-300">{ruleLines(PRESETS[p])[i][1]}</td>)}
+                      <td className="px-2 py-2 text-slate-300">{v}</td>
+                      <td className="px-2 py-2 text-slate-300">{ruleLines(AUTO_DOWN)[i][1]}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-slate-500">On a phone, slide the table sideways to see all three levels.</p>
+            <p className="text-xs text-slate-500">On a phone, slide the table sideways to see both columns.</p>
 
             <p className="label pt-1">Why each rule is there</p>
             <div className="overflow-hidden rounded-xl border border-white/10">
@@ -258,13 +259,13 @@ export function Guide() {
                   {(
                     [
                       ['Trend needed', 'Points for: price above its 50-day average, its 20-day average above its 50-day one, up over 1 month, up over 3 months, and RSI between 40 and 70 (not overheated). More points = a steadier climb.'],
-                      ['Rising too fast', 'RSI measures how hot a price is (0–100). Above 70 it often pauses or dips. On 🚀 Risky, between 70 and 78 you get “Buy half now” instead: half today, the rest on a dip.'],
+                      ['Rising too fast', 'RSI measures how hot a price is (0–100). Above 70 it often pauses or dips. In Custom you can turn on “Buy half now” instead: half today, the rest on a dip.'],
                       ['Earnings', 'On the day a company reports its results the price can jump or drop 10% or more. Waiting a few days avoids that coin flip.'],
                       ['Falling market', 'When the whole market (the S&P 500) falls, most stocks fall with it, even good ones.'],
                       ['Weak finances', 'Shrinking sales, losses or heavy debt: a struggling company can fall further.'],
                       ['Reddit', 'A sudden crowd talking about a stock for a bad reason, or hype right after a big jump, often reverses.'],
                       ['AI reviewer', 'The AI second opinion is told how strict to be. Relaxed approves more; strict rejects more.'],
-                      ['Shares to buy', 'Looser rules mean more buys that turn out wrong, so 🚀 Risky buys about 60% of the normal number of shares: the money at risk stays about the same.'],
+                      ['Shares to buy', 'Looser rules mean more buys that turn out wrong, so if you loosen rules in Custom, buying fewer shares keeps the money at risk about the same.'],
                     ] as const
                   ).map(([k, v]) => (
                     <tr key={k} className="border-t border-white/5 align-top first:border-0"><td className="w-28 px-3 py-2 font-medium text-slate-200">{k}</td><td className="px-3 py-2 text-slate-300">{v}</td></tr>
@@ -278,15 +279,15 @@ export function Guide() {
             <P>These can never be switched off, not even in Custom: they protect you from the mistakes that hurt the most.</P>
 
             <p className="label pt-1">Before you switch: what would change</p>
-            <P>Tap a level in Settings and, before anything changes, the app shows how many of your stocks (and watchlist) would turn from WAIT into BUY, or the other way, with today’s prices. Tap <b>Use</b> to switch, or <b>Cancel</b>.</P>
-            <Example caption="Made up: switching from Balanced to Risky.">
-              <PreviewBox name="🚀 Risky" more={['NVDA', 'AMD']} fewer={[]} total={8} example />
+            <P>Tap Auto or Custom in Settings and, before anything changes, the app shows how many of your stocks (and watchlist) would turn from WAIT into BUY, or the other way, with today’s prices. Tap <b>Use</b> to switch, or <b>Cancel</b>.</P>
+            <Example caption="Made up: switching from Auto to your Custom rules.">
+              <PreviewBox name="🎛️ Custom" more={['NVDA', 'AMD']} fewer={[]} total={8} example />
             </Example>
 
             <p className="label pt-1">🎛️ Custom, step by step</p>
             <Steps items={[
-              <>In Settings, tap <b>🎛️ Custom</b>. Your list starts from the level you’re on, so nothing jumps.</>,
-              <>Or tap <b>Copy 🛡️ Careful</b>, <b>Copy ⚖️ Balanced</b> or <b>Copy 🚀 Risky</b> to start from one of them.</>,
+              <>In Settings, tap <b>🎛️ Custom</b>. Your list starts from Auto’s rules, so nothing jumps.</>,
+              <>Changed too much? Tap <b>Reset to 🔄 Auto</b> to start again from Auto’s rules.</>,
               <>Switch each rule on or off, and change its number (for example: wait 2 days before earnings instead of 5).</>,
               <>Under each rule you see the scoreboard’s answer to “was waiting worth it?”. <span className="text-red-300">Red</span> after 5 or more checks means that rule held you back more than it helped: a good one to loosen.</>,
               <>Tap <b>Use 🎛️ Custom</b>. If 3 or more safety rules are off, a warning reminds you that you’ll see many more BUYs.</>,
@@ -298,22 +299,9 @@ export function Guide() {
               </RuleRow>
             </Example>
 
-            <p className="label pt-1">🔄 Auto</p>
-            <div className="overflow-hidden rounded-xl border border-white/10">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-white/5 text-xs text-slate-400"><tr><th className="px-3 py-2 font-medium">The whole market is…</th><th className="px-3 py-2 font-medium">Auto uses</th></tr></thead>
-                <tbody>
-                  <tr className="border-t border-white/5"><td className="px-3 py-2">▼ Falling</td><td className="px-3 py-2">🛡️ Careful</td></tr>
-                  <tr className="border-t border-white/5"><td className="px-3 py-2">◆ Mixed</td><td className="px-3 py-2">⚖️ Balanced</td></tr>
-                  <tr className="border-t border-white/5"><td className="px-3 py-2">▲ Rising</td><td className="px-3 py-2">🚀 Risky</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <P>Most bad buys happen in a falling market, so Auto only loosens up when it’s safer. The label tells you what it picked and why, like “🔄 Auto → 🛡️ Careful (market falling)”.</P>
-
             <p className="label pt-1">Did it work?</p>
             <P>Every call is tagged with the level in use. Open <b>History → Scoreboard</b>: “By level” shows how often each level’s BUYs beat the market, and “Which rules helped?” marks each WAIT rule ✓ Helped or ✕ Held you back. Give it a few weeks (20+ calls) before judging.</P>
-            <Warn>Looser rules show more BUYs, and some will be the ones the rules would have protected you from, especially when the whole market falls. That’s why Risky buys smaller. The app never places orders: you always decide.</Warn>
+            <Warn>Loosening rules in Custom shows more BUYs, and some will be the ones the rules would have protected you from, especially when the whole market falls. The app never places orders: you always decide.</Warn>
           </Section>
 
           <Section title="What the AI looks at" subtitle="Everything it gets before it answers" icon={Icon.ideas}>
@@ -427,7 +415,7 @@ export function Guide() {
             <ul className="space-y-1.5 text-sm text-slate-300">
               <li><b>📞 Covered call</b> (you own 100+ shares): someone pays you now for the right to buy your shares at a higher price (the <b>strike</b>) until a date. If the stock ends above the strike, your shares are sold at that price, plus you keep the payment. If not, you keep both.</li>
               <li><b>💵 Cash-secured put</b> (a stock you’d like to own): someone pays you now for the right to sell you 100 shares at a lower price. If the stock ends below the strike, you buy them at that price, really a bit less thanks to the payment. If not, you just keep the payment. Keep the cash aside.</li>
-              <li><b>Chance</b>: how likely it is that the shares are sold (call) or bought (put) by the date. Your level in Settings decides: 🛡️ Careful about 15%, ⚖️ Balanced about 25%, 🚀 Risky about 35%. Careful and Balanced also pick a date that ends <b>before earnings</b>.</li>
+              <li><b>Chance</b>: how likely it is that the shares are sold (call) or bought (put) by the date. Your level in Settings decides: 🔄 Auto about 25% (about 15% when the whole market falls); 🎛️ Custom about 25%. Both pick a date that ends <b>before earnings</b>.</li>
               <li><b>Never</b>: a call without the shares (unlimited risk), a put without the cash, or a call below what you paid (that would lock in a loss).</li>
               <li><b>Try any option</b>: type a symbol, pick put or call, a date and a strike: you get the same numbers, chart and order.</li>
             </ul>
