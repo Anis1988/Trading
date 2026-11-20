@@ -29,6 +29,7 @@ const Body = z.object({
     strictness: z.enum(['careful', 'balanced', 'risky', 'custom', 'auto']).optional(),
     customRules: CustomRules.optional(),
     aiMode: z.enum(['decide', 'notes']).optional(),
+    stopWatch: z.object({ on: z.boolean(), pct: z.number().min(1).max(50), trailing: z.boolean(), custom: z.record(z.string(), z.number().min(1).max(50)).optional() }).optional(),
   }).optional(),
 });
 

@@ -305,9 +305,15 @@ export function Guide() {
           </Section>
 
           <Section title="What the AI looks at" subtitle="Everything it gets before it answers" icon={Icon.ideas}>
-            <P><b>Who decides a BUY</b> (Settings → Risk &amp; orders): by default the <b>free rules</b> decide: the trend must be good enough for your level (same as the stock tiles) and no WAIT rule may apply. The AI then only adds a note, like “it would have said WAIT: …”. We chose this after checking October’s calls: the BUYs the AI approved mostly did worse than the market, and the ones it skipped mostly did better. The scoreboard keeps tracking what the AI would have said, so you can switch back to <b>AI</b> if it starts getting it right.</P>
+            <P><b>Who decides BUY and SELL</b> (Settings → Risk &amp; orders): by default the <b>free rules</b> decide, and the AI only adds a note, like “it would have said WAIT: …”.</P>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-300">
+              <li><b>BUY</b>: the trend must be good enough for your level (same as the stock tiles) and no WAIT rule may apply.</li>
+              <li><b>SELL a stock you own</b>: when its trend turns weak (1 of 5 or less) or the price reaches your 🛑 stop-loss.</li>
+              <li><b>SELL a broad fund</b> (like VTI, which holds the whole market): only at your stop-loss. Funds usually come back, so the app holds them through dips.</li>
+            </ul>
+            <P>Why: when we checked your past calls, the BUYs the AI approved mostly did worse than the market and the ones it skipped did better (October), and it blocked all 99 SELLs on stocks you owned while NVDA fell 41% (November). The scoreboard keeps tracking what the AI would have said, so you can switch back to <b>AI</b> if it starts getting it right.</P>
             <Example caption="The switch in Settings (this one does nothing).">
-              <Seg label="Who decides a BUY (example)" value="notes" onChange={() => undefined} options={[['notes', 'Free rules'], ['decide', 'AI']] as const} />
+              <Seg label="Who decides BUY and SELL (example)" value="notes" onChange={() => undefined} options={[['notes', 'Free rules'], ['decide', 'AI']] as const} />
             </Example>
             <P>When a signal passes the free safety rules, Claude gets all of this and answers in plain words:</P>
             <ul className="grid gap-1.5 text-sm text-slate-300 sm:grid-cols-2">
