@@ -1,6 +1,7 @@
 import type { Level, Rules } from './strictness';
 import type { Headline, Review, Signal } from '../types';
 import type { Holding } from './holdings';
+import type { StopWatch } from './stopWatch';
 import type { Series } from './trend';
 import type { Idea } from './picks';
 import { SourceError } from './rss';
@@ -50,7 +51,7 @@ export async function fetchServerHeadlines(symbols: string[]): Promise<{ headlin
   return call(`/api/news?symbols=${encodeURIComponent(symbols.join(','))}`);
 }
 
-export interface ReviewRisk { riskPerTrade: number; stopLossPct: number; smartStop: boolean; cash?: number; horizon?: 'short' | 'medium' | 'long'; strictness?: Level; customRules?: Partial<Rules>; aiMode?: 'decide' | 'notes' }
+export interface ReviewRisk { riskPerTrade: number; stopLossPct: number; smartStop: boolean; cash?: number; horizon?: 'short' | 'medium' | 'long'; strictness?: Level; customRules?: Partial<Rules>; aiMode?: 'decide' | 'notes'; stopWatch?: StopWatch }
 
 export async function fetchReview(sig: Signal, headlines: Headline[], holdings: Holding[], risk?: ReviewRisk): Promise<Review> {
   const rel = headlines.filter((h) => h.symbol === sig.symbol || h.title.includes(sig.symbol)).slice(0, 15);

@@ -138,7 +138,7 @@ export async function runWatch(opts: { force?: boolean } = {}): Promise<WatchRes
           signal: { symbol: sig.symbol, side: sig.side, confidence: sig.confidence, reason: sig.reason, qty: sig.qty },
           headlines: fresh.filter((h) => h.symbol === sig.symbol).slice(0, 15).map((h) => ({ title: h.title, source: h.source, publishedAt: h.publishedAt })),
           holdings,
-          risk: { riskPerTrade: s.riskPerTrade ?? 100, stopLossPct: s.stopLossPct ?? 5, smartStop: s.smartStop ?? true, cash: s.cash, horizon: s.horizon, strictness: s.strictness, customRules: s.customRules, aiMode: s.aiMode },
+          risk: { riskPerTrade: s.riskPerTrade ?? 100, stopLossPct: s.stopLossPct ?? 5, smartStop: s.smartStop ?? true, cash: s.cash, horizon: s.horizon, strictness: s.strictness, customRules: s.customRules, aiMode: s.aiMode, stopWatch: s.stopWatch },
         }),
       ),
     );

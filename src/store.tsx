@@ -257,7 +257,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     patchSignal(sig.id, { reviewStatus: 'pending', reviewError: undefined });
     try {
       const cs = ref.current.settings;
-      const r = await fetchReview(sig, context ?? ref.current.headlines, cs.holdings, { riskPerTrade: cs.riskPerTrade, stopLossPct: cs.stopLossPct, smartStop: cs.smartStop, cash: cs.cash, horizon: cs.horizon, strictness: cs.strictness, customRules: cs.customRules, aiMode: cs.aiMode });
+      const r = await fetchReview(sig, context ?? ref.current.headlines, cs.holdings, { riskPerTrade: cs.riskPerTrade, stopLossPct: cs.stopLossPct, smartStop: cs.smartStop, cash: cs.cash, horizon: cs.horizon, strictness: cs.strictness, customRules: cs.customRules, aiMode: cs.aiMode, stopWatch: cs.stopWatch });
       const qty = r.suggestedQty && r.suggestedQty > 0 ? r.suggestedQty : sig.qty;
       if (qty !== sig.qty) log('info', `${sig.symbol}: quantity changed ${sig.qty} -> ${qty} to match what you own.`);
       const st = ref.current.settings;
