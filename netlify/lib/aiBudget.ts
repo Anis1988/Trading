@@ -1,4 +1,5 @@
 import { STOPPED_TEXT, isStopped, readServer, readState, writeServer } from './state';
+import { MASTER_AI_TEXT, MASTER_PAUSED_TEXT, masterSwitch } from './masterSwitch';
 
 /** Cheapest model that still writes good plain-language reviews. Override with REVIEW_MODEL. */
 export const reviewModel = () => process.env.REVIEW_MODEL || 'claude-sonnet-5-5';
@@ -26,6 +27,8 @@ export async function aiUsage(): Promise<{ used: number; limit: number }> {
 
 /** Counts one paid AI call against today's limit (shared by the app, background alerts and Ideas). */
 export async function takeAiCredit(): Promise<void> {
+  const m = await masterSwitch(); // 🎛️ Master can pause the app or switch its AI off
+  if (m.work || m.ai) throw new BudgetError(m.work ? MASTER_PAUSED_TEXT : MASTER_AI_TEXT);
   if (await isStopped()) throw new BudgetError(STOPPED_TEXT);
   let u: { day: string; n: number };
   try {
