@@ -1,4 +1,5 @@
 import { getStore } from '@netlify/blobs';
+import { masterSwitch } from './masterSwitch';
 import type { HistoryItem, ScoreEntry, Settings } from '../../src/types';
 
 /** The synced document written by /api/sync (see src/lib/sync.ts). */
@@ -21,6 +22,7 @@ export async function readState(): Promise<StoredState | null> {
 
 /** ⛔ Stop pressed in the app (synced): no AI, no email, no notifications, no background checks. Unreadable = not stopped. */
 export async function isStopped(): Promise<boolean> {
+  if ((await masterSwitch()).work) return true; // 🎛️ paused from Master (the owner's apps dashboard)
   try {
     return !!(await readState())?.data.settings.stopped;
   } catch {
